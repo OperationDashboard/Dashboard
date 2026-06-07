@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Sistem Operasi Harian & Dashboard Power BI Dark Style</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .pbi-card { background-color: #1f2937; border: 1px solid #374151; }
+        .neon-glow-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
+        .neon-glow-emerald { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+        .neon-glow-purple { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
+        .neon-glow-amber { box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .modal-backdrop { background-color: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); }
+        .tab-active { border-bottom-width: 2px; border-color: #06b6d4; color: #06b6d4; }
+        .tab-inactive { color: #64748b; }
+        .tab-inactive:hover { color: #cbd5e1; }
+        .spinner { border: 3px solid rgba(255,255,255,0.1); width: 20px; height: 20px; border-radius: 50%; border-left-color: #06b6d4; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="h-full font-sans antialiased selection:bg-cyan-500 selection:text-slate-900" id="app-root">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-800 bg-slate-900 px-4 sm:px-6 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500 shadow-lg shadow-cyan-500/30">
+                <i class="fa-solid block fa-chart-line text-lg text-slate-950"></i>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold tracking-tight text-white sm:text-lg">OPERATIONAL HUB</h1>
+                <p class="text-[10px] sm:text-xs text-cyan-400 font-medium" id="header-subtitle" data-i18n="subtitle_login">Please login to continue</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Universal Live Time -->
+            <div class="hidden sm:flex flex-col items-end mr-2 bg-slate-950/50 px-3 py-1 rounded-lg border border-slate-800">
+                <span id="live-clock" class="text-xs font-mono text-cyan-400 font-bold tracking-widest">00:00:00</span>
+                <span id="live-date" class="text-[9px] text-slate-400">DD/MM/YYYY</span>
+            </div>
+
+            <!-- Global Action Buttons -->
+            <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700">
+                <button onclick="toggleLang()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors">
+                    <i class="fa-solid fa-language mr-1"></i> <span id="lang-indicator">EN</span>
+                </button>
+                <div class="w-px h-4 bg-slate-600"></div>
+                <button onclick="location.reload()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors" title="Refresh App">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> <span class="hidden sm:inline" data-i18n="btn_refresh">Refresh</span>
+                </button>
+            </div>
+
+            <!-- Pre-login Buttons -->
+            <div class="flex items-center gap-1 sm:gap-2 rounded-xl bg-slate-950 p-1 border border-slate-800" id="nav-buttons">
+                <button onclick="openLoginModal('branch')" class="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] font-bold transition-all bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700">
+                    <i class="fa-solid fa-store"></i> <span class="hidden sm:inline" data-i18n="btn_branch">Branch</span>
+                </button>
+                <button onclick="openLoginModal('am')" class="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] font-bold transition-all bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700">
+                    <i class="fa-solid fa-user-tie"></i> <span class="hidden sm:inline" data-i18n="btn_am">Area Manager</span>
+                </button>
+                <button onclick="openLoginModal('admin')" class="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] font-bold transition-all bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700">
+                    <i class="fa-solid fa-user-gear"></i> <span class="hidden sm:inline" data-i18n="btn_admin">Admin</span>
+                </button>
+            </div>
+            
+            <!-- Logged in Controls -->
+            <div class="hidden items-center gap-3" id="logged-in-controls">
+                <div id="sync-status" class="hidden items-center gap-2 mr-3 px-3 py-1 bg-slate-950 border border-slate-700 rounded-lg">
+                    <div class="spinner"></div> <span class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
+                </div>
+                <div class="text-right hidden sm:block">
+                    <p class="text-[11px] font-bold text-white uppercase" id="current-user-name">User Name</p>
+                    <p class="text-[9px] text-cyan-400" id="current-user-role">Role</p>
+                </div>
+                <button onclick="logout()" class="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all border border-rose-500/20">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex min-h-[calc(100vh-4rem)] flex-col">
+        
+        <!-- Welcome Screen -->
+        <main class="flex-1 p-4 flex items-center justify-center" id="section-welcome">
+            <div class="text-center space-y-4 max-w-md">
+                <i class="fa-solid fa-shield-halved text-6xl text-slate-700"></i>
+                <h2 class="text-2xl font-bold text-white" data-i18n="welcome_title">Secure Access System</h2>
+                <p class="text-sm text-slate-400" data-i18n="welcome_desc">Please select your role at the top right to access operational data.</p>
+                <div class="mt-4 inline-block bg-slate-900 border border-slate-700 rounded-full px-4 py-1">
+                    <span class="text-xs font-bold text-cyan-500">Version 9.15 (System Build)</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- CAWANGAN SECTION -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 hidden" id="section-branch">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-l-4 border-cyan-500 bg-slate-900/60 p-4 rounded-r-xl mb-6 gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-file-pen mr-2 text-cyan-400"></i><span data-i18n="branch_form_title">Daily Data Entry Form</span></h2>
+                    <p class="text-xs text-slate-400 mt-1" data-i18n="branch_form_desc">Complete daily sales and logistics. Data is auto-synced to HQ.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Branch Info Card -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="pbi-card rounded-2xl p-5 shadow-xl">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4" data-i18n="branch_info">Branch Information</h3>
+                        <div class="space-y-4">
+                            <div class="bg-slate-900 rounded-xl p-3 border border-slate-800"><p class="text-[10px] text-slate-500 uppercase font-bold">Branch Code & Name</p>
+                                <p class="text-sm text-white font-semibold mt-0.5"><span id="info-branch-code" class="text-cyan-400 mr-1">-</span> <span id="info-branch-name">-</span></p>
+                            </div>
+                            <div class="bg-slate-900 rounded-xl p-3 border border-slate-800"><p class="text-[10px] text-slate-500 uppercase font-bold">Area Manager</p>
+                                <p class="text-sm text-white font-semibold mt-0.5" id="info-branch-am">-</p>
+                            </div>
+                            <div class="bg-slate-900 rounded-xl p-3 border border-slate-800"><p class="text-[10px] text-slate-500 uppercase font-bold">Submission Time (Night)</p>
+                                <p class="text-xs text-amber-400 font-semibold mt-0.5" id="info-branch-submit-time">Not submitted yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Part 1: Night Data -->
+                    <div class="pbi-card rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                        
+                        <div id="branch-night-locked" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-10 hidden flex-col items-center justify-center rounded-2xl border border-emerald-500/30">
+                            <div class="h-16 w-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
+                                <i class="fa-solid fa-cloud-check text-3xl text-emerald-500"></i>
+                            </div>
+                            <h3 class="text-xl font-black text-white uppercase tracking-widest" data-i18n="status_done">SYNCED TO HQ</h3>
+                            <p class="text-xs text-slate-300 mt-2 max-w-sm text-center" data-i18n="branch_locked_desc">Data has been successfully submitted to the server. Contact AM to reset.</p>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-700 pb-2 mb-4 gap-2">
+                            <h3 class="text-sm font-bold text-cyan-400 uppercase" data-i18n="branch_section_night">Primary Operations Data</h3>
+                            <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-lg shadow-inner">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Sales Date:</span>
+                                <input type="date" id="night-date" onchange="syncBranchNightData()" class="bg-transparent text-xs text-white outline-none font-bold cursor-pointer w-[110px]">
+                            </div>
+                        </div>
+                        <form id="branch-night-form" onsubmit="confirmNightSubmit(event)" class="space-y-4 relative z-0">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_sales">Daily Sales (RM)</label><input type="number" step="0.01" id="f-sales" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_trans">Transactions</label><input type="number" id="f-trans" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_mykasih">MyKasih (RM)</label><input type="number" step="0.01" id="f-mykasih" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_lorry">Lorry Cost (RM)</label><input type="number" step="0.01" id="f-lorry" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
+                            </div>
+                            <button type="submit" id="btn-submit-night" class="w-full mt-4 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> <span data-i18n="btn_submit_night">Submit & Sync to HQ</span></button>
+                        </form>
+                    </div>
+
+                    <!-- Part 2: Bank-In Data -->
+                    <div class="pbi-card rounded-2xl p-5 shadow-xl">
+                        <form id="branch-bank-form" onsubmit="saveBankInData(event)" class="space-y-4">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-700 pb-2 mb-4 gap-2">
+                                <h3 class="text-sm font-bold text-emerald-400 uppercase" data-i18n="branch_section_bank">Bank-In Updates (Always Editable)</h3>
+                                <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-lg shadow-inner">
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Sales Date:</span>
+                                    <input type="date" id="bank-in-date" onchange="syncBranchBankData()" class="bg-transparent text-xs text-white outline-none font-bold cursor-pointer w-[110px]">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_bank1">1st Bank-In (RM)</label><input type="number" step="0.01" id="f-bank1" placeholder="0.00" class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-emerald-500 focus:outline-none" min="0"><span class="text-[9px] font-bold text-slate-500 block mt-1" id="bank1-time"></span></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_bank2">2nd Bank-In (RM)</label><input type="number" step="0.01" id="f-bank2" placeholder="0.00" class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-emerald-500 focus:outline-none" min="0"><span class="text-[9px] font-bold text-slate-500 block mt-1" id="bank2-time"></span></div>
+                            </div>
+                            <div class="flex flex-col sm:flex-row items-center justify-end gap-4 mt-4 pt-2">
+                                <button type="submit" class="w-full sm:w-auto px-8 rounded-xl bg-slate-800 py-3 text-sm font-bold text-emerald-400 border border-emerald-500/30 hover:bg-slate-700 transition-all shadow-md"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> <span data-i18n="btn_save_bank">Sync Bank-In Data</span></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- AREA MANAGER & ADMIN SECTION -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 hidden" id="section-manager">
+            
+            <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
+                    <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Analytics Dashboard</button>
+                    <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
+                    <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only" data-i18n="tab_control">System Control</button>
+                </div>
+                <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
+                    <i class="fa-solid fa-list-check text-cyan-400"></i>
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wide" data-i18n="lbl_submission_ratio">Submission Ratio</span>
+                    <span id="am-stat-ratio" class="text-sm font-black text-white ml-1">0 / 0</span>
+                </div>
+            </div>
+
+            <!-- SMART FILTERS -->
+            <div class="am-only hidden mb-6 p-4 bg-slate-900 rounded-xl border border-slate-800 shadow-md flex-col lg:flex-row gap-4 items-start lg:items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-cyan-400"></i>
+                    <span class="text-xs font-bold text-slate-400 uppercase">Smart Filters:</span>
+                </div>
+                <div class="flex flex-wrap gap-3 flex-1 w-full">
+                    <div class="admin-only flex-1 min-w-[140px] hidden"><select id="filter-state" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All States</option></select></div>
+                    <div class="admin-only flex-1 min-w-[140px] hidden"><select id="filter-am" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Area Managers</option></select></div>
+                    <div class="flex-1 min-w-[140px]"><select id="filter-warehouse" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Warehouses</option></select></div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD TAB -->
+            <section id="tab-dashboard" class="space-y-6">
+                <!-- Date Filters & Actions -->
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <select id="dash-mode" onchange="toggleDashMode()" class="bg-slate-800 text-cyan-400 font-bold text-xs rounded-lg px-3 py-2.5 outline-none border border-slate-600 focus:border-cyan-500 shadow cursor-pointer">
+                            <option value="daily">Daily Mode</option>
+                            <option value="monthly">Monthly Mode</option>
+                        </select>
+                        <div class="relative group cursor-pointer" onclick="document.getElementById(document.getElementById('dash-mode').value==='daily'?'dash-date':'dash-month').showPicker()">
+                            <div class="flex items-center gap-2 bg-slate-800 group-hover:bg-slate-700 border border-slate-600 px-4 py-2.5 rounded-lg transition-colors shadow">
+                                <i class="fa-solid fa-calendar-day text-cyan-400"></i>
+                                <span id="dash-date-display" class="text-xs font-bold text-white pointer-events-none">Select Date</span>
+                            </div>
+                            <input type="date" id="dash-date" onchange="updateDateDisplay('dash-date'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer">
+                            <input type="month" id="dash-month" onchange="updateDateDisplay('dash-month'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer hidden">
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <button onclick="toggleMasterLock()" id="btn-master-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
+                        <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-green-400 border border-green-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+                        <button onclick="exportData('pdf')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="pdf-kpi-area">
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-cyan-500 neon-glow-cyan relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-3 opacity-10"><i class="fa-solid fa-wallet text-5xl"></i></div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="kpi_sales">Total Sales</p>
+                        <h3 id="kpi-sales" class="text-2xl sm:text-3xl font-black text-white mt-1">RM 0</h3>
+                        <p id="kpi-sales-trend" class="text-[10px] mt-2 font-bold"></p>
+                    </div>
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-emerald-500 neon-glow-emerald relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-3 opacity-10"><i class="fa-solid fa-hand-holding-dollar text-5xl"></i></div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="kpi_mykasih">MyKasih</p>
+                        <h3 id="kpi-mykasih" class="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">RM 0</h3>
+                        <p id="kpi-mykasih-trend" class="text-[10px] mt-2 font-bold"></p>
+                    </div>
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-purple-500 neon-glow-purple relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-3 opacity-10"><i class="fa-solid fa-truck text-5xl"></i></div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="kpi_lorry">Lorry Cost</p>
+                        <h3 id="kpi-lorry" class="text-2xl sm:text-3xl font-black text-purple-400 mt-1">RM 0</h3>
+                        <p id="kpi-lorry-trend" class="text-[10px] mt-2 font-bold"></p>
+                    </div>
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-amber-500 neon-glow-amber relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-3 opacity-10"><i class="fa-solid fa-receipt text-5xl"></i></div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="kpi_trans">Transactions</p>
+                        <h3 id="kpi-trans" class="text-2xl sm:text-3xl font-black text-amber-500 mt-1">0</h3>
+                        <p id="kpi-trans-trend" class="text-[10px] mt-2 font-bold"></p>
+                    </div>
+                </div>
+
+                <!-- Lorry vs Sales Comparison KPI -->
+                <div class="pbi-card rounded-xl p-5 shadow-xl flex items-center justify-between border-l-4 border-l-blue-500 bg-slate-900 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 opacity-5"><i class="fa-solid fa-scale-balanced text-7xl"></i></div>
+                    <div class="relative z-10">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-1"><i class="fa-solid fa-scale-balanced text-blue-400 mr-1.5"></i> Value of Lorry vs Total Sales</h3>
+                        <p class="text-[10px] text-slate-400">Difference = (Total Lorry) - (Total Sales)</p>
+                    </div>
+                    <div class="text-right relative z-10">
+                        <h3 id="kpi-diff" class="text-2xl sm:text-3xl font-black text-white">RM 0</h3>
+                        <p id="kpi-diff-status" class="text-[10px] font-bold uppercase mt-1"></p>
+                    </div>
+                </div>
+
+                <!-- Charts Area -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="pbi-card rounded-xl p-4 shadow-xl flex flex-col">
+                        <h3 class="text-xs font-bold uppercase text-white mb-4 border-b border-slate-800 pb-2"><i class="fa-solid fa-chart-line mr-1 text-cyan-400"></i> Sales Trend (7 Days)</h3>
+                        <div class="relative flex-1 min-h-[200px]"><canvas id="chart-sales-trend"></canvas></div>
+                    </div>
+                    <div class="pbi-card rounded-xl p-4 shadow-xl flex flex-col">
+                        <h3 class="text-xs font-bold uppercase text-white mb-4 border-b border-slate-800 pb-2"><i class="fa-solid fa-chart-bar mr-1 text-purple-400"></i> Sales vs Bank-In vs Lorry (Today)</h3>
+                        <div class="relative flex-1 min-h-[200px]"><canvas id="chart-bar-compare"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Leaderboards -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-xs font-bold uppercase text-emerald-400 mb-3 pb-2 border-b border-slate-800"><i class="fa-solid fa-crown mr-1"></i> Top 10 Branches (Sales)</h3>
+                        <div id="board-top" class="space-y-1.5 max-h-72 overflow-y-auto pr-1"></div>
+                    </div>
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-xs font-bold uppercase text-rose-400 mb-3 pb-2 border-b border-slate-800"><i class="fa-solid fa-arrow-trend-down mr-1"></i> Bottom 10 Branches (Sales)</h3>
+                        <div id="board-bottom" class="space-y-1.5 max-h-72 overflow-y-auto pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- Branch Comparison Table -->
+                <div class="pbi-card rounded-xl p-4 shadow-xl mt-6 border border-slate-800">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+                        <h3 class="text-xs font-bold uppercase text-blue-400"><i class="fa-solid fa-list-ul mr-1"></i> Branch Lorry vs Sales Details</h3>
+                    </div>
+                    <div class="overflow-x-auto max-h-[400px]">
+                        <table class="w-full text-left text-[11px] border-collapse whitespace-nowrap">
+                            <thead class="sticky top-0 z-10 bg-slate-950 shadow-sm">
+                                <tr class="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                                    <th class="p-3">Branch</th>
+                                    <th class="p-3 text-cyan-400">Sales (RM)</th>
+                                    <th class="p-3 text-purple-400">Lorry (RM)</th>
+                                    <th class="p-3 text-right">Difference (RM)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-compare-tbody" class="divide-y divide-slate-800/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TRACKING TAB -->
+            <section id="tab-tracking" class="hidden space-y-4">
+                <!-- Filters -->
+                <div class="flex flex-col sm:flex-row justify-between gap-4 p-4 bg-slate-900 rounded-xl border border-slate-800 shadow-md">
+                    <div class="flex items-center gap-3">
+                        <div class="relative group cursor-pointer" onclick="document.getElementById('track-date').showPicker()">
+                            <div class="flex items-center gap-2 bg-slate-800 group-hover:bg-slate-700 border border-slate-600 px-4 py-2 rounded-lg transition-colors shadow">
+                                <i class="fa-solid fa-calendar-day text-cyan-400"></i>
+                                <span id="track-date-display" class="text-xs font-bold text-white pointer-events-none">Select Date</span>
+                            </div>
+                            <input type="date" id="track-date" onchange="updateDateDisplay('track-date'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <input type="text" id="track-search" oninput="renderTrackingTable()" placeholder="Search code/name..." class="flex-1 sm:w-64 rounded-lg bg-slate-950 px-4 py-2 text-xs border border-slate-700 text-white outline-none focus:border-cyan-500 shadow-inner">
+                        <button onclick="confirmMasterReset()" class="admin-only cursor-pointer bg-red-950/80 text-red-500 border border-red-900/50 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-900 hover:text-white transition-all shadow-md whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASTER RESET NIGHT</button>
+                    </div>
+                </div>
+                
+                <!-- Table -->
+                <div class="pbi-card rounded-xl overflow-hidden shadow-xl" id="tracking-table-wrapper">
+                    <div class="overflow-x-auto max-h-[600px]" id="pdf-table-area">
+                        <div id="pdf-table-header" class="hidden p-4 bg-slate-900 text-center border-b border-slate-800">
+                            <h2 class="text-lg font-bold text-white" id="pdf-table-title">Daily Operations Report</h2>
+                        </div>
+                        <table class="w-full text-left text-[11px] border-collapse whitespace-nowrap" id="main-tracking-table">
+                            <thead class="sticky top-0 z-10 bg-slate-950 shadow-md">
+                                <tr class="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                                    <th class="p-3">Branch</th>
+                                    <th class="p-3">Sales (RM)</th>
+                                    <th class="p-3">Trans</th>
+                                    <th class="p-3">MyKasih</th>
+                                    <th class="p-3">Lorry</th>
+                                    <th class="p-3 text-emerald-400">1st Bank-In</th>
+                                    <th class="p-3 text-emerald-400">2nd Bank-In</th>
+                                    <th class="p-3 text-emerald-500 font-black border-r border-slate-700">Total Bank In</th>
+                                    <th class="p-3">Balance</th>
+                                    <th class="p-3 text-center">Status</th>
+                                    <th class="p-3 text-center pdf-exclude">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tracking-tbody" class="divide-y divide-slate-800/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SYSTEM CONTROL TAB (ADMIN ONLY) -->
+            <section id="tab-control" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Master Directory Upload -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute right-0 bottom-0 opacity-5"><i class="fa-solid fa-file-excel text-8xl"></i></div>
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4 relative z-10"><i class="fa-solid fa-file-excel text-green-500 mr-1.5"></i> Update Master Directory</h3>
+                        <p class="text-xs text-slate-400 mb-6 relative z-10">Upload Excel (.xlsx) with columns: Code, Outlet, AM, State.</p>
+                        <input type="file" id="excel-upload-input" accept=".xlsx, .xls, .csv" class="relative z-10 w-full text-xs text-slate-300 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-cyan-400 hover:file:bg-slate-700 cursor-pointer transition-colors shadow" onchange="processExcelUpload(event)">
+                    </div>
+                    
+                    <!-- Password Management -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-key text-amber-500 mr-1.5"></i> Password Management</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-3">
+                                <span class="w-24 text-xs font-bold text-slate-400 uppercase">Admin</span>
+                                <input type="text" id="pwd-admin" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-500">
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="w-24 text-xs font-bold text-slate-400 uppercase">Area Mgr</span>
+                                <input type="text" id="pwd-am" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-500">
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="w-24 text-xs font-bold text-slate-400 uppercase">Branch</span>
+                                <input type="text" id="pwd-branch" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-500">
+                            </div>
+                            <button onclick="savePasswords()" class="w-full mt-2 bg-slate-800 text-amber-400 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow border border-slate-700 transition-colors">Update Active Session Passwords</button>
+                        </div>
+                    </div>
+
+                    <!-- Google Sheets Apps Script Info -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl md:col-span-2 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 opacity-5"><i class="fa-brands fa-google text-9xl"></i></div>
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-2 relative z-10"><i class="fa-solid fa-cloud text-blue-500 mr-1.5"></i> Auto-Sync Database Webhook</h3>
+                        
+                        <div class="flex flex-col sm:flex-row gap-4 mb-6 relative z-10">
+                            <input type="text" id="global-gs-url" placeholder="Paste the Admin's Google Apps Script Web App URL here..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-xs text-white outline-none focus:border-blue-500 shadow-inner">
+                            <button onclick="saveGlobalGSUrl()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold text-xs hover:bg-blue-500 shadow-md">Save Global Webhook</button>
+                        </div>
+
+                        <h4 class="text-xs font-bold text-emerald-400 mb-2 relative z-10">Serverless UPSERT Database Config</h4>
+                        <ol class="text-[11px] text-slate-400 list-decimal list-inside space-y-1.5 mb-4 relative z-10">
+                            <li>Create ONE Google Sheet. Name Columns A to L: Date, Code, Name, Sales, Trans, MyKasih, Lorry, Bank1, Bank2, Locked, SubmitTime, BankTime.</li>
+                            <li>Go to <strong>Extensions > Apps Script</strong>, paste the code below, and Deploy as Web App (Execute as: Me, Access: Anyone).</li>
+                            <li>Save the URL above. All 3500 branches and AMs will automatically push/pull from this single database. No manual syncing required!</li>
+                        </ol>
+                        
+                        <div class="relative bg-slate-950 border border-slate-800 rounded-lg p-3 z-10 group">
+                            <button onclick="copyGasCode()" class="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded text-[10px] font-bold border border-slate-700 transition-colors opacity-0 group-hover:opacity-100"><i class="fa-solid fa-copy mr-1"></i>Copy</button>
+                            <pre id="gas-code" class="text-[10px] text-emerald-300 font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">
+function normalizeDate(d) {
+  try {
+    if (!d) return "";
+    let dObj = new Date(d);
+    if (isNaN(dObj.getTime())) return String(d).trim();
+    let m = dObj.getMonth() + 1; let day = dObj.getDate();
+    return dObj.getFullYear() + "-" + (m<10?"0":"")+m + "-" + (day<10?"0":"")+day;
+  } catch(e) { return String(d).trim(); }
+}
+
+function doGet(e) {
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  let action = e.parameter.action;
+  
+  if (action === 'get_branches') {
+    let bSheet = ss.getSheetByName('Branches');
+    if (!bSheet) return ContentService.createTextOutput("[]").setMimeType(ContentService.MimeType.JSON);
+    let bData = bSheet.getDataRange().getValues();
+    let branches = [];
+    for (let i = 1; i < bData.length; i++) {
+      if(bData[i][0]) branches.push({code: parseInt(bData[i][0]), name: String(bData[i][1]).trim(), am: String(bData[i][2]).trim(), state: String(bData[i][3]).trim()});
+    }
+    return ContentService.createTextOutput(JSON.stringify(branches)).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  let sheet = ss.getSheets()[0]; // Data jualan WAJIB di Tab Pertama (Sheet1)
+  let data = sheet.getDataRange().getValues();
+  let reqDate = e.parameter.date;
+  let reqMonth = e.parameter.month;
+  let result = [];
+  for (let i = 1; i < data.length; i++) {
+    let dStr = normalizeDate(data[i][0]);
+    let match = (!reqDate && !reqMonth) || (reqDate && dStr === reqDate) || (reqMonth && dStr.substring(0,7) === reqMonth);
+    if (match) {
+      result.push({
+        date: dStr, code: parseInt(data[i][1]), name: data[i][2],
+        sales: parseFloat(data[i][3]), transactions: parseInt(data[i][4]), mykasih: parseFloat(data[i][5]), lorry: parseFloat(data[i][6]),
+        bank1: parseFloat(data[i][7]), bank2: parseFloat(data[i][8]), night_locked: data[i][9] == 1,
+        night_submit_time: data[i][10], bank1_time: data[i][11], bank2_time: data[i][12]
+      });
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheets()[0]; // Data jualan WAJIB di Tab Pertama (Sheet1)
+  let payload = JSON.parse(e.postData.contents);
+  let action = payload.action; let rec = payload.data;
+  let data = sheet.getDataRange().getValues();
+  let rowIndex = -1;
+  for(let i = 1; i < data.length; i++) {
+    let dStr = normalizeDate(data[i][0]);
+    if(dStr === rec.date && data[i][1] == rec.code) { rowIndex = i + 1; break; }
+  }
+  
+  if (action === 'upsert') {
+    let rowData = [rec.date, rec.code, rec.name, rec.sales||0, rec.transactions||0, rec.mykasih||0, rec.lorry||0, rec.bank1||0, rec.bank2||0, rec.night_locked?1:0, rec.night_submit_time?"'"+rec.night_submit_time:"", rec.bank1_time?"'"+rec.bank1_time:"", rec.bank2_time?"'"+rec.bank2_time:""];
+    if (rowIndex > -1) sheet.getRange(rowIndex, 1, 1, 13).setValues([rowData]);
+    else sheet.appendRow(rowData);
+  } else if (action === 'reset_night' && rowIndex > -1) {
+    sheet.getRange(rowIndex, 4, 1, 4).setValues([[0, 0, 0, 0]]);
+    sheet.getRange(rowIndex, 10, 1, 2).setValues([[0, ""]]);
+  } else if (action === 'reset_bank' && rowIndex > -1) {
+    sheet.getRange(rowIndex, 8, 1, 2).setValues([[0, 0]]);
+    sheet.getRange(rowIndex, 12, 1, 2).setValues([["", ""]]);
+  } else if (action === 'master_reset') {
+    for(let i = data.length - 1; i >= 1; i--) {
+      let dStr = normalizeDate(data[i][0]);
+      if(dStr === rec.date) {
+         sheet.getRange(i+1, 4, 1, 4).setValues([[0, 0, 0, 0]]);
+         sheet.getRange(i+1, 10, 1, 2).setValues([[0, ""]]);
+      }
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({status: "success"})).setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="auth-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop px-4">
+        <div class="pbi-card rounded-2xl w-full max-w-md p-6 shadow-2xl relative" id="auth-modal-content">
+            <button onclick="closeModal('auth-modal')" class="absolute top-4 right-4 text-slate-500 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="mb-6 text-center">
+                <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-800 text-cyan-400 mb-4 border border-cyan-500/20 shadow-lg"><i class="fa-solid fa-lock text-2xl"></i></div>
+                <h3 class="text-xl font-bold text-white" id="auth-title">Login</h3>
+            </div>
+            <form id="auth-form" onsubmit="handleLogin(event)" class="space-y-5">
+                <input type="hidden" id="auth-role">
+                <div id="auth-search-container" class="relative hidden">
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Search Entity</label>
+                    <input type="text" id="auth-search" oninput="handleAuthSearch(this.value)" class="w-full rounded-xl bg-slate-950 py-3 px-4 text-sm border border-slate-700 text-white focus:border-cyan-500 outline-none shadow-inner" autocomplete="off">
+                    <div id="auth-popup" class="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl hidden divide-y divide-slate-800"></div>
+                    <input type="hidden" id="auth-selected-id">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5" data-i18n="lbl_password">Password</label>
+                    <input type="password" id="auth-pwd" required class="w-full rounded-xl bg-slate-950 py-3 px-4 text-sm border border-slate-700 text-white focus:border-cyan-500 outline-none shadow-inner">
+                </div>
+                <button type="submit" class="w-full rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20" data-i18n="btn_login_submit">Submit Login</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop px-4">
+        <div class="pbi-card rounded-2xl w-full max-w-sm p-8 text-center relative border-amber-500/30">
+            <i class="fa-solid fa-circle-exclamation text-6xl text-amber-500 mb-5 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"></i>
+            <h3 class="text-xl font-bold text-white mb-2" data-i18n="confirm_title">Confirm Submission?</h3>
+            <p class="text-xs text-slate-300 mb-8" data-i18n="confirm_desc">Data will be permanently synced to HQ.</p>
+            <div class="flex gap-4">
+                <button onclick="closeModal('confirm-modal')" class="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700 border border-slate-700">Cancel</button>
+                <button onclick="executeNightSubmit()" class="flex-1 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 shadow-lg shadow-cyan-500/20">Yes, Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl p-4 shadow-2xl border transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none bg-slate-900">
+        <div id="toast-icon" class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-950"></div>
+        <div>
+            <h4 id="toast-title" class="text-xs font-bold text-white uppercase"></h4>
+            <p id="toast-msg" class="text-xs text-slate-300 mt-0.5"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Settings & Variables ---
+        const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbya2thyD3a_wHCKv1nK0Do0HmWLwEQceli7URkRGWcVbHM7n95IMRNpixiWw3-SxLRdxg/exec"; // ADMIN: SILA TAMPAL URL GOOGLE APPS SCRIPT DI SINI UNTUK 3500 CAWANGAN
+        const APP_VERSION = 9.16;
+        let currentLang = 'EN';
+        let currentUser = null; 
+        let currentTab = 'dashboard';
+        let dbSubmissions = []; 
+        let isSyncing = false;
+        
+        const DICT = {
+            EN: { subtitle_login: "Please login to continue", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Refresh", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right to access operational data.", branch_form_title: "Daily Data Entry Form", branch_form_desc: "Complete daily sales and logistics. Data is auto-synced to HQ.", status_done: "SYNCED TO HQ", branch_locked_desc: "Data has been successfully submitted to the server. Contact AM to reset.", branch_section_night: "Primary Operations Data", branch_section_bank: "Bank-In Updates (Always Editable)", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Sync to HQ", btn_save_bank: "Sync Bank-In Data", branch_info: "Branch Information", tab_dashboard: "Analytics Dashboard", tab_tracking: "Tracking & Reset", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Lorry Cost", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Submit Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be permanently synced to HQ.", lbl_submission_ratio: "Submission Ratio:" },
+            BM: { subtitle_login: "Sila log masuk", btn_branch: "Cawangan", btn_am: "Pengurus Kawasan", btn_admin: "Pentadbir", btn_refresh: "Muat Semula", welcome_title: "Sistem Akses Selamat", welcome_desc: "Sila pilih peranan anda di penjuru kanan atas untuk akses data operasi.", branch_form_title: "Borang Kemasukan Harian", branch_form_desc: "Lengkapkan data harian. Data dihubungkan terus ke server HQ.", status_done: "DIHANTAR KE HQ", branch_locked_desc: "Data telah berjaya disimpan di pangkalan data HQ. Hubungi AM untuk set semula.", branch_section_night: "Data Operasi Utama", branch_section_bank: "Kemaskini Bank-In", field_sales: "Jualan Harian (RM)", field_trans: "Transaksi", field_mykasih: "MyKasih (RM)", field_lorry: "Kos Lori (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Hantar & Simpan ke HQ", btn_save_bank: "Simpan Bank-In", branch_info: "Maklumat Cawangan", tab_dashboard: "Dashboard Analitik", tab_tracking: "Semakan & Reset", tab_control: "Kawalan Sistem", kpi_sales: "Jumlah Jualan", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori", kpi_trans: "Transaksi", lbl_password: "Kata Laluan", btn_login_submit: "Sahkan Log Masuk", confirm_title: "Sahkan Penghantaran?", confirm_desc: "Data akan dihantar terus ke sistem pusat HQ.", lbl_submission_ratio: "Nisbah Hantaran:" }
+        };
+
+        function toggleLang() {
+            currentLang = currentLang === 'EN' ? 'BM' : 'EN';
+            document.getElementById('lang-indicator').innerText = currentLang;
+            document.querySelectorAll('[data-i18n]').forEach(el => { let key = el.getAttribute('data-i18n'); if (DICT[currentLang][key]) el.innerText = DICT[currentLang][key]; });
+        }
+
+        setInterval(() => {
+            let now = new Date();
+            let clockEl = document.getElementById('live-clock'), dateEl = document.getElementById('live-date');
+            if(clockEl) clockEl.innerText = now.toLocaleTimeString('en-US', {hour12: false});
+            if(dateEl) dateEl.innerText = now.toLocaleDateString('en-GB');
+        }, 1000);
+
+        function copyGasCode() { navigator.clipboard.writeText(document.getElementById('gas-code').innerText); showToast('success', 'Google Apps Script code copied!'); }
+function saveGlobalGSUrl() { 
+            let url = document.getElementById('global-gs-url').value.trim();
+            if(!url.endsWith('/exec')) { showToast('error', 'URL must end with /exec !'); return; }
+            localStorage.setItem('global_gs_url', url); 
+            showToast('success', 'Global Webhook Saved!'); 
+            fetchBranchesFromCloud(); // Try fetching branches if manually set
+        }
+
+        const GLOBALS = { cacheKey: 'pbi_branches' };
+        let masterBranches = [];
+        let ams = [];
+        let masterLock = false;
+
+        function loadBranchesCache() {
+            let cached = localStorage.getItem('master_branches_cache');
+            if(cached) {
+                masterBranches = JSON.parse(cached);
+                ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
+            }
+        }
+        
+        function fetchBranchesFromCloud() {
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") return;
+            fetch(url + '?t=' + new Date().getTime() + '&action=get_branches').then(r=>r.json()).then(data => {
+                if(Array.isArray(data) && data.length > 0) {
+                    masterBranches = data;
+                    ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
+                    localStorage.setItem('master_branches_cache', JSON.stringify(data));
+                    if(document.getElementById('am-select') && ams.length > 0) {
+                        let html = '<option value="" disabled selected data-i18n="am_select">-- Select Area Manager --</option>';
+                        ams.forEach(am => html += `<option value="${am}">${am}</option>`);
+                        document.getElementById('am-select').innerHTML = html;
+                    }
+                }
+            }).catch(e => console.error("Branch fetch error", e));
+        }
+        function getYYYYMMDD(date) {
+            let d = new Date(date), month = '' + (d.getMonth() + 1), day = '' + d.getDate(), year = d.getFullYear();
+            if (month.length < 2) month = '0' + month; if (day.length < 2) day = '0' + day; return [year, month, day].join('-');
+        }
+        let todayStr = getYYYYMMDD(new Date());
+        let currentMonthStr = todayStr.substring(0, 7);
+        let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!' };
+        
+        function formatTime(t) {
+            if(!t) return "";
+            if(typeof t === 'string' && t.includes('1899')) { let d = new Date(t); if(!isNaN(d)) return d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}); }
+            return t;
+        }
+
+        function formatRM(num) {
+            if(!num || isNaN(num)) return "0.00";
+            return parseFloat(num).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function formatNum(num) {
+            if(!num || isNaN(num)) return "0";
+            return parseInt(num).toLocaleString('en-US');
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadBranchesCache();
+            fetchBranchesFromCloud();
+            
+            document.getElementById('dash-date').value = todayStr;
+            document.getElementById('dash-month').value = currentMonthStr;
+            document.getElementById('track-date').value = todayStr;
+            if(document.getElementById('bank-in-date')) document.getElementById('bank-in-date').value = todayStr;
+            if(document.getElementById('night-date')) document.getElementById('night-date').value = todayStr;
+            updateDateDisplay('dash-date'); updateDateDisplay('track-date');
+            document.getElementById('pwd-admin').value = PASSWORDS['admin'];
+            let savedUrl = localStorage.getItem('global_gs_url');
+            if(savedUrl) document.getElementById('global-gs-url').value = savedUrl;
+            
+            let savedUser = localStorage.getItem('pbi_user');
+            if(savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser); let role = currentUser.role;
+                    document.querySelectorAll('.admin-only').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
+                    document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin') ? 'flex' : 'none');
+                    document.getElementById('nav-buttons').classList.add('hidden');
+                    document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
+                    document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
+                    if(role === 'branch') syncBranchFromCloud(); else setupManagerView();
+                } catch(e) { localStorage.removeItem('pbi_user'); }
+            }
+        });
+
+        function setSyncing(status) {
+            isSyncing = status;
+            let el = document.getElementById('sync-status');
+            if(status) { el.classList.remove('hidden'); el.classList.add('flex'); } else { el.classList.add('hidden'); el.classList.remove('flex'); }
+        }
+
+        function triggerDataSync() {
+            if(!currentUser) return;
+            if(currentUser.role === 'branch') syncBranchFromCloud();
+            else syncManagerFromCloud(document.getElementById(currentTab==='dashboard'?'dash-date':'track-date').value);
+        }
+
+        function syncBranchNightData() {
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            let ndate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { setupBranchView(); return; }
+            setSyncing(true);
+            fetch(url + '?t=' + new Date().getTime() + '&date=' + ndate).then(r => r.json()).then(data => {
+                if(Array.isArray(data)) {
+                    let sysStatus = data.find(d => d.type === 'system_status');
+                    if(sysStatus) {
+                        if(sysStatus.app_version && sysStatus.app_version > APP_VERSION) {
+                            window.location.href = window.location.pathname + '?v=' + new Date().getTime();
+                            return;
+                        }
+                        masterLock = sysStatus.global_lock;
+                    }
+                    data = data.filter(d => d.type !== 'system_status');
+                    dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === ndate));
+                    let myData = data.find(d => d.code === currentUser.id);
+                    if(myData) dbSubmissions.push(myData);
+                }
+                setupBranchView(); setSyncing(false);
+            }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
+        }
+
+        function syncBranchFromCloud() {
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { setupBranchView(); return; } 
+            setSyncing(true);
+            fetch(url + '?t=' + new Date().getTime() + '&date=' + todayStr).then(r => r.json()).then(data => {
+                if(Array.isArray(data)) {
+                    let sysStatus = data.find(d => d.type === 'system_status');
+                    if(sysStatus) {
+                        if(sysStatus.app_version && sysStatus.app_version > APP_VERSION) {
+                            window.location.href = window.location.pathname + '?v=' + new Date().getTime();
+                            return;
+                        }
+                        masterLock = sysStatus.global_lock;
+                    }
+                    data = data.filter(d => d.type !== 'system_status');
+
+                    // Wipe local array for this branch & date, replace with cloud data
+                    dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === todayStr));
+                    let myData = data.find(d => d.code === currentUser.id);
+                    if(myData) dbSubmissions.push(myData);
+                }
+                setupBranchView(); setSyncing(false);
+            }).catch(e => { 
+                console.error("Fetch GET Error:", e); showToast('error', 'Sync Failed! Check GS Permissions.'); setupBranchView(); setSyncing(false); 
+            });
+        }
+
+        function syncBranchBankData() {
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            let bDate = document.getElementById('bank-in-date').value;
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { setupBranchView(); return; }
+            setSyncing(true);
+            fetch(url + '?t=' + new Date().getTime() + '&date=' + bDate).then(r => r.json()).then(data => {
+                if(Array.isArray(data)) {
+                    // Wipe local array for this branch & date, replace with cloud data
+                    dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === bDate));
+                    let myData = data.find(d => d.code === currentUser.id);
+                    if(myData) dbSubmissions.push(myData);
+                }
+                setupBranchView(); setSyncing(false);
+            }).catch(e => { console.error("Fetch GET Bank Error:", e); setupBranchView(); setSyncing(false); });
+        }
+
+        function syncManagerFromCloud() {
+            let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode')?document.getElementById('dash-mode').value:'daily') : 'daily';
+            let dateStr = mode === 'daily' ? document.getElementById(currentTab==='dashboard'?'dash-date':'track-date').value : document.getElementById('dash-month').value;
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { if(currentTab==='dashboard') renderDashboard(); else renderTrackingTable(); return; } // Fallback
+            setSyncing(true);
+            let fetchUrl = url + (mode === 'daily' ? '?date=' + dateStr : '?month=' + dateStr);
+            fetch(fetchUrl).then(r => r.json()).then(data => {
+                if(Array.isArray(data)) {
+                    let sysStatus = data.find(d => d.type === 'system_status');
+                    if(sysStatus) {
+                        if(sysStatus.app_version && sysStatus.app_version > APP_VERSION) {
+                            window.location.href = window.location.pathname + '?v=' + new Date().getTime();
+                            return;
+                        }
+                        masterLock = sysStatus.global_lock;
+                        updateMasterLockUI();
+                    }
+                    data = data.filter(d => d.type !== 'system_status');
+
+                    if(mode === 'daily') dbSubmissions = dbSubmissions.filter(s => s.date !== dateStr);
+                    else dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
+                    dbSubmissions.push(...data);
+                }
+                if(currentTab==='dashboard') renderDashboard(); else renderTrackingTable();
+                setSyncing(false);
+            }).catch(e => { console.error("Fetch GET Error:", e); showToast('error', 'Auto-Sync Failed! Check URL/Permissions.'); if(currentTab==='dashboard') renderDashboard(); else renderTrackingTable(); setSyncing(false); });
+        }
+
+        function syncToCloud(action, payloadData, callback) {
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { showToast('info', 'Saved locally (No Webhook set).'); if(callback) callback(); return; }
+            setSyncing(true);
+            fetch(url, {
+                method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: action, data: payloadData })
+            }).then(() => {
+                showToast('success', 'Synced with HQ Server!'); setSyncing(false); if(callback) callback();
+            }).catch(e => { console.error("Fetch POST Error:", e); showToast('error', 'Upload Network Error (CORS).'); setSyncing(false); if(callback) callback(); });
+        }
+
+        // --- 3. UI/Routing ---
+        function updateDateDisplay(id) { 
+            let v = document.getElementById(id).value; 
+            if(id === 'dash-month') {
+                let dArr = v.split('-'); if(dArr.length===2) document.getElementById('dash-date-display').innerText = `${dArr[1]}/${dArr[0]}`;
+            } else {
+                let dArr = v.split('-'); if(dArr.length===3) document.getElementById(id+'-display').innerText = `${dArr[2]}/${dArr[1]}/${dArr[0]}`; 
+            }
+        }
+        
+        function toggleDashMode() {
+            let mode = document.getElementById('dash-mode').value;
+            if(mode === 'daily') {
+                document.getElementById('dash-date').classList.remove('hidden'); document.getElementById('dash-month').classList.add('hidden');
+                updateDateDisplay('dash-date');
+            } else {
+                document.getElementById('dash-date').classList.add('hidden'); document.getElementById('dash-month').classList.remove('hidden');
+                updateDateDisplay('dash-month');
+            }
+            triggerDataSync();
+        }
+        
+        function openLoginModal(role) {
+            document.getElementById('auth-role').value = role;
+            document.getElementById('auth-search-container').classList.add('hidden');
+            document.getElementById('auth-search').value = ""; document.getElementById('auth-selected-id').value = ""; document.getElementById('auth-pwd').value = "";
+            document.getElementById('auth-title').innerText = role==='branch'?(currentLang==='EN'?"Branch Login":"Log Masuk Cawangan"):role==='am'?(currentLang==='EN'?"AM Login":"Log Masuk AM"):(currentLang==='EN'?"Admin Login":"Log Masuk Admin");
+            if (role === 'branch' || role === 'am') document.getElementById('auth-search-container').classList.remove('hidden');
+            document.getElementById('auth-modal').classList.remove('hidden'); document.getElementById('auth-modal').classList.add('flex');
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
+
+        function handleAuthSearch(val) {
+            let pop = document.getElementById('auth-popup'); let role = document.getElementById('auth-role').value;
+            if(!val) { pop.classList.add('hidden'); return; }
+            let term = val.toLowerCase(), html = "";
+            if (role === 'branch') {
+                html = masterBranches.filter(b => b.code.toString().includes(term) || b.name.toLowerCase().includes(term)).slice(0, 5).map(b => `<div onclick="selectAuth('${b.code}', '${b.name}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
+            } else if (role === 'am') {
+                html = [...new Set(masterBranches.map(b=>b.am))].filter(a => a.toLowerCase().includes(term)).slice(0, 5).map(a => `<div onclick="selectAuth('${a}', '${a}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
+            }
+            if(html) { pop.innerHTML = html; pop.classList.remove('hidden'); } else pop.classList.add('hidden');
+        }
+
+        function selectAuth(id, display) { document.getElementById('auth-selected-id').value = id; document.getElementById('auth-search').value = display; document.getElementById('auth-popup').classList.add('hidden'); }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            let role = document.getElementById('auth-role').value, pwd = document.getElementById('auth-pwd').value, selId = document.getElementById('auth-selected-id').value;
+            if (pwd !== PASSWORDS[role]) { showToast('error', currentLang==='EN'?'Invalid Password!':'Kata Laluan Salah!'); return; }
+            if ((role === 'branch' || role === 'am') && !selId) { showToast('error', 'Please select from search!'); return; }
+            
+            closeModal('auth-modal');
+            currentUser = { role: role };
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
+            document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin') ? 'flex' : 'none');
+            
+            if (role === 'branch') {
+                currentUser.id = parseInt(selId); let b = masterBranches.find(x => x.code === currentUser.id);
+                currentUser.name = b.name; currentUser.am = b.am;
+                localStorage.setItem('pbi_user', JSON.stringify(currentUser));
+                syncBranchFromCloud(); // Trigger sync before showing branch view
+            } else if (role === 'am') {
+                currentUser.name = selId; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); setupManagerView();
+            } else {
+                currentUser.name = "System Administrator"; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); setupManagerView();
+            }
+
+            document.getElementById('nav-buttons').classList.add('hidden');
+            document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
+            document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
+        }
+
+        function logout() {
+            currentUser = null; localStorage.removeItem('pbi_user');
+            document.getElementById('logged-in-controls').classList.add('hidden'); document.getElementById('logged-in-controls').classList.remove('flex');
+            document.getElementById('nav-buttons').classList.remove('hidden'); document.getElementById('section-branch').classList.add('hidden');
+            document.getElementById('section-manager').classList.add('hidden'); document.getElementById('section-welcome').classList.remove('hidden');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            ['dashboard', 'tracking', 'control'].forEach(t => {
+                let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
+                if(s) s.classList.add('hidden');
+                if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
+            });
+            let aSec = document.getElementById(`tab-${tab}`), aBtn = document.getElementById(`tab-btn-${tab}`);
+            if(aSec) aSec.classList.remove('hidden');
+            if(aBtn) { aBtn.classList.remove('tab-inactive'); aBtn.classList.add('tab-active'); }
+            
+            if(tab === 'dashboard' || tab === 'tracking') triggerDataSync();
+        }
+
+        // --- 4. Branch Logic ---
+        function setupBranchView() {
+            document.getElementById('section-welcome').classList.add('hidden');
+            document.getElementById('section-branch').classList.remove('hidden');
+            
+            document.getElementById('info-branch-code').innerText = currentUser.id;
+            document.getElementById('info-branch-name').innerText = currentUser.name;
+            let b = masterBranches.find(x=>x.code===currentUser.id);
+            document.getElementById('info-branch-am').innerText = b.am;
+            
+            let nightDate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
+            let nightRec = dbSubmissions.find(s => s.code === currentUser.id && s.date === nightDate);
+            let timeEl = document.getElementById('info-branch-submit-time');
+            if(nightRec && nightRec.night_locked && nightRec.night_submit_time) {
+                timeEl.innerText = formatTime(nightRec.night_submit_time); timeEl.className = "text-xs font-bold text-emerald-400 mt-0.5";
+            } else {
+                timeEl.innerText = currentLang==='EN' ? "Not submitted yet" : "Belum dihantar"; timeEl.className = "text-xs font-bold text-amber-500 mt-0.5 italic";
+            }
+            
+            let parseD = (str) => { if(!str) return 0; let p=str.split('-'); return new Date(p[0], p[1]-1, p[2]).getTime(); };
+
+            let nightDiff = Math.round((parseD(todayStr) - parseD(nightDate)) / 86400000);
+            let nightUnlocked = (!masterLock && nightDiff === 0) || (nightRec && nightRec.night_unlocked);
+            
+            let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
+            let btnNight = document.getElementById('btn-submit-night');
+
+            if (nightUnlocked) {
+                fnSales.disabled = false; fnSales.readOnly = false; fnSales.classList.remove('opacity-50', 'cursor-not-allowed');
+                fnTrans.disabled = false; fnTrans.readOnly = false; fnTrans.classList.remove('opacity-50', 'cursor-not-allowed');
+                fnMyKasih.disabled = false; fnMyKasih.readOnly = false; fnMyKasih.classList.remove('opacity-50', 'cursor-not-allowed');
+                fnLorry.disabled = false; fnLorry.readOnly = false; fnLorry.classList.remove('opacity-50', 'cursor-not-allowed');
+                if(btnNight) { btnNight.disabled = false; btnNight.classList.remove('hidden'); }
+            } else {
+                fnSales.disabled = true; fnSales.readOnly = true; fnSales.classList.add('opacity-50', 'cursor-not-allowed');
+                fnTrans.disabled = true; fnTrans.readOnly = true; fnTrans.classList.add('opacity-50', 'cursor-not-allowed');
+                fnMyKasih.disabled = true; fnMyKasih.readOnly = true; fnMyKasih.classList.add('opacity-50', 'cursor-not-allowed');
+                fnLorry.disabled = true; fnLorry.readOnly = true; fnLorry.classList.add('opacity-50', 'cursor-not-allowed');
+                if(btnNight) { btnNight.disabled = true; btnNight.classList.add('hidden'); }
+                if(!nightRec || !nightRec.night_locked) {
+                    fnSales.value = ""; fnTrans.value = ""; fnMyKasih.value = ""; fnLorry.value = "";
+                    let phText = masterLock ? "SYSTEM LOCKED BY ADMIN" : "Locked (Requires Admin Unlock)";
+                    fnSales.placeholder = phText; fnTrans.placeholder = "Locked"; fnMyKasih.placeholder = "Locked"; fnLorry.placeholder = "Locked";
+                }
+            }
+
+            if (nightRec && nightRec.night_locked) {
+                document.getElementById('branch-night-locked').classList.remove('hidden'); document.getElementById('branch-night-locked').classList.add('flex');
+                document.getElementById('f-sales').value = nightRec.sales; document.getElementById('f-trans').value = nightRec.transactions;
+                document.getElementById('f-mykasih').value = nightRec.mykasih; document.getElementById('f-lorry').value = nightRec.lorry;
+            } else {
+                document.getElementById('branch-night-locked').classList.add('hidden'); 
+            }
+            
+            let bankDate = document.getElementById('bank-in-date').value;
+            let bankRec = dbSubmissions.find(s => s.code === currentUser.id && s.date === bankDate);
+            
+            let fBank2 = document.getElementById('f-bank2');
+            let diffDays = Math.round((parseD(todayStr) - parseD(bankDate)) / 86400000);
+            let b2Unlocked = (diffDays === 1) || (diffDays > 1 && bankRec && bankRec.bank2_unlocked);
+            
+            if(b2Unlocked) {
+                fBank2.disabled = false; fBank2.readOnly = false; fBank2.classList.remove('opacity-50', 'cursor-not-allowed'); fBank2.placeholder = "0.00";
+            } else {
+                fBank2.disabled = true; fBank2.readOnly = true; fBank2.classList.add('opacity-50', 'cursor-not-allowed'); fBank2.placeholder = diffDays <= 0 ? "Locked (Key in tomorrow)" : "Locked (Admin Unlock Req)";
+            }
+
+            if (bankRec && (bankRec.bank1 > 0 || bankRec.bank2 > 0 || bankRec.bank1_time || bankRec.bank2_time)) {
+                document.getElementById('f-bank1').value = bankRec.bank1 || ''; document.getElementById('f-bank2').value = bankRec.bank2 || '';
+                document.getElementById('bank1-time').innerText = bankRec.bank1_time ? `Updated: ${formatTime(bankRec.bank1_time)}` : '';
+                document.getElementById('bank2-time').innerText = bankRec.bank2_time ? `Updated: ${formatTime(bankRec.bank2_time)}` : '';
+            } else {
+                document.getElementById('f-bank1').value = ''; document.getElementById('f-bank2').value = ''; 
+                document.getElementById('bank1-time').innerText = ''; document.getElementById('bank2-time').innerText = '';
+            }
+        }
+
+        let pendingNightData = null;
+        function confirmNightSubmit(e) {
+            e.preventDefault();
+            pendingNightData = { sales: parseFloat(document.getElementById('f-sales').value) || 0, transactions: parseInt(document.getElementById('f-trans').value) || 0, mykasih: parseFloat(document.getElementById('f-mykasih').value) || 0, lorry: parseFloat(document.getElementById('f-lorry').value) || 0 };
+            document.getElementById('confirm-modal').classList.remove('hidden'); document.getElementById('confirm-modal').classList.add('flex');
+        }
+
+        function executeNightSubmit() {
+            let nightDate = document.getElementById('night-date').value;
+            let rec = dbSubmissions.find(s => s.code === currentUser.id && s.date === nightDate);
+            if(!rec) { rec = { date: nightDate, code: currentUser.id, name: currentUser.name, bank1: 0, bank2: 0, night_locked: false }; dbSubmissions.push(rec); }
+            rec.sales = pendingNightData.sales; rec.transactions = pendingNightData.transactions; rec.mykasih = pendingNightData.mykasih; rec.lorry = pendingNightData.lorry; 
+            rec.night_locked = true; rec.night_submit_time = new Date().toLocaleTimeString('en-US'); 
+            
+            closeModal('confirm-modal');
+            syncToCloud('submit_sales', rec, setupBranchView);
+        }
+
+        function saveBankInData(e) {
+            e.preventDefault();
+            let bDate = document.getElementById('bank-in-date').value;
+            if(!bDate) { showToast('error', 'Select Sales Date first!'); return; }
+            let rec = dbSubmissions.find(s => s.code === currentUser.id && s.date === bDate);
+            if(!rec) { rec = { date: bDate, code: currentUser.id, name: currentUser.name, night_locked: false, sales:0, transactions:0, mykasih:0, lorry:0 }; dbSubmissions.push(rec); }
+            
+            let pBank1 = rec.bank1 || 0; let pBank2 = rec.bank2 || 0;
+            let nBank1 = parseFloat(document.getElementById('f-bank1').value) || 0;
+            let nBank2 = parseFloat(document.getElementById('f-bank2').value) || 0;
+            let tStr = new Date().toLocaleTimeString('en-US');
+            
+            if (nBank1 !== pBank1 || (nBank1 > 0 && !rec.bank1_time)) rec.bank1_time = tStr;
+            if (nBank2 !== pBank2 || (nBank2 > 0 && !rec.bank2_time)) rec.bank2_time = tStr;
+            
+            rec.bank1 = nBank1; rec.bank2 = nBank2;
+            
+            syncToCloud('upsert', rec, setupBranchView);
+        }
+
+        // --- 5. Manager Dashboards & Tracking ---
+        let trendChartObj = null, barChartObj = null;
+
+        function setupManagerView() {
+            document.getElementById('section-welcome').classList.add('hidden');
+            document.getElementById('section-manager').classList.remove('hidden');
+            populateFilters();
+            switchTab('dashboard');
+            updateMasterLockUI();
+        }
+
+        function getManagerFilteredBranches() {
+            let base = currentUser.role === 'admin' ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
+            let fAM = document.getElementById('filter-am') ? document.getElementById('filter-am').value : '';
+            let fState = document.getElementById('filter-state') ? document.getElementById('filter-state').value : '';
+            let fWH = document.getElementById('filter-warehouse') ? document.getElementById('filter-warehouse').value : '';
+            if(fAM) base = base.filter(b => b.am === fAM);
+            if(fState) base = base.filter(b => b.state === fState);
+            if(fWH) base = base.filter(b => b.warehouse === fWH);
+            return base;
+        }
+
+        function populateFilters() {
+            if(!document.getElementById('filter-am')) return;
+            let base = currentUser.role === 'admin' ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
+            
+            let ams = [...new Set(base.map(b=>b.am).filter(Boolean))].sort();
+            let states = [...new Set(base.map(b=>b.state).filter(Boolean))].sort();
+            let whs = [...new Set(base.map(b=>b.warehouse).filter(Boolean))].sort();
+            
+            let prevAM = document.getElementById('filter-am').value;
+            let amHtml = '<option value="">All Area Managers</option>';
+            ams.forEach(x => amHtml += `<option value="${x}">${x}</option>`);
+            document.getElementById('filter-am').innerHTML = amHtml;
+            document.getElementById('filter-am').value = prevAM;
+            
+            let prevState = document.getElementById('filter-state').value;
+            let stateHtml = '<option value="">All States</option>';
+            states.forEach(x => stateHtml += `<option value="${x}">${x}</option>`);
+            document.getElementById('filter-state').innerHTML = stateHtml;
+            document.getElementById('filter-state').value = prevState;
+            
+            let prevWH = document.getElementById('filter-warehouse').value;
+            let whHtml = '<option value="">All Warehouses</option>';
+            whs.forEach(x => whHtml += `<option value="${x}">${x}</option>`);
+            document.getElementById('filter-warehouse').innerHTML = whHtml;
+            document.getElementById('filter-warehouse').value = prevWH;
+        }
+
+        function updateSubmissionRatio() {
+            let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily') : 'daily';
+            let targetDate = mode === 'daily' ? document.getElementById(currentTab === 'dashboard' ? 'dash-date' : 'track-date').value : document.getElementById('dash-month').value;
+            let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>b.code);
+            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(s.code));
+            
+            let subRatioEl = document.getElementById('am-stat-ratio');
+            if(subRatioEl) {
+                let submittedCount = new Set(dashData.filter(s => s.night_locked).map(s=>s.code)).size;
+                subRatioEl.innerText = mode==='daily' ? `${submittedCount} / ${branches.length}` : `Monthly`;
+                subRatioEl.className = `text-sm font-black ml-1 ${submittedCount===branches.length && branches.length>0 ? 'text-emerald-400' : 'text-amber-400'}`;
+            }
+        }
+
+        function updateMasterLockUI() {
+            let btn = document.getElementById('btn-master-lock');
+            if(!btn) return;
+            if(masterLock) {
+                btn.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked`;
+            } else {
+                btn.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                btn.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked`;
+            }
+            if(currentUser && currentUser.role === 'admin') btn.classList.remove('hidden');
+        }
+
+        function toggleMasterLock() {
+            if(currentUser.role !== 'admin') return;
+            let actionText = masterLock ? "Unlock" : "Lock";
+            Swal.fire({ title: `${actionText} System?`, text: `Are you sure you want to ${actionText.toLowerCase()} the Primary Operations form for ALL branches?`, icon: 'warning', showCancelButton: true, confirmButtonText: `Yes, ${actionText}` })
+            .then((result) => {
+                if (result.isConfirmed) {
+                    masterLock = !masterLock;
+                    updateMasterLockUI();
+                    syncToCloud('set_global_lock', {locked: masterLock}, () => { syncManagerFromCloud(); });
+                }
+            });
+        }
+
+        function renderDashboard() {
+            let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
+            let targetDate = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
+            let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>b.code);
+            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(s.code));
+            
+            updateSubmissionRatio();
+
+            let calcKPI = (data) => data.reduce((acc, curr) => ({
+                sales: acc.sales + (curr.sales||0), trans: acc.trans + (curr.transactions||0), mykasih: acc.mykasih + (curr.mykasih||0), lorry: acc.lorry + (curr.lorry||0), bank: acc.bank + (curr.bank1||0) + (curr.bank2||0)
+            }), {sales:0, trans:0, mykasih:0, lorry:0, bank:0});
+
+            let tKPI = calcKPI(dashData.filter(s => s.night_locked || (s.bank1>0 || s.bank2>0))); 
+
+            document.getElementById('kpi-sales').innerText = `RM ${formatRM(tKPI.sales)}`; document.getElementById('kpi-mykasih').innerText = `RM ${formatRM(tKPI.mykasih)}`;
+            document.getElementById('kpi-lorry').innerText = `RM ${formatRM(tKPI.lorry)}`; document.getElementById('kpi-trans').innerText = formatNum(tKPI.trans);
+
+            let diff = tKPI.lorry - tKPI.sales;
+            let diffEl = document.getElementById('kpi-diff');
+            diffEl.innerText = `${diff < 0 ? '-' : ''}RM ${Math.abs(diff).toLocaleString()}`;
+            let diffStatus = document.getElementById('kpi-diff-status');
+            if(diff > 0) {
+                diffEl.className = "text-2xl sm:text-3xl font-black text-emerald-400";
+                diffStatus.innerText = "Target Achieved (Green)"; diffStatus.className = "text-[10px] font-bold uppercase mt-1 text-emerald-500";
+            } else if(diff < 0) {
+                diffEl.className = "text-2xl sm:text-3xl font-black text-rose-500";
+                diffStatus.innerText = "Below Target (Red)"; diffStatus.className = "text-[10px] font-bold uppercase mt-1 text-rose-500";
+            } else {
+                diffEl.className = "text-2xl sm:text-3xl font-black text-white"; diffStatus.innerText = "Balanced"; diffStatus.className = "text-[10px] font-bold uppercase mt-1 text-slate-500";
+            }
+
+            let grouped = {};
+            dashData.filter(s=>s.night_locked || s.bank1>0 || s.bank2>0).forEach(s => {
+                if(!grouped[s.code]) grouped[s.code] = { code: s.code, sales: 0, lorry: 0 };
+                grouped[s.code].sales += (s.sales || 0);
+                grouped[s.code].lorry += (s.lorry || 0);
+            });
+            let sorted = Object.values(grouped).sort((a,b) => b.sales - a.sales);
+            let top10 = sorted.slice(0, 10), bot10 = sorted.slice(-10).reverse();
+            let rowTempl = (s, idx, isTop) => {
+                let b = branches.find(x=>x.code===s.code) || {name: s.name || 'Unknown'};
+                return `<div class="flex items-center justify-between bg-slate-900/50 p-2 rounded-lg border border-slate-800 shadow-sm"><div class="flex items-center gap-3"><span class="w-5 text-center text-xs font-black text-slate-500 bg-slate-950 rounded py-0.5 border border-slate-800">${idx+1}</span><div><p class="text-[11px] font-bold text-white">${b.name}</p><p class="text-[9px] text-slate-500 uppercase tracking-widest">${s.code}</p></div></div><span class="text-xs font-bold ${isTop?'text-emerald-400':'text-rose-400'}">RM ${formatRM(s.sales)}</span></div>`;
+            };
+            document.getElementById('board-top').innerHTML = top10.length > 0 ? top10.map((s, i) => rowTempl(s, i, true)).join('') : '<p class="text-xs text-slate-500">No data</p>';
+            document.getElementById('board-bottom').innerHTML = bot10.length > 0 ? bot10.map((s, i) => rowTempl(s, sorted.length - i - 1, false)).join('') : '<p class="text-xs text-slate-500">No data</p>';
+
+            // Branch Comparison Table
+            let compHtml = "";
+            let allBranchesData = branches.map(b => {
+                let s = grouped[b.code] || { sales: 0, lorry: 0 };
+                return { code: b.code, name: b.name, sales: s.sales, lorry: s.lorry, diff: s.lorry - s.sales };
+            }).sort((a,b) => b.diff - a.diff);
+            
+            allBranchesData.forEach(b => {
+                let diffColor = b.diff > 0 ? 'text-emerald-400' : (b.diff < 0 ? 'text-rose-500' : 'text-slate-400');
+                compHtml += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
+                    <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div></td>
+                    <td class="p-3 text-cyan-400 font-semibold">RM ${b.sales.toLocaleString()}</td>
+                    <td class="p-3 text-purple-400">RM ${b.lorry.toLocaleString()}</td>
+                    <td class="p-3 text-right font-bold ${diffColor}">${b.diff < 0 ? '-' : ''}RM ${Math.abs(b.diff).toLocaleString()}</td>
+                </tr>`;
+            });
+            document.getElementById('dashboard-compare-tbody').innerHTML = compHtml || '<tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No data</td></tr>';
+
+            renderCharts(targetDate, bCodes, tKPI);
+        }
+
+        function renderCharts(dateStr, branchCodes, tKPI) {
+            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = "'Inter', sans-serif";
+            
+            // Generate some pseudo-trend data for local chart rendering if not full database
+            let labels = [], salesData = [];
+            let baseD = new Date(dateStr);
+            for(let i=6; i>=0; i--) {
+                let d = getYYYYMMDD(new Date(baseD.getTime() - (i*86400000)));
+                labels.push(d.slice(5)); 
+                let daySum = dbSubmissions.filter(s => s.date === d && branchCodes.includes(s.code) && s.night_locked).reduce((a,c)=>a+(c.sales||0), 0);
+                salesData.push(daySum);
+            }
+            if(trendChartObj) trendChartObj.destroy();
+            trendChartObj = new Chart(document.getElementById('chart-sales-trend').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sales (RM)', data: salesData, borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}},x:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
+
+            if(barChartObj) barChartObj.destroy();
+            barChartObj = new Chart(document.getElementById('chart-bar-compare').getContext('2d'), { type: 'bar', data: { labels: ['Today\'s Operations'], datasets: [ { label: 'Total Sales', data: [tKPI.sales], backgroundColor: '#06b6d4', borderRadius: 4 }, { label: 'Total Bank-In', data: [tKPI.bank], backgroundColor: '#10b981', borderRadius: 4 }, { label: 'Lorry Cost', data: [tKPI.lorry], backgroundColor: '#a855f7', borderRadius: 4 } ]}, options: { responsive: true, maintainAspectRatio: false, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
+        }
+
+        function renderTrackingTable() {
+            let date = document.getElementById('track-date').value;
+            let term = document.getElementById('track-search').value.toLowerCase();
+            let branches = getManagerFilteredBranches();
+            let tbody = document.getElementById('tracking-tbody');
+            let html = ""; let rendered = 0;
+            
+            updateSubmissionRatio();
+
+            branches.forEach(b => {
+                if(term && !(b.code.toString().includes(term) || b.name.toLowerCase().includes(term))) return;
+                if(rendered > 300) return; rendered++;
+
+                let sub = dbSubmissions.find(s => s.code === b.code && s.date === date);
+                let isNightLocked = sub && sub.night_locked;
+                let hasBankIn = sub && ((sub.bank1||0)>0 || (sub.bank2||0)>0);
+                
+                let tSales = isNightLocked ? sub.sales||0 : 0; let tTrans = isNightLocked ? sub.transactions||0 : 0;
+                let tMy = isNightLocked ? sub.mykasih||0 : 0; let tLor = isNightLocked ? sub.lorry||0 : 0;
+                let bank1 = hasBankIn ? sub.bank1||0 : 0; let bank2 = hasBankIn ? sub.bank2||0 : 0;
+                let tBank = bank1 + bank2; let bal = tSales - tBank;
+                
+                let lorryCol = tLor === 0 && isNightLocked ? `<span class="text-rose-500 font-bold">RM 0.00</span>` : `RM ${formatRM(tLor)}`;
+                let bank1Col = bank1 === 0 && hasBankIn ? `<span class="text-rose-500 font-bold">RM 0.00</span>` : `RM ${formatRM(bank1)}`;
+                let bank2Col = bank2 === 0 && hasBankIn ? `<span class="text-rose-500 font-bold">RM 0.00</span>` : `RM ${formatRM(bank2)}`;
+
+                let balCol = `<span class="${bal === 0 ? 'text-emerald-500' : 'text-rose-500'} font-bold">RM ${formatRM(bal)}</span>`;
+                let statusBadge = isNightLocked ? `<span class="bg-emerald-950/60 text-emerald-400 border border-emerald-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Sent</span>` : `<span class="bg-amber-950/60 text-amber-500 border border-amber-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Pending</span>`;
+                
+                let actNight = isNightLocked ? `<button onclick="resetNight('${date}', ${b.code})" class="flex-1 bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST SALES</button>` : `<div class="flex-1"></div>`;
+                let actBank = hasBankIn ? `<button onclick="resetBank('${date}', ${b.code})" class="flex-1 bg-amber-950/80 text-amber-400 border border-amber-900/50 hover:bg-amber-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST BANK</button>` : `<div class="flex-1"></div>`;
+                
+                let adminAct = "";
+                let todayD = new Date(todayStr); let salesD = new Date(date);
+                let diffDays = Math.floor((todayD - salesD) / (1000 * 60 * 60 * 24));
+                
+                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && diffDays !== 0 && (!sub || !sub.night_unlocked)) ? `<button onclick="unlockNight('${date}', ${b.code})" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
+                
+                let adminUnlockBank = (currentUser.role === 'admin' && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', ${b.code})" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
+                
+                adminAct = adminUnlockNight + adminUnlockBank;
+
+                let acts = (isNightLocked || hasBankIn || adminAct) ? `<div class="flex flex-col w-[130px]"><div class="flex gap-2 w-full">${actNight}${actBank}</div>${adminAct}</div>` : `<span class="text-slate-600">-</span>`;
+
+                html += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
+                    <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div></td>
+                    <td class="p-3 text-cyan-400 font-semibold">RM ${formatRM(tSales)}</td>
+                    <td class="p-3 text-slate-300">${formatNum(tTrans)}</td>
+                    <td class="p-3 text-slate-300">RM ${formatRM(tMy)}</td>
+                    <td class="p-3 text-slate-300">${lorryCol}</td>
+                    <td class="p-3 text-emerald-400">${bank1Col}</td>
+                    <td class="p-3 text-emerald-400">${bank2Col}</td>
+                    <td class="p-3 text-emerald-400 font-bold bg-emerald-950/10 border-r border-slate-800/50">RM ${formatRM(tBank)}</td>
+                    <td class="p-3 bg-slate-950/40">${balCol}</td>
+                    <td class="p-3 text-center">${statusBadge}</td>
+                    <td class="p-3 p-1 align-middle pdf-exclude">${acts}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function resetNight(date, code) {
+            if(confirm(`Reset Night Data for ${code}?\nThis will instruct the server to delete the row's night operations data.`)) {
+                let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; }
+                renderTrackingTable();
+                syncToCloud('reset_night', { date: date, code: code, amName: currentUser.name });
+            }
+        }
+
+        function resetBank(date, code) {
+            if(confirm(`Reset Bank-In Data for ${code}?`)) {
+                let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                if(idx > -1) { dbSubmissions[idx].bank1 = 0; dbSubmissions[idx].bank2 = 0; dbSubmissions[idx].bank_edit_time = ""; }
+                renderTrackingTable();
+                syncToCloud('reset_bank', { date: date, code: code, amName: currentUser.name });
+            }
+        }
+
+        function unlockNight(date, code) {
+            Swal.fire({ title: 'Unlock Night Sales?', text: 'Allow branch to edit primary operations data for ' + date + '?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Unlock' })
+            .then((result) => { 
+                if (result.isConfirmed) {
+                    let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                    if(idx > -1) dbSubmissions[idx].night_unlocked = true;
+                    syncToCloud('unlock_night', {date: date, code: code, amName: currentUser.name}, () => { renderTrackingTable(); });
+                }
+            });
+        }
+
+        function unlockBank2(date, code) {
+            if(confirm(`Unlock 2nd Bank-In for Branch ${code} on ${date}?`)) {
+                let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                if(idx > -1) { dbSubmissions[idx].bank2_unlocked = true; }
+                else { dbSubmissions.push({date: date, code: code, bank2_unlocked: true}); }
+                renderTrackingTable();
+                syncToCloud('unlock_bank2', { date: date, code: code, amName: currentUser.name });
+            }
+        }
+
+        function confirmMasterReset() {
+            let date = document.getElementById('track-date').value;
+            if(confirm(`MASTER RESET NIGHT DATA FOR ${date}?\nThis will instruct the server to unlock ALL branches for resubmission.`)) {
+                dbSubmissions.forEach(s => { if(s.date === date) { s.sales = 0; s.transactions = 0; s.mykasih = 0; s.lorry = 0; s.night_locked = false; s.night_submit_time = ""; } });
+                renderTrackingTable();
+                syncToCloud('master_reset', { date: date, amName: currentUser.name });
+            }
+        }
+
+        function exportData(type) {
+            let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
+            let date = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
+            let branches = getManagerFilteredBranches();
+            
+            // Group data by branch (supports both daily and monthly)
+            let grouped = {};
+            dbSubmissions.filter(s => mode==='daily' ? s.date === date : s.date.startsWith(date)).forEach(s => {
+                if(!grouped[s.code]) grouped[s.code] = { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0 };
+                grouped[s.code].sales += s.sales||0; grouped[s.code].trans += s.transactions||0;
+                grouped[s.code].mykasih += s.mykasih||0; grouped[s.code].lorry += s.lorry||0;
+                grouped[s.code].bank1 += s.bank1||0; grouped[s.code].bank2 += s.bank2||0;
+            });
+
+            if (type === 'excel') {
+                showToast('info', `Generating EXCEL...`);
+                let exportArr = branches.map(b => {
+                    let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0 };
+                    return { Date: date, Code: b.code, Branch: b.name, AM: b.am, Sales: s.sales, Trans: s.trans, MyKasih: s.mykasih, Lorry: s.lorry, Bank1: s.bank1, Bank2: s.bank2, Balance: s.sales-(s.bank1+s.bank2) };
+                });
+                let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
+            } else if (type === 'pdf') {
+                showToast('info', `Generating PDF...`);
+                if(currentTab !== 'tracking') switchTab('tracking'); 
+                document.getElementById('pdf-table-title').innerText = `Operations Report (${date})`; document.getElementById('pdf-table-header').classList.remove('hidden'); document.querySelectorAll('.pdf-exclude').forEach(el => el.style.display = 'none');
+                let element = document.getElementById('pdf-table-area'); 
+                let opt = { margin: 0.3, filename: `Report_${date}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.5, useCORS: true }, jsPDF: { unit: 'in', format: 'legal', orientation: 'landscape' } };
+                html2pdf().set(opt).from(element).save().then(()=>{
+                    document.getElementById('pdf-table-header').classList.add('hidden'); document.querySelectorAll('.pdf-exclude').forEach(el => el.style.display = '');
+                    if(currentTab !== 'dashboard') switchTab('dashboard'); 
+                });
+            }
+        }
+
+        // --- 6. Admin Utils ---
+        function savePasswords() {
+            PASSWORDS['admin']=document.getElementById('pwd-admin').value||PASSWORDS['admin']; 
+            PASSWORDS['am']=document.getElementById('pwd-am').value||PASSWORDS['am']; 
+            PASSWORDS['branch']=document.getElementById('pwd-branch').value||PASSWORDS['branch'];
+            showToast('success', 'Passwords updated in active session!');
+        }
+
+        function processExcelUpload(e) {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const workbook = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    if(json.length > 0) {
+                        masterBranches = json.map(row => {
+                            let getVal = (possible) => { let k = Object.keys(row).find(x => possible.includes(x.toLowerCase())); return k ? row[k] : ""; };
+                            return { code: parseInt(getVal(['code', 'kod'])) || Math.floor(Math.random()*9000)+1000, name: getVal(['outlet', 'name', 'nama']) || "UNKNOWN", am: getVal(['am', 'area manager', 'pengurus']) || "NO AM", state: getVal(['state', 'negeri']) || "N/A" };
+                        });
+                        showToast('success', `Master directory updated with ${masterBranches.length} records.`);
+                    }
+                } catch (err) { showToast('error', 'Failed to parse Excel file.'); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showToast(type, msg) {
+            let t = document.getElementById('toast'), icon = document.getElementById('toast-icon');
+            let tType = type==='success'?'emerald':type==='error'?'rose':'cyan';
+            t.className = `fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl p-4 shadow-2xl border transition-all duration-300 opacity-100 bg-${tType}-950/90 border-${tType}-500/50`;
+            icon.className = `flex h-8 w-8 items-center justify-center rounded-lg bg-${tType}-500 text-white`;
+            icon.innerHTML = type==='success'?'<i class="fa-solid fa-check"></i>':type==='error'?'<i class="fa-solid fa-xmark"></i>':'<i class="fa-solid fa-info"></i>';
+            document.getElementById('toast-title').className = `text-xs font-bold text-${tType}-400 uppercase`; document.getElementById('toast-title').innerText = type;
+            document.getElementById('toast-msg').innerText = msg;
+            setTimeout(() => { t.classList.add('translate-y-20', 'opacity-0'); }, 3000);
+        }
+    </script>
+</body>
+</html>
