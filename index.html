@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-950 text-slate-100">
 <head>
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -12,6 +15,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .pbi-card { background-color: #1f2937; border: 1px solid #374151; }
@@ -101,7 +106,7 @@
                 <h2 class="text-2xl font-bold text-white" data-i18n="welcome_title">Secure Access System</h2>
                 <p class="text-sm text-slate-400" data-i18n="welcome_desc">Please select your role at the top right to access operational data.</p>
                 <div class="mt-4 inline-block bg-slate-900 border border-slate-700 rounded-full px-4 py-1">
-                    <span class="text-xs font-bold text-cyan-500">Version 9.15 (System Build)</span>
+                    <span class="text-xs font-bold text-cyan-500">Version <span id="version-display"></span> (Live Sync)</span>
                 </div>
             </div>
         </main>
@@ -406,6 +411,13 @@
                         </div>
                     </div>
 
+                    <!-- Google Sheets Manual Sync -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-cloud-arrow-up text-emerald-400 mr-1.5"></i> Google Sheets Manual Sync</h3>
+                        <p class="text-xs text-slate-400 mb-4">Push the currently loaded Firebase data (based on the selected Date/Month in Tracking Tab) directly to your Google Sheets database. This bypasses the old auto-sync and ensures no missing data.</p>
+                        <button onclick="pushToGoogleSheets()" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold text-xs hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 transition-all flex justify-center items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-lg"></i> Push Firebase Data to Google Sheets</button>
+                    </div>
+
                     <!-- Google Sheets Apps Script Info -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl md:col-span-2 relative overflow-hidden">
                         <div class="absolute right-0 top-0 opacity-5"><i class="fa-brands fa-google text-9xl"></i></div>
@@ -480,10 +492,30 @@ function doPost(e) {
   let rowIndex = -1;
   for(let i = 1; i < data.length; i++) {
     let dStr = normalizeDate(data[i][0]);
-    if(dStr === rec.date && data[i][1] == rec.code) { rowIndex = i + 1; break; }
+    if(rec && dStr === rec.date && data[i][1] == rec.code) { rowIndex = i + 1; break; }
   }
   
-  if (action === 'upsert') {
+  if (action === 'batch_upsert') {
+    let batchData = payload.data;
+    if(!batchData || !batchData.length) return ContentService.createTextOutput(JSON.stringify({status: "success"})).setMimeType(ContentService.MimeType.JSON);
+    
+    // Process batch upsert
+    for(let r of batchData) {
+      let rIdx = -1;
+      for(let i = 1; i < data.length; i++) {
+        let dStr = normalizeDate(data[i][0]);
+        if(dStr === r.date && data[i][1] == r.code) { rIdx = i + 1; break; }
+      }
+      let rowData = [r.date, r.code, r.name, r.sales||0, r.transactions||0, r.mykasih||0, r.lorry||0, r.bank1||0, r.bank2||0, r.night_locked?1:0, r.night_submit_time?"'"+r.night_submit_time:"", r.bank1_time?"'"+r.bank1_time:"", r.bank2_time?"'"+r.bank2_time:""];
+      if (rIdx > -1) {
+        sheet.getRange(rIdx, 1, 1, 13).setValues([rowData]);
+        data[rIdx-1] = rowData; // Update local data array so next iterations find it
+      } else {
+        sheet.appendRow(rowData);
+        data.push(rowData); // Update local data array
+      }
+    }
+  } else if (action === 'upsert') {
     let rowData = [rec.date, rec.code, rec.name, rec.sales||0, rec.transactions||0, rec.mykasih||0, rec.lorry||0, rec.bank1||0, rec.bank2||0, rec.night_locked?1:0, rec.night_submit_time?"'"+rec.night_submit_time:"", rec.bank1_time?"'"+rec.bank1_time:"", rec.bank2_time?"'"+rec.bank2_time:""];
     if (rowIndex > -1) sheet.getRange(rowIndex, 1, 1, 13).setValues([rowData]);
     else sheet.appendRow(rowData);
@@ -557,9 +589,22 @@ function doPost(e) {
     </div>
 
     <script>
+        // --- Firebase Config ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyAuMQnfR6hbCkT_4Mk7GhkPagWLaFIc3jE",
+          authDomain: "dashboard---operation.firebaseapp.com",
+          projectId: "dashboard---operation",
+          storageBucket: "dashboard---operation.firebasestorage.app",
+          messagingSenderId: "347436205899",
+          appId: "1:347436205899:web:c0ed632281c66fba034ace",
+          measurementId: "G-39QWDE2WTR"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbya2thyD3a_wHCKv1nK0Do0HmWLwEQceli7URkRGWcVbHM7n95IMRNpixiWw3-SxLRdxg/exec"; // ADMIN: SILA TAMPAL URL GOOGLE APPS SCRIPT DI SINI UNTUK 3500 CAWANGAN
-        const APP_VERSION = 9.16;
+        const APP_VERSION = 9.35;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -622,14 +667,26 @@ function saveGlobalGSUrl() {
                 }
             }).catch(e => console.error("Branch fetch error", e));
         }
-        function getYYYYMMDD(date) {
-            let d = new Date(date), month = '' + (d.getMonth() + 1), day = '' + d.getDate(), year = d.getFullYear();
-            if (month.length < 2) month = '0' + month; if (day.length < 2) day = '0' + day; return [year, month, day].join('-');
+          function getYYYYMMDD(date) {
+              let d = new Date(date), month = '' + (d.getMonth() + 1), day = '' + d.getDate(), year = d.getFullYear();
+              if (month.length < 2) month = '0' + month; if (day.length < 2) day = '0' + day; return [year, month, day].join('-');
+          }
+          let todayStr = getYYYYMMDD(new Date());
+          let currentMonthStr = todayStr.substring(0, 7);
+          
+          let yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          let yesterdayStr = getYYYYMMDD(yesterday);
+          
+          let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!' };
+        function getSafeTimeStr() {
+            let d = new Date();
+            let hh = d.getHours().toString().padStart(2, '0');
+            let mm = d.getMinutes().toString().padStart(2, '0');
+            let ss = d.getSeconds().toString().padStart(2, '0');
+            return hh + ":" + mm + ":" + ss;
         }
-        let todayStr = getYYYYMMDD(new Date());
-        let currentMonthStr = todayStr.substring(0, 7);
-        let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!' };
-        
+
         function formatTime(t) {
             if(!t) return "";
             if(typeof t === 'string' && t.includes('1899')) { let d = new Date(t); if(!isNaN(d)) return d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}); }
@@ -647,7 +704,13 @@ function saveGlobalGSUrl() {
         }
 
         document.addEventListener("DOMContentLoaded", () => {
+              let vd = document.getElementById('version-display'); if(vd) vd.innerText = APP_VERSION;
+              listenToFirebaseConfig();
             loadBranchesCache();
+            if(document.getElementById('night-date')) document.getElementById('night-date').max = todayStr;
+            if(document.getElementById('bank-in-date')) document.getElementById('bank-in-date').max = todayStr;
+            if(document.getElementById('dash-date')) document.getElementById('dash-date').max = todayStr;
+            if(document.getElementById('track-date')) document.getElementById('track-date').max = todayStr;
             fetchBranchesFromCloud();
             
             document.getElementById('dash-date').value = todayStr;
@@ -686,112 +749,129 @@ function saveGlobalGSUrl() {
             else syncManagerFromCloud(document.getElementById(currentTab==='dashboard'?'dash-date':'track-date').value);
         }
 
-        function syncBranchNightData() {
-            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
-            let ndate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
-            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { setupBranchView(); return; }
-            setSyncing(true);
-            fetch(url + '?t=' + new Date().getTime() + '&date=' + ndate).then(r => r.json()).then(data => {
-                if(Array.isArray(data)) {
-                    let sysStatus = data.find(d => d.type === 'system_status');
-                    if(sysStatus) {
-                        if(sysStatus.app_version && sysStatus.app_version > APP_VERSION) {
-                            window.location.href = window.location.pathname + '?v=' + new Date().getTime();
-                            return;
-                        }
-                        masterLock = sysStatus.global_lock;
+        let configListener = null;
+        function listenToFirebaseConfig() {
+            if(!db) return;
+            if(configListener) return;
+            configListener = db.collection("config").doc("system").onSnapshot(doc => {
+                if(doc.exists) {
+                    let data = doc.data();
+                    if(data.app_version && data.app_version > APP_VERSION) {
+                        window.location.href = window.location.pathname + '?v=' + new Date().getTime();
                     }
-                    data = data.filter(d => d.type !== 'system_status');
-                    dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === ndate));
-                    let myData = data.find(d => d.code === currentUser.id);
-                    if(myData) dbSubmissions.push(myData);
+                    if (data.global_lock !== undefined) {
+                        masterLock = data.global_lock;
+                        if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
+                    }
                 }
-                setupBranchView(); setSyncing(false);
+            });
+        }
+
+        function syncBranchNightData() {
+            let ndate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
+            setSyncing(true);
+            let docId = ndate + "_" + currentUser.id;
+            db.collection("submissions").doc(docId).get().then(doc => {
+                dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === ndate));
+                if(doc.exists) dbSubmissions.push(doc.data());
+                setupBranchView();
+                setSyncing(false);
             }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
         function syncBranchFromCloud() {
-            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
-            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { setupBranchView(); return; } 
             setSyncing(true);
-            fetch(url + '?t=' + new Date().getTime() + '&date=' + todayStr).then(r => r.json()).then(data => {
-                if(Array.isArray(data)) {
-                    let sysStatus = data.find(d => d.type === 'system_status');
-                    if(sysStatus) {
-                        if(sysStatus.app_version && sysStatus.app_version > APP_VERSION) {
-                            window.location.href = window.location.pathname + '?v=' + new Date().getTime();
-                            return;
-                        }
-                        masterLock = sysStatus.global_lock;
-                    }
-                    data = data.filter(d => d.type !== 'system_status');
-
-                    // Wipe local array for this branch & date, replace with cloud data
-                    dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === todayStr));
-                    let myData = data.find(d => d.code === currentUser.id);
-                    if(myData) dbSubmissions.push(myData);
-                }
-                setupBranchView(); setSyncing(false);
-            }).catch(e => { 
-                console.error("Fetch GET Error:", e); showToast('error', 'Sync Failed! Check GS Permissions.'); setupBranchView(); setSyncing(false); 
-            });
+            let docId = todayStr + "_" + currentUser.id;
+            db.collection("submissions").doc(docId).get().then(doc => {
+                dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === todayStr));
+                if(doc.exists) dbSubmissions.push(doc.data());
+                setupBranchView();
+                setSyncing(false);
+            }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
         function syncBranchBankData() {
-            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
             let bDate = document.getElementById('bank-in-date').value;
-            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { setupBranchView(); return; }
             setSyncing(true);
-            fetch(url + '?t=' + new Date().getTime() + '&date=' + bDate).then(r => r.json()).then(data => {
-                if(Array.isArray(data)) {
-                    // Wipe local array for this branch & date, replace with cloud data
-                    dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === bDate));
-                    let myData = data.find(d => d.code === currentUser.id);
-                    if(myData) dbSubmissions.push(myData);
-                }
-                setupBranchView(); setSyncing(false);
-            }).catch(e => { console.error("Fetch GET Bank Error:", e); setupBranchView(); setSyncing(false); });
+            let docId = bDate + "_" + currentUser.id;
+            db.collection("submissions").doc(docId).get().then(doc => {
+                dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === bDate));
+                if(doc.exists) dbSubmissions.push(doc.data());
+                setupBranchView();
+                setSyncing(false);
+            }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
         function syncManagerFromCloud() {
             let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode')?document.getElementById('dash-mode').value:'daily') : 'daily';
             let dateStr = mode === 'daily' ? document.getElementById(currentTab==='dashboard'?'dash-date':'track-date').value : document.getElementById('dash-month').value;
-            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
-            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { if(currentTab==='dashboard') renderDashboard(); else renderTrackingTable(); return; } // Fallback
             setSyncing(true);
-            let fetchUrl = url + (mode === 'daily' ? '?date=' + dateStr : '?month=' + dateStr);
-            fetch(fetchUrl).then(r => r.json()).then(data => {
-                if(Array.isArray(data)) {
-                    let sysStatus = data.find(d => d.type === 'system_status');
-                    if(sysStatus) {
-                        if(sysStatus.app_version && sysStatus.app_version > APP_VERSION) {
-                            window.location.href = window.location.pathname + '?v=' + new Date().getTime();
-                            return;
-                        }
-                        masterLock = sysStatus.global_lock;
-                        updateMasterLockUI();
-                    }
-                    data = data.filter(d => d.type !== 'system_status');
-
-                    if(mode === 'daily') dbSubmissions = dbSubmissions.filter(s => s.date !== dateStr);
-                    else dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
-                    dbSubmissions.push(...data);
-                }
+            
+            let query = mode === 'daily' ? 
+                db.collection("submissions").where("date", "==", dateStr) : 
+                db.collection("submissions").where("date", ">=", dateStr + "-01").where("date", "<=", dateStr + "-31");
+            
+            query.get().then(snap => {
+                let fbData = [];
+                snap.forEach(doc => {
+                    let d = doc.data();
+                    if(d.date) fbData.push(d);
+                });
+                dbSubmissions = [...fbData];
+                
+                if(mode === 'daily') dbSubmissions = dbSubmissions.filter(s => s.date !== dateStr);
+                else dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
+                
+                dbSubmissions.push(...fbData);
                 if(currentTab==='dashboard') renderDashboard(); else renderTrackingTable();
                 setSyncing(false);
-            }).catch(e => { console.error("Fetch GET Error:", e); showToast('error', 'Auto-Sync Failed! Check URL/Permissions.'); if(currentTab==='dashboard') renderDashboard(); else renderTrackingTable(); setSyncing(false); });
+            }).catch(e => { console.error(e); setSyncing(false); });
         }
 
         function syncToCloud(action, payloadData, callback) {
-            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
-            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") { showToast('info', 'Saved locally (No Webhook set).'); if(callback) callback(); return; }
             setSyncing(true);
-            fetch(url, {
-                method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: action, data: payloadData })
-            }).then(() => {
-                showToast('success', 'Synced with HQ Server!'); setSyncing(false); if(callback) callback();
-            }).catch(e => { console.error("Fetch POST Error:", e); showToast('error', 'Upload Network Error (CORS).'); setSyncing(false); if(callback) callback(); });
+
+            let fbPromise = Promise.resolve();
+            if (action === 'reset_night' && payloadData.date && payloadData.code) {
+                let docId = payloadData.date + "_" + payloadData.code;
+                fbPromise = db.collection("submissions").doc(docId).set({
+                    sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true
+                }, {merge: true});
+            } else if (action === 'reset_bank' && payloadData.date && payloadData.code) {
+                let docId = payloadData.date + "_" + payloadData.code;
+                fbPromise = db.collection("submissions").doc(docId).set({
+                    bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true
+                }, {merge: true});
+            } else if (action === 'unlock_night' && payloadData.date && payloadData.code) {
+                let docId = payloadData.date + "_" + payloadData.code;
+                fbPromise = db.collection("submissions").doc(docId).set({ night_unlocked: true }, {merge: true});
+            } else if (action === 'unlock_bank2' && payloadData.date && payloadData.code) {
+                let docId = payloadData.date + "_" + payloadData.code;
+                fbPromise = db.collection("submissions").doc(docId).set({ bank2_unlocked: true }, {merge: true});
+            } else if (action === 'master_reset' && payloadData.date) {
+                fbPromise = db.collection("submissions").where("date", "==", payloadData.date).get().then(snap => {
+                    let batch = db.batch();
+                    snap.forEach(doc => {
+                        batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true });
+                    });
+                    return batch.commit();
+                });
+            } else if (payloadData && payloadData.date && payloadData.code) {
+                let docId = payloadData.date + "_" + payloadData.code;
+                fbPromise = db.collection("submissions").doc(docId).set(payloadData, {merge: true});
+            } else if (action === 'set_global_lock') {
+                fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
+            }
+
+            fbPromise.then(() => {
+                showToast('success', 'Data Saved!');
+                if(callback) callback();
+                setSyncing(false);
+            }).catch(e => {
+                console.error("Firebase Save Error:", e);
+                showToast('error', 'Network Error! Failed to save.');
+                setSyncing(false);
+            });
         }
 
         // --- 3. UI/Routing ---
@@ -976,12 +1056,19 @@ function saveGlobalGSUrl() {
         function executeNightSubmit() {
             let nightDate = document.getElementById('night-date').value;
             let rec = dbSubmissions.find(s => s.code === currentUser.id && s.date === nightDate);
-            if(!rec) { rec = { date: nightDate, code: currentUser.id, name: currentUser.name, bank1: 0, bank2: 0, night_locked: false }; dbSubmissions.push(rec); }
-            rec.sales = pendingNightData.sales; rec.transactions = pendingNightData.transactions; rec.mykasih = pendingNightData.mykasih; rec.lorry = pendingNightData.lorry; 
-            rec.night_locked = true; rec.night_submit_time = new Date().toLocaleTimeString('en-US'); 
+            
+            let updatePayload = {
+                date: nightDate, code: currentUser.id, name: currentUser.name,
+                sales: pendingNightData.sales, transactions: pendingNightData.transactions,
+                mykasih: pendingNightData.mykasih, lorry: pendingNightData.lorry,
+                night_locked: true, night_submit_time: getSafeTimeStr()
+            };
+            
+            if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
+            else { Object.assign(rec, updatePayload); }
             
             closeModal('confirm-modal');
-            syncToCloud('submit_sales', rec, setupBranchView);
+            syncToCloud('submit_sales', updatePayload, setupBranchView);
         }
 
         function saveBankInData(e) {
@@ -989,19 +1076,21 @@ function saveGlobalGSUrl() {
             let bDate = document.getElementById('bank-in-date').value;
             if(!bDate) { showToast('error', 'Select Sales Date first!'); return; }
             let rec = dbSubmissions.find(s => s.code === currentUser.id && s.date === bDate);
-            if(!rec) { rec = { date: bDate, code: currentUser.id, name: currentUser.name, night_locked: false, sales:0, transactions:0, mykasih:0, lorry:0 }; dbSubmissions.push(rec); }
             
-            let pBank1 = rec.bank1 || 0; let pBank2 = rec.bank2 || 0;
+            let pBank1 = rec ? (rec.bank1 || 0) : 0;
+            let pBank2 = rec ? (rec.bank2 || 0) : 0;
             let nBank1 = parseFloat(document.getElementById('f-bank1').value) || 0;
             let nBank2 = parseFloat(document.getElementById('f-bank2').value) || 0;
-            let tStr = new Date().toLocaleTimeString('en-US');
+            let tStr = getSafeTimeStr();
             
-            if (nBank1 !== pBank1 || (nBank1 > 0 && !rec.bank1_time)) rec.bank1_time = tStr;
-            if (nBank2 !== pBank2 || (nBank2 > 0 && !rec.bank2_time)) rec.bank2_time = tStr;
+            let updatePayload = { date: bDate, code: currentUser.id, name: currentUser.name, bank1: nBank1, bank2: nBank2 };
+            if (nBank1 !== pBank1 || (nBank1 > 0 && !(rec && rec.bank1_time))) updatePayload.bank1_time = tStr;
+            if (nBank2 !== pBank2 || (nBank2 > 0 && !(rec && rec.bank2_time))) updatePayload.bank2_time = tStr;
             
-            rec.bank1 = nBank1; rec.bank2 = nBank2;
+            if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
+            else { Object.assign(rec, updatePayload); }
             
-            syncToCloud('upsert', rec, setupBranchView);
+            syncToCloud('upsert', updatePayload, setupBranchView);
         }
 
         // --- 5. Manager Dashboards & Tracking ---
@@ -1281,11 +1370,32 @@ function saveGlobalGSUrl() {
 
         function confirmMasterReset() {
             let date = document.getElementById('track-date').value;
-            if(confirm(`MASTER RESET NIGHT DATA FOR ${date}?\nThis will instruct the server to unlock ALL branches for resubmission.`)) {
-                dbSubmissions.forEach(s => { if(s.date === date) { s.sales = 0; s.transactions = 0; s.mykasih = 0; s.lorry = 0; s.night_locked = false; s.night_submit_time = ""; } });
-                renderTrackingTable();
-                syncToCloud('master_reset', { date: date, amName: currentUser.name });
-            }
+            Swal.fire({
+                title: 'MASTER RESET WARNING',
+                html: `<p class="mb-4">This will WIPE all night data for <b>${date}</b> globally.<br>Enter Admin Password to proceed:</p>
+                       <input type="password" id="swal-input-pwd" class="swal2-input bg-slate-900 border-slate-700 text-white" placeholder="Password">`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#334155',
+                confirmButtonText: 'CONFIRM MASTER RESET',
+                preConfirm: () => {
+                    const pwd = Swal.getPopup().querySelector('#swal-input-pwd').value;
+                    if (!pwd) Swal.showValidationMessage('Password is required');
+                    return pwd;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    if (result.value === PASSWORDS['admin']) {
+                        dbSubmissions.forEach(s => { if(s.date === date) { s.sales = 0; s.transactions = 0; s.mykasih = 0; s.lorry = 0; s.night_locked = false; s.night_submit_time = ""; } });
+                        renderTrackingTable();
+                        syncToCloud('master_reset', { date: date, amName: currentUser.name });
+                        showToast('success', 'Master Reset Executed!');
+                    } else {
+                        Swal.fire('Error', 'Incorrect Admin Password. Reset Aborted.', 'error');
+                    }
+                }
+            });
         }
 
         function exportData(type) {
@@ -1323,6 +1433,57 @@ function saveGlobalGSUrl() {
         }
 
         // --- 6. Admin Utils ---
+        function pushToGoogleSheets() {
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") {
+                showToast('error', 'Google Sheets Webhook URL not set!');
+                return;
+            }
+            if(!dbSubmissions || dbSubmissions.length === 0) {
+                showToast('error', 'No data loaded to push. Please refresh Tracking tab.');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Confirm Push to Google Sheets?',
+                text: `You are about to push ${dbSubmissions.length} records. This might take a few moments.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#334155',
+                confirmButtonText: 'Yes, Push Data'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    setSyncing(true);
+                    showToast('info', 'Pushing data in batches...');
+                    
+                    let chunks = [];
+                    for (let i = 0; i < dbSubmissions.length; i += 50) { // Batch of 50 for Google Apps Script limits
+                        chunks.push(dbSubmissions.slice(i, i + 50));
+                    }
+
+                    async function pushBatches() {
+                        for (let chunk of chunks) {
+                            let payloadData = { action: 'batch_upsert', data: chunk };
+                            await fetch(url, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify(payloadData)
+                            });
+                        }
+                        showToast('success', 'Push to Google Sheets Completed!');
+                        setSyncing(false);
+                    }
+                    
+                    pushBatches().catch(e => {
+                        console.error('Push GS Error:', e);
+                        showToast('error', 'Failed to push some data. Check console.');
+                        setSyncing(false);
+                    });
+                }
+            });
+        }
+
         function savePasswords() {
             PASSWORDS['admin']=document.getElementById('pwd-admin').value||PASSWORDS['admin']; 
             PASSWORDS['am']=document.getElementById('pwd-am').value||PASSWORDS['am']; 
@@ -1362,3 +1523,24 @@ function saveGlobalGSUrl() {
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
