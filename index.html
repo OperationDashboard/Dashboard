@@ -1307,7 +1307,7 @@ function saveGlobalGSUrl() {
                 let todayD = new Date(todayStr); let salesD = new Date(date);
                 let diffDays = Math.floor((todayD - salesD) / (1000 * 60 * 60 * 24));
                 
-                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && diffDays !== 0 && (!sub || !sub.night_unlocked)) ? `<button onclick="unlockNight('${date}', ${b.code})" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
+                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && isNightLocked) ? `<button onclick="unlockNight('${date}', ${b.code})" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
                 
                 let adminUnlockBank = (currentUser.role === 'admin' && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', ${b.code})" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
                 
@@ -1526,6 +1526,7 @@ function saveGlobalGSUrl() {
     </script>
 </body>
 </html>
+
 
 
 
