@@ -729,6 +729,7 @@ function saveGlobalGSUrl() {
                     currentUser = JSON.parse(savedUser); let role = currentUser.role;
                     document.querySelectorAll('.admin-only').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
                     document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin') ? 'flex' : 'none');
+            document.getElementById('header-subtitle').classList.add('hidden');
                     document.getElementById('nav-buttons').classList.add('hidden');
                     document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
                     document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
@@ -931,6 +932,7 @@ function saveGlobalGSUrl() {
             currentUser = { role: role };
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
             document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin') ? 'flex' : 'none');
+            document.getElementById('header-subtitle').classList.add('hidden');
             
             if (role === 'branch') {
                 currentUser.id = parseInt(selId); let b = masterBranches.find(x => x.code === currentUser.id);
@@ -950,6 +952,7 @@ function saveGlobalGSUrl() {
 
         function logout() {
             currentUser = null; localStorage.removeItem('pbi_user');
+            document.getElementById('header-subtitle').classList.remove('hidden');
             document.getElementById('logged-in-controls').classList.add('hidden'); document.getElementById('logged-in-controls').classList.remove('flex');
             document.getElementById('nav-buttons').classList.remove('hidden'); document.getElementById('section-branch').classList.add('hidden');
             document.getElementById('section-manager').classList.add('hidden'); document.getElementById('section-welcome').classList.remove('hidden');
@@ -1523,6 +1526,7 @@ function saveGlobalGSUrl() {
     </script>
 </body>
 </html>
+
 
 
 
