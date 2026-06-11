@@ -966,9 +966,9 @@ function saveGlobalGSUrl() {
             if(!val) { pop.classList.add('hidden'); return; }
             let term = val.toLowerCase(), html = "";
             if (role === 'branch') {
-                html = masterBranches.filter(b => b.code.toString().includes(term) || b.name.toLowerCase().includes(term)).slice(0, 5).map(b => `<div onclick="selectAuth('${b.code}', '${b.name}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
+                html = masterBranches.filter(b => b.code.toString().includes(term) || b.name.toLowerCase().includes(term)).slice(0, 5).map(b => `<div onclick="selectAuth('${b.code}', '${b.name.replace(/'/g, "\\'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
             } else if (role === 'am') {
-                html = [...new Set(masterBranches.map(b=>b.am))].filter(a => a.toLowerCase().includes(term)).slice(0, 5).map(a => `<div onclick="selectAuth('${a}', '${a}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
+                html = [...new Set(masterBranches.map(b=>b.am))].filter(a => a.toLowerCase().includes(term)).slice(0, 5).map(a => `<div onclick="selectAuth('${a.replace(/'/g, "\\'")}', '${a.replace(/'/g, "\\'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
             }
             if(html) { pop.innerHTML = html; pop.classList.remove('hidden'); } else pop.classList.add('hidden');
         }
@@ -1038,11 +1038,6 @@ function saveGlobalGSUrl() {
             let nightDate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
             let nightRec = dbSubmissions.find(s => s.code === currentUser.id && s.date === nightDate);
             let timeEl = document.getElementById('info-branch-submit-time');
-            if(nightRec && nightRec.night_locked && nightRec.night_submit_time) {
-                timeEl.innerText = formatTime(nightRec.night_submit_time); timeEl.className = "text-xs font-bold text-emerald-400 mt-0.5";
-            } else {
-                timeEl.innerText = currentLang==='EN' ? "Not submitted yet" : "Belum dihantar"; timeEl.className = "text-xs font-bold text-amber-500 mt-0.5 italic";
-            }
             
             let parseD = (str) => { if(!str) return 0; let p=str.split('-'); return new Date(p[0], p[1]-1, p[2]).getTime(); };
 
@@ -1051,6 +1046,13 @@ function saveGlobalGSUrl() {
             
             let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
             let btnNight = document.getElementById('btn-submit-night');
+
+            if(nightRec && nightRec.night_locked && nightRec.night_submit_time) {
+                timeEl.innerText = formatTime(nightRec.night_submit_time); timeEl.className = "text-xs font-bold text-emerald-400 mt-0.5";
+                if(!nightUnlocked && btnNight) { btnNight.disabled = true; btnNight.classList.add('hidden'); }
+            } else {
+                timeEl.innerText = currentLang==='EN' ? "Not submitted yet" : "Belum dihantar"; timeEl.className = "text-xs font-bold text-amber-500 mt-0.5 italic";
+            }
 
             if (nightUnlocked) {
                 fnSales.disabled = false; fnSales.readOnly = false; fnSales.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -1117,7 +1119,7 @@ function saveGlobalGSUrl() {
                 date: nightDate, code: currentUser.id, name: currentUser.name,
                 sales: pendingNightData.sales, transactions: pendingNightData.transactions,
                 mykasih: pendingNightData.mykasih, lorry: pendingNightData.lorry,
-                night_locked: true, night_submit_time: getSafeTimeStr()
+                night_locked: true, night_unlocked: false, night_submit_time: getSafeTimeStr()
             };
             
             if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
