@@ -1439,12 +1439,7 @@ function saveGlobalGSUrl() {
                 if(rendered > 300) return; rendered++;
 
                 let sub = dbSubmissions.find(s => s.code === b.code && s.date === date);
-                let isNightLocked;
-                if (sub && sub.night_locked !== undefined) {
-                    isNightLocked = sub.night_locked;
-                } else {
-                    isNightLocked = ((date === todayStr && !masterLock) || (date !== todayStr && !pastLock)) ? false : true;
-                }
+                let isNightLocked = !!(sub && sub.night_locked);
                 let hasBankIn = sub && ((sub.bank1||0)>0 || (sub.bank2||0)>0);
                 
                 let tSales = isNightLocked ? sub.sales||0 : 0; let tTrans = isNightLocked ? sub.transactions||0 : 0;
