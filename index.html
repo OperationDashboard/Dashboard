@@ -906,20 +906,24 @@ function saveGlobalGSUrl() {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({ bank2_unlocked: true }, {merge: true});
             } else if (action === 'master_reset' && payloadData.date) {
-                fbPromise = db.collection("submissions").where("date", "==", payloadData.date).get().then(snap => {
-                    let batch = db.batch();
-                    snap.forEach(doc => {
-                        batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true });
-                    });
-                    return batch.commit();
+                fbPromise = db.collection("submissions").where("date", "==", payloadData.date).get().then(async snap => {
+                    let docs = snap.docs;
+                    for (let i = 0; i < docs.length; i += 400) {
+                        let batch = db.batch();
+                        let chunk = docs.slice(i, i + 400);
+                        chunk.forEach(doc => {
+                            batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true });
+                        });
+                        await batch.commit();
+                    }
                 });
             } else if (payloadData && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set(payloadData, {merge: true});
             } else if (action === 'set_global_lock') {
-                  fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
-              } else if (action === 'set_past_lock') {
                 fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
+            } else if (action === 'set_past_lock') {
+                fbPromise = db.collection("config").doc("system").set({past_lock: payloadData.locked}, {merge: true});
             }
 
             fbPromise.then(() => {
@@ -1435,7 +1439,12 @@ function saveGlobalGSUrl() {
                 if(rendered > 300) return; rendered++;
 
                 let sub = dbSubmissions.find(s => s.code === b.code && s.date === date);
-                let isNightLocked = sub && sub.night_locked;
+                let isNightLocked;
+                if (sub && sub.night_locked !== undefined) {
+                    isNightLocked = sub.night_locked;
+                } else {
+                    isNightLocked = ((date === todayStr && !masterLock) || (date !== todayStr && !pastLock)) ? false : true;
+                }
                 let hasBankIn = sub && ((sub.bank1||0)>0 || (sub.bank2||0)>0);
                 
                 let tSales = isNightLocked ? sub.sales||0 : 0; let tTrans = isNightLocked ? sub.transactions||0 : 0;
