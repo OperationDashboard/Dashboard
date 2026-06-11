@@ -243,6 +243,7 @@
                     
                     <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                         <button onclick="toggleMasterLock()" id="btn-master-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
+                          <button onclick="togglePastLock()" id="btn-past-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
                         <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-green-400 border border-green-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
                         <button onclick="exportData('pdf')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
                     </div>
@@ -677,6 +678,7 @@ function saveGlobalGSUrl() {
         let masterBranches = [];
         let ams = [];
         let masterLock = false;
+        let pastLock = true;
 
         function loadBranchesCache() {
             let cached = localStorage.getItem('master_branches_cache');
@@ -795,7 +797,8 @@ function saveGlobalGSUrl() {
                     if(data.app_version && data.app_version > APP_VERSION) {
                         window.location.href = window.location.pathname + '?v=' + new Date().getTime();
                     }
-                    if (data.global_lock !== undefined) {
+                    if (data.past_lock !== undefined) { pastLock = data.past_lock; } else { pastLock = true; }
+                      if (data.global_lock !== undefined) {
                         masterLock = data.global_lock;
                         if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
                     }
@@ -914,6 +917,8 @@ function saveGlobalGSUrl() {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set(payloadData, {merge: true});
             } else if (action === 'set_global_lock') {
+                  fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
+              } else if (action === 'set_past_lock') {
                 fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
             }
 
@@ -1042,7 +1047,7 @@ function saveGlobalGSUrl() {
             let parseD = (str) => { if(!str) return 0; let p=str.split('-'); return new Date(p[0], p[1]-1, p[2]).getTime(); };
 
             let nightDiff = Math.round((parseD(todayStr) - parseD(nightDate)) / 86400000);
-            let nightUnlocked = (!masterLock) || (nightRec && nightRec.night_unlocked);
+            let nightUnlocked = (!masterLock && nightDiff === 0) || (!pastLock && nightDiff !== 0) || (nightRec && nightRec.night_unlocked);
             
             let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
             let btnNight = document.getElementById('btn-submit-night');
@@ -1216,18 +1221,43 @@ function saveGlobalGSUrl() {
 
         function updateMasterLockUI() {
             let btn = document.getElementById('btn-master-lock');
-            if(!btn) return;
-            if(masterLock) {
+              let btnPast = document.getElementById('btn-past-lock');
+              if(!btn) return;
+              if(masterLock) {
                 btn.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
-                btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked`;
+                btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked (Today)`;
             } else {
                 btn.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
-                btn.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked`;
-            }
-            if(currentUser && currentUser.role === 'admin') btn.classList.remove('hidden');
-        }
+                btn.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked (Today)`;
+              }
+              if(currentUser && currentUser.role === 'admin') btn.classList.remove('hidden');
 
-        function toggleMasterLock() {
+              if(btnPast) {
+                  if(pastLock) {
+                      btnPast.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                      btnPast.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked (Past)`;
+                  } else {
+                      btnPast.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                      btnPast.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked (Past)`;
+                  }
+                  if(currentUser && currentUser.role === 'admin') btnPast.classList.remove('hidden');
+              }
+          }
+
+        function togglePastLock() {
+              if(currentUser.role !== 'admin') return;
+              let actionText = pastLock ? "Unlock" : "Lock";
+              Swal.fire({ title: `${actionText} Past Dates?`, text: `Are you sure you want to ${actionText.toLowerCase()} the Primary Operations form for ALL PAST DATES?`, icon: 'warning', showCancelButton: true, confirmButtonText: `Yes, ${actionText}` })
+              .then((result) => {
+                  if (result.isConfirmed) {
+                      pastLock = !pastLock;
+                      updateMasterLockUI();
+                      syncToCloud('set_past_lock', {locked: pastLock}, () => { syncManagerFromCloud(); });
+                  }
+              });
+          }
+
+          function toggleMasterLock() {
             if(currentUser.role !== 'admin') return;
             let actionText = masterLock ? "Unlock" : "Lock";
             Swal.fire({ title: `${actionText} System?`, text: `Are you sure you want to ${actionText.toLowerCase()} the Primary Operations form for ALL branches?`, icon: 'warning', showCancelButton: true, confirmButtonText: `Yes, ${actionText}` })
@@ -1427,13 +1457,13 @@ function saveGlobalGSUrl() {
                 let todayD = new Date(todayStr); let salesD = new Date(date);
                 let diffDays = Math.floor((todayD - salesD) / (1000 * 60 * 60 * 24));
                 
-                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && isNightLocked) ? `<button onclick="unlockNight('${date}', ${b.code})" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
+                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && (isNightLocked || (date !== todayStr && (!sub || !sub.night_unlocked)))) ? `<button onclick="unlockNight('${date}', ${b.code})" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
                 
                 let adminUnlockBank = (currentUser.role === 'admin' && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', ${b.code})" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
                 
                 adminAct = adminUnlockNight + adminUnlockBank;
 
-                let acts = (isNightLocked || hasBankIn || adminAct) ? `<div class="flex flex-col w-[130px]"><div class="flex gap-2 w-full">${actNight}${actBank}</div>${adminAct}</div>` : `<span class="text-slate-600">-</span>`;
+                let acts = (isNightLocked || hasBankIn || adminAct || (date !== todayStr && !sub)) ? `<div class="flex flex-col w-[130px]"><div class="flex gap-2 w-full">${actNight}${actBank}</div>${adminAct}</div>` : `<span class="text-slate-600">-</span>`;
 
                 html += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
                     <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div></td>
@@ -1646,6 +1676,7 @@ function saveGlobalGSUrl() {
     </script>
 </body>
 </html>
+
 
 
 
