@@ -1042,7 +1042,7 @@ function saveGlobalGSUrl() {
             let parseD = (str) => { if(!str) return 0; let p=str.split('-'); return new Date(p[0], p[1]-1, p[2]).getTime(); };
 
             let nightDiff = Math.round((parseD(todayStr) - parseD(nightDate)) / 86400000);
-            let nightUnlocked = (!masterLock && nightDiff === 0) || (nightRec && nightRec.night_unlocked);
+            let nightUnlocked = (!masterLock) || (nightRec && nightRec.night_unlocked);
             
             let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
             let btnNight = document.getElementById('btn-submit-night');
