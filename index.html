@@ -199,6 +199,7 @@
                 <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
                     <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Analytics Dashboard</button>
                     <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
+                    <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only" data-i18n="tab_comparison">Daily Comparison</button>
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only" data-i18n="tab_control">System Control</button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
@@ -375,6 +376,40 @@
                                 </tr>
                             </thead>
                             <tbody id="tracking-tbody" class="divide-y divide-slate-800/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DAILY COMPARISON TAB -->
+            <section id="tab-comparison" class="hidden space-y-6">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pbi-card p-4 rounded-xl shadow-xl">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-code-compare text-cyan-400"></i>
+                            <span data-i18n="tab_comparison">Daily Comparison</span>
+                        </h2>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="relative group cursor-pointer" onclick="document.getElementById('compare-month').showPicker()">
+                            <div class="flex items-center gap-2 bg-slate-800 group-hover:bg-slate-700 border border-slate-600 px-4 py-2 rounded-lg transition-colors shadow">
+                                <i class="fa-solid fa-calendar-days text-cyan-400"></i>
+                                <span id="compare-month-display" class="text-xs font-bold text-white pointer-events-none">Select Month</span>
+                            </div>
+                            <input type="month" id="compare-month" onchange="updateDateDisplay('compare-month'); renderComparisonTable();" class="absolute inset-0 opacity-0 cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Table -->
+                <div class="pbi-card rounded-xl overflow-hidden shadow-xl" id="comparison-table-wrapper">
+                    <div class="overflow-x-auto max-h-[600px]">
+                        <table class="w-full text-left text-[11px] border-collapse whitespace-nowrap" id="comparison-table">
+                            <thead class="sticky top-0 z-30 bg-slate-950 shadow-md" id="comparison-thead">
+                                <!-- Dynamically generated headers -->
+                            </thead>
+                            <tbody id="comparison-tbody" class="divide-y divide-slate-800/60"></tbody>
                         </table>
                     </div>
                 </div>
@@ -612,8 +647,8 @@ function doPost(e) {
         let isSyncing = false;
         
         const DICT = {
-            EN: { subtitle_login: "Please login to continue", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Refresh", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right to access operational data.", branch_form_title: "Daily Data Entry Form", branch_form_desc: "Complete daily sales and logistics. Data is auto-synced to HQ.", status_done: "SYNCED TO HQ", branch_locked_desc: "Data has been successfully submitted to the server. Contact AM to reset.", branch_section_night: "Primary Operations Data", branch_section_bank: "Bank-In Updates (Always Editable)", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Sync to HQ", btn_save_bank: "Sync Bank-In Data", branch_info: "Branch Information", tab_dashboard: "Analytics Dashboard", tab_tracking: "Tracking & Reset", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Lorry Cost", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Submit Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be permanently synced to HQ.", lbl_submission_ratio: "Submission Ratio:" },
-            BM: { subtitle_login: "Sila log masuk", btn_branch: "Cawangan", btn_am: "Pengurus Kawasan", btn_admin: "Pentadbir", btn_refresh: "Muat Semula", welcome_title: "Sistem Akses Selamat", welcome_desc: "Sila pilih peranan anda di penjuru kanan atas untuk akses data operasi.", branch_form_title: "Borang Kemasukan Harian", branch_form_desc: "Lengkapkan data harian. Data dihubungkan terus ke server HQ.", status_done: "DIHANTAR KE HQ", branch_locked_desc: "Data telah berjaya disimpan di pangkalan data HQ. Hubungi AM untuk set semula.", branch_section_night: "Data Operasi Utama", branch_section_bank: "Kemaskini Bank-In", field_sales: "Jualan Harian (RM)", field_trans: "Transaksi", field_mykasih: "MyKasih (RM)", field_lorry: "Kos Lori (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Hantar & Simpan ke HQ", btn_save_bank: "Simpan Bank-In", branch_info: "Maklumat Cawangan", tab_dashboard: "Dashboard Analitik", tab_tracking: "Semakan & Reset", tab_control: "Kawalan Sistem", kpi_sales: "Jumlah Jualan", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori", kpi_trans: "Transaksi", lbl_password: "Kata Laluan", btn_login_submit: "Sahkan Log Masuk", confirm_title: "Sahkan Penghantaran?", confirm_desc: "Data akan dihantar terus ke sistem pusat HQ.", lbl_submission_ratio: "Nisbah Hantaran:" }
+            EN: { subtitle_login: "Please login to continue", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Refresh", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right to access operational data.", branch_form_title: "Daily Data Entry Form", branch_form_desc: "Complete daily sales and logistics. Data is auto-synced to HQ.", status_done: "SYNCED TO HQ", branch_locked_desc: "Data has been successfully submitted to the server. Contact AM to reset.", branch_section_night: "Primary Operations Data", branch_section_bank: "Bank-In Updates (Always Editable)", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Sync to HQ", btn_save_bank: "Sync Bank-In Data", branch_info: "Branch Information", tab_dashboard: "Analytics Dashboard", tab_tracking: "Tracking & Reset", tab_comparison: "Daily Comparison", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Lorry Cost", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Submit Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be permanently synced to HQ.", lbl_submission_ratio: "Submission Ratio:" },
+            BM: { subtitle_login: "Sila log masuk", btn_branch: "Cawangan", btn_am: "Pengurus Kawasan", btn_admin: "Pentadbir", btn_refresh: "Muat Semula", welcome_title: "Sistem Akses Selamat", welcome_desc: "Sila pilih peranan anda di penjuru kanan atas untuk akses data operasi.", branch_form_title: "Borang Kemasukan Harian", branch_form_desc: "Lengkapkan data harian. Data dihubungkan terus ke server HQ.", status_done: "DIHANTAR KE HQ", branch_locked_desc: "Data telah berjaya disimpan di pangkalan data HQ. Hubungi AM untuk set semula.", branch_section_night: "Data Operasi Utama", branch_section_bank: "Kemaskini Bank-In", field_sales: "Jualan Harian (RM)", field_trans: "Transaksi", field_mykasih: "MyKasih (RM)", field_lorry: "Kos Lori (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Hantar & Simpan ke HQ", btn_save_bank: "Simpan Bank-In", branch_info: "Maklumat Cawangan", tab_dashboard: "Dashboard Analitik", tab_tracking: "Semakan & Reset", tab_comparison: "Perbandingan Harian", tab_control: "Kawalan Sistem", kpi_sales: "Jumlah Jualan", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori", kpi_trans: "Transaksi", lbl_password: "Kata Laluan", btn_login_submit: "Sahkan Log Masuk", confirm_title: "Sahkan Penghantaran?", confirm_desc: "Data akan dihantar terus ke sistem pusat HQ.", lbl_submission_ratio: "Nisbah Hantaran:" }
         };
 
         function toggleLang() {
@@ -747,7 +782,7 @@ function saveGlobalGSUrl() {
         function triggerDataSync() {
             if(!currentUser) return;
             if(currentUser.role === 'branch') syncBranchFromCloud();
-            else syncManagerFromCloud(document.getElementById(currentTab==='dashboard'?'dash-date':'track-date').value);
+            else syncManagerFromCloud();
         }
 
         let configListener = null;
@@ -804,8 +839,24 @@ function saveGlobalGSUrl() {
         }
 
         function syncManagerFromCloud() {
-            let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode')?document.getElementById('dash-mode').value:'daily') : 'daily';
-            let dateStr = mode === 'daily' ? document.getElementById(currentTab==='dashboard'?'dash-date':'track-date').value : document.getElementById('dash-month').value;
+            let mode = 'daily';
+            let dateStr = todayStr;
+            
+            if (currentTab === 'dashboard') {
+                mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
+                dateStr = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
+            } else if (currentTab === 'comparison') {
+                mode = 'monthly';
+                let cm = document.getElementById('compare-month');
+                if(!cm.value) cm.value = todayStr.substring(0,7);
+                dateStr = cm.value;
+            } else {
+                mode = 'daily';
+                let td = document.getElementById('track-date');
+                if(!td.value) td.value = todayStr;
+                dateStr = td.value;
+            }
+
             setSyncing(true);
             
             let query = mode === 'daily' ? 
@@ -824,7 +875,9 @@ function saveGlobalGSUrl() {
                 else dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
                 
                 dbSubmissions.push(...fbData);
-                if(currentTab==='dashboard') renderDashboard(); else renderTrackingTable();
+                if(currentTab==='dashboard') renderDashboard(); 
+                else if(currentTab==='comparison') renderComparisonTable();
+                else renderTrackingTable();
                 setSyncing(false);
             }).catch(e => { console.error(e); setSyncing(false); });
         }
@@ -960,7 +1013,7 @@ function saveGlobalGSUrl() {
 
         function switchTab(tab) {
             currentTab = tab;
-            ['dashboard', 'tracking', 'control'].forEach(t => {
+            ['dashboard', 'tracking', 'comparison', 'control'].forEach(t => {
                 let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
@@ -969,7 +1022,7 @@ function saveGlobalGSUrl() {
             if(aSec) aSec.classList.remove('hidden');
             if(aBtn) { aBtn.classList.remove('tab-inactive'); aBtn.classList.add('tab-active'); }
             
-            if(tab === 'dashboard' || tab === 'tracking') triggerDataSync();
+            if(tab === 'dashboard' || tab === 'tracking' || tab === 'comparison') triggerDataSync();
         }
 
         // --- 4. Branch Logic ---
@@ -1269,6 +1322,71 @@ function saveGlobalGSUrl() {
 
             if(barChartObj) barChartObj.destroy();
             barChartObj = new Chart(document.getElementById('chart-bar-compare').getContext('2d'), { type: 'bar', data: { labels: ['Today\'s Operations'], datasets: [ { label: 'Total Sales', data: [tKPI.sales], backgroundColor: '#06b6d4', borderRadius: 4 }, { label: 'Total Bank-In', data: [tKPI.bank], backgroundColor: '#10b981', borderRadius: 4 }, { label: 'Lorry Cost', data: [tKPI.lorry], backgroundColor: '#a855f7', borderRadius: 4 } ]}, options: { responsive: true, maintainAspectRatio: false, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
+        }
+
+        function renderComparisonTable() {
+            let monthStr = document.getElementById('compare-month').value;
+            if(!monthStr) return;
+            
+            let [y, m] = monthStr.split('-');
+            let daysInMonth = new Date(y, m, 0).getDate();
+            
+            let branches = getManagerFilteredBranches();
+            
+            let thead = `<tr class="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                            <th class="p-3 sticky left-0 z-40 bg-slate-950 outline outline-1 outline-slate-800 min-w-[60px]">Code</th>
+                            <th class="p-3 sticky left-[60px] z-40 bg-slate-950 outline outline-1 outline-slate-800 min-w-[150px]">Name</th>`;
+            for(let d=1; d<=daysInMonth; d++) {
+                thead += `<th class="p-3 border-l border-slate-800 text-center">${d}</th><th class="p-3 text-amber-500/70 text-[9px] text-center">TRANS</th>`;
+            }
+            thead += `</tr>`;
+            document.getElementById('comparison-thead').innerHTML = thead;
+            
+            let tbody = '';
+            
+            let dataMap = {};
+            dbSubmissions.forEach(sub => {
+                if(sub.date.startsWith(monthStr)) {
+                    if(!dataMap[sub.code]) dataMap[sub.code] = {};
+                    dataMap[sub.code][sub.date] = { sales: sub.sales || 0, trans: sub.transactions || 0 };
+                }
+            });
+            
+            branches.forEach(b => {
+                let rowHtml = `<td class="p-3 font-bold text-cyan-400 sticky left-0 z-20 bg-slate-950 outline outline-1 outline-slate-800">${b.code}</td>
+                               <td class="p-3 font-bold text-white sticky left-[60px] z-20 bg-slate-950 outline outline-1 outline-slate-800 truncate overflow-hidden whitespace-nowrap max-w-[200px]" title="${b.name}">${b.name}</td>`;
+                
+                let bData = dataMap[b.code] || {};
+                let prevSales = null;
+                
+                for(let d=1; d<=daysInMonth; d++) {
+                    let dateKey = monthStr + '-' + (d<10?'0':'') + d;
+                    let dayData = bData[dateKey];
+                    let sales = dayData ? dayData.sales : 0;
+                    let trans = dayData ? dayData.trans : 0;
+                    
+                    let salesClass = "text-slate-300";
+                    
+                    if (d === 1) {
+                        salesClass = "bg-emerald-500/20 text-emerald-400 font-bold";
+                    } else if (prevSales !== null) {
+                        if (sales > prevSales) salesClass = "bg-emerald-500/20 text-emerald-400 font-bold";
+                        else if (sales < prevSales) salesClass = "bg-rose-500/20 text-rose-400 font-bold";
+                    }
+                    
+                    prevSales = sales;
+                    
+                    let salesDisplay = sales > 0 ? sales.toLocaleString('en-MY', {minimumFractionDigits:2}) : '-';
+                    let transDisplay = trans > 0 ? trans : '-';
+                    
+                    rowHtml += `<td class="p-3 border-l border-slate-800/60 text-right ${salesClass}">${salesDisplay}</td>
+                                <td class="p-3 text-[10px] text-amber-500/70 text-right">${transDisplay}</td>`;
+                }
+                
+                tbody += `<tr class="hover:bg-slate-900/50">${rowHtml}</tr>`;
+            });
+            
+            document.getElementById('comparison-tbody').innerHTML = tbody;
         }
 
         function renderTrackingTable() {
