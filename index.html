@@ -471,6 +471,13 @@
                         <button onclick="pushToGoogleSheets()" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold text-xs hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 transition-all flex justify-center items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-lg"></i> Push Firebase Data to Google Sheets</button>
                     </div>
 
+                    <!-- Repair Missing AM Data -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-screwdriver-wrench text-rose-400 mr-1.5"></i> Repair Missing AM Data</h3>
+                        <p class="text-xs text-slate-400 mb-4">Click this to scan the currently loaded data and fix any records where the Area Manager name is missing (which causes data to be hidden from the Area Manager's view).</p>
+                        <button onclick="repairAMNames()" class="w-full bg-rose-600 text-white py-3 rounded-lg font-bold text-xs hover:bg-rose-500 shadow-lg shadow-rose-600/20 transition-all flex justify-center items-center gap-2"><i class="fa-solid fa-wrench text-lg"></i> Repair Data</button>
+                    </div>
+
                     <!-- Google Sheets Apps Script Info -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl md:col-span-2 relative overflow-hidden">
                         <div class="absolute right-0 top-0 opacity-5"><i class="fa-brands fa-google text-9xl"></i></div>
@@ -681,7 +688,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.48;
+        const APP_VERSION = 9.49;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1921,6 +1928,58 @@ function saveGlobalGSUrl() {
             PASSWORDS['am']=document.getElementById('pwd-am').value||PASSWORDS['am']; 
             PASSWORDS['branch']=document.getElementById('pwd-branch').value||PASSWORDS['branch'];
             showToast('success', 'Passwords updated in active session!');
+        }
+
+        async function repairAMNames() {
+            if(!dbSubmissions || dbSubmissions.length === 0) {
+                showToast('error', 'No data loaded to repair. Please select a date in Tracking.');
+                return;
+            }
+
+            let batch = db.batch();
+            let count = 0;
+            let promises = [];
+
+            setSyncing(true);
+            showToast('info', 'Scanning data for missing AM names...');
+
+            dbSubmissions.forEach(sub => {
+                if (!sub.am || sub.am.trim() === "") {
+                    let b = masterBranches.find(x => x.code == sub.code);
+                    if (b && b.am) {
+                        let docId = sub.date + "_" + sub.code;
+                        let ref = db.collection("submissions").doc(docId);
+                        batch.update(ref, { am: b.am });
+                        count++;
+                        
+                        if (count % 400 === 0) {
+                            promises.push(batch.commit());
+                            batch = db.batch();
+                        }
+                    }
+                }
+            });
+
+            if (count % 400 !== 0 && count > 0) {
+                promises.push(batch.commit());
+            }
+
+            if (count === 0) {
+                showToast('success', 'All records are fine! No missing AM names found.');
+                setSyncing(false);
+                return;
+            }
+
+            try {
+                await Promise.all(promises);
+                showToast('success', `Successfully repaired ${count} records! Area Managers can now see them.`);
+                setSyncing(false);
+                triggerDataSync();
+            } catch (e) {
+                console.error("Repair Error", e);
+                showToast('error', 'Failed to repair some records. Check console.');
+                setSyncing(false);
+            }
         }
 
         function processExcelUpload(e) {
