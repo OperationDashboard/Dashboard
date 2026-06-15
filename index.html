@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.39;
+        const APP_VERSION = 9.40;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1256,6 +1256,11 @@ function saveGlobalGSUrl() {
             populateFilters();
             switchTab('dashboard');
             updateMasterLockUI();
+            
+            if (currentUser.role === 'admin') {
+                let btnPatch = document.getElementById('btn-patch-db');
+                if(btnPatch) btnPatch.classList.remove('hidden');
+            }
         }
 
         function getManagerFilteredBranches() {
