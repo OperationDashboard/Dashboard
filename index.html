@@ -680,7 +680,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.37;
+        const APP_VERSION = 9.38;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -922,22 +922,21 @@ function saveGlobalGSUrl() {
                 let chunks = [];
                 for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
                 
-                let unsubscribes = [];
-                chunks.forEach(chunk => {
-                    let q = db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk);
-                    let u = q.onSnapshot(snap => {
-                        let fbData = [];
-                        snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
-                        dbSubmissions = dbSubmissions.filter(s => !chunk.includes(s.date));
-                        dbSubmissions.push(...fbData);
-                        if(currentTab==='dashboard') renderDashboard(); 
-                        else if(currentTab==='comparison') renderComparisonTable();
-                        else renderTrackingTable();
-                        setSyncing(false);
-                    }, e => { console.error(e); setSyncing(false); });
-                    unsubscribes.push(u);
+                let promises = chunks.map(chunk => {
+                    return db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get();
                 });
-                managerSnapshotUnsubscribe = () => { unsubscribes.forEach(u => u()); };
+                
+                Promise.all(promises).then(snaps => {
+                    let fbData = [];
+                    snaps.forEach(snap => snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); }));
+                    dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
+                    dbSubmissions.push(...fbData);
+                    if(currentTab==='dashboard') renderDashboard(); 
+                    else if(currentTab==='comparison') renderComparisonTable();
+                    else renderTrackingTable();
+                    setSyncing(false);
+                }).catch(e => { console.error(e); setSyncing(false); });
+                managerSnapshotUnsubscribe = () => {};
             } else {
                 let query = mode === 'daily' ? 
                     db.collection("submissions").where("date", "==", dateStr) : 
