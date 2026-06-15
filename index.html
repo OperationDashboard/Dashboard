@@ -412,8 +412,8 @@
                     </div>
                 </div>
                 
-                <div class="admin-only pbi-card rounded-xl p-4 shadow-xl">
-                    <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-chart-area mr-1.5 text-amber-500"></i> Monthly Sales Trend (Total Company)</h3>
+                <div class="admin-only pbi-card rounded-xl p-4 shadow-xl mb-6">
+                    <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-chart-area mr-1.5 text-amber-500"></i> Monthly Sales Trend <span id="trend-title-suffix">(Total Company)</span></h3>
                     <div class="w-full h-48">
                         <canvas id="chart-monthly-trend"></canvas>
                     </div>
@@ -1490,6 +1490,10 @@ function saveGlobalGSUrl() {
                 labels.push(`${d}hb`);
                 salesData.push(dailyTotals[d].sales);
             }
+            
+            let trendTitle = document.getElementById('trend-title-suffix');
+            if(trendTitle) trendTitle.innerText = currentUser.role === 'admin' ? '(Total Company)' : `(Area: ${currentUser.id})`;
+            
             if(window.monthlyTrendChartObj) window.monthlyTrendChartObj.destroy();
             let trendCtx = document.getElementById('chart-monthly-trend');
             if(trendCtx) {
