@@ -1449,15 +1449,20 @@ function saveGlobalGSUrl() {
             let dailyTotals = {};
             for(let d=1; d<=daysInMonth; d++) dailyTotals[d] = {sales:0, trans:0};
             
+            let branchCodeMap = {};
+            branches.forEach(b => branchCodeMap[b.code] = true);
+            
             dbSubmissions.forEach(sub => {
                 if(sub.date.startsWith(monthStr)) {
                     if(!dataMap[sub.code]) dataMap[sub.code] = {};
                     dataMap[sub.code][sub.date] = { sales: sub.sales || 0, trans: sub.transactions || 0 };
                     
-                    let dayNum = parseInt(sub.date.split('-')[2]);
-                    if(dailyTotals[dayNum]) {
-                        dailyTotals[dayNum].sales += (sub.sales || 0);
-                        dailyTotals[dayNum].trans += (sub.transactions || 0);
+                    if (branchCodeMap[sub.code]) {
+                        let dayNum = parseInt(sub.date.split('-')[2]);
+                        if(dailyTotals[dayNum]) {
+                            dailyTotals[dayNum].sales += (sub.sales || 0);
+                            dailyTotals[dayNum].trans += (sub.transactions || 0);
+                        }
                     }
                 }
             });
