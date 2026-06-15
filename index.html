@@ -412,7 +412,7 @@
                     </div>
                 </div>
                 
-                <div class="admin-only pbi-card rounded-xl p-4 shadow-xl mb-6">
+                <div class="pbi-card rounded-xl p-4 shadow-xl mb-6">
                     <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-chart-area mr-1.5 text-amber-500"></i> Monthly Sales Trend <span id="trend-title-suffix">(Total Company)</span></h3>
                     <div class="w-full h-48">
                         <canvas id="chart-monthly-trend"></canvas>
@@ -676,10 +676,11 @@ function doPost(e) {
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        db.enablePersistence({synchronizeTabs:true}).catch(e => console.log('Persistence:', e));
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.35;
+        const APP_VERSION = 9.37;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -887,6 +888,8 @@ function saveGlobalGSUrl() {
             }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
+        let managerSnapshotUnsubscribe = null;
+
         function syncManagerFromCloud() {
             let mode = 'daily';
             let dateStr = todayStr;
@@ -908,66 +911,82 @@ function saveGlobalGSUrl() {
 
             setSyncing(true);
             
-            let cacheKey = `manager_cache_${mode}_${dateStr}`;
-            let cached = sessionStorage.getItem(cacheKey);
-            if(cached) {
-                let parsed = JSON.parse(cached);
-                if(Date.now() - parsed.time < 120000) { // 2 minutes TTL
-                    dbSubmissions = parsed.data;
+            if (managerSnapshotUnsubscribe) {
+                managerSnapshotUnsubscribe();
+                managerSnapshotUnsubscribe = null;
+            }
+            
+            if (mode === 'monthly' && currentUser.role === 'am') {
+                let days = [];
+                for(let d=1; d<=31; d++) days.push(dateStr + "-" + String(d).padStart(2,'0'));
+                let chunks = [];
+                for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
+                
+                let unsubscribes = [];
+                chunks.forEach(chunk => {
+                    let q = db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk);
+                    let u = q.onSnapshot(snap => {
+                        let fbData = [];
+                        snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
+                        dbSubmissions = dbSubmissions.filter(s => !chunk.includes(s.date));
+                        dbSubmissions.push(...fbData);
+                        if(currentTab==='dashboard') renderDashboard(); 
+                        else if(currentTab==='comparison') renderComparisonTable();
+                        else renderTrackingTable();
+                        setSyncing(false);
+                    }, e => { console.error(e); setSyncing(false); });
+                    unsubscribes.push(u);
+                });
+                managerSnapshotUnsubscribe = () => { unsubscribes.forEach(u => u()); };
+            } else {
+                let query = mode === 'daily' ? 
+                    db.collection("submissions").where("date", "==", dateStr) : 
+                    db.collection("submissions").where("date", ">=", dateStr + "-01").where("date", "<=", dateStr + "-31");
+                
+                if (currentUser.role === 'am' && mode === 'daily') {
+                    query = query.where("am", "==", currentUser.name);
+                }
+                
+                managerSnapshotUnsubscribe = query.onSnapshot(snap => {
+                    let fbData = [];
+                    snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
+                    dbSubmissions = dbSubmissions.filter(s => mode === 'daily' ? s.date !== dateStr : !s.date.startsWith(dateStr));
+                    dbSubmissions.push(...fbData);
                     if(currentTab==='dashboard') renderDashboard(); 
                     else if(currentTab==='comparison') renderComparisonTable();
                     else renderTrackingTable();
                     setSyncing(false);
-                    return;
-                }
+                }, e => { console.error(e); setSyncing(false); });
             }
-            
-            let query = mode === 'daily' ? 
-                db.collection("submissions").where("date", "==", dateStr) : 
-                db.collection("submissions").where("date", ">=", dateStr + "-01").where("date", "<=", dateStr + "-31");
-            
-            query.get().then(snap => {
-                let fbData = [];
-                snap.forEach(doc => {
-                    let d = doc.data();
-                    if(d.date) fbData.push(d);
-                });
-                dbSubmissions = [...fbData];
-                
-                if(mode === 'daily') dbSubmissions = dbSubmissions.filter(s => s.date !== dateStr);
-                else dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
-                
-                dbSubmissions.push(...fbData);
-                sessionStorage.setItem(cacheKey, JSON.stringify({time: Date.now(), data: dbSubmissions}));
-                
-                if(currentTab==='dashboard') renderDashboard(); 
-                else if(currentTab==='comparison') renderComparisonTable();
-                else renderTrackingTable();
-                setSyncing(false);
-            }).catch(e => { console.error(e); setSyncing(false); });
         }
 
         function syncToCloud(action, payloadData, callback) {
             setSyncing(true);
             sessionStorage.clear(); // Clear cache to ensure fresh data after mutation
+            
+            let bAm = "";
+            if (payloadData && payloadData.code) {
+                let b = masterBranches.find(x => x.code === payloadData.code);
+                if (b && b.am) bAm = b.am;
+            }
 
             let fbPromise = Promise.resolve();
             if (action === 'reset_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({
-                    sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true
+                    sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true, am: bAm
                 }, {merge: true});
             } else if (action === 'reset_bank' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({
-                    bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true
+                    bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true, am: bAm
                 }, {merge: true});
             } else if (action === 'unlock_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
-                fbPromise = db.collection("submissions").doc(docId).set({ night_unlocked: true }, {merge: true});
+                fbPromise = db.collection("submissions").doc(docId).set({ night_unlocked: true, am: bAm }, {merge: true});
             } else if (action === 'unlock_bank2' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
-                fbPromise = db.collection("submissions").doc(docId).set({ bank2_unlocked: true }, {merge: true});
+                fbPromise = db.collection("submissions").doc(docId).set({ bank2_unlocked: true, am: bAm }, {merge: true});
             } else if (action === 'master_reset' && payloadData.date) {
                 fbPromise = db.collection("submissions").where("date", "==", payloadData.date).get().then(async snap => {
                     let docs = snap.docs;
@@ -982,6 +1001,7 @@ function saveGlobalGSUrl() {
                 });
             } else if (payloadData && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
+                payloadData.am = bAm;
                 fbPromise = db.collection("submissions").doc(docId).set(payloadData, {merge: true});
             } else if (action === 'set_global_lock') {
                 fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
