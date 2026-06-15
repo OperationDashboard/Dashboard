@@ -607,7 +607,13 @@ function doPost(e) {
         <div class="pbi-card rounded-2xl w-full max-w-sm p-8 text-center relative border-amber-500/30">
             <i class="fa-solid fa-circle-exclamation text-6xl text-amber-500 mb-5 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"></i>
             <h3 class="text-xl font-bold text-white mb-2" data-i18n="confirm_title">Confirm Submission?</h3>
-            <p class="text-xs text-slate-300 mb-8" data-i18n="confirm_desc">Data will be permanently synced to HQ.</p>
+            <p class="text-xs text-slate-300 mb-4" data-i18n="confirm_desc">Data will be permanently synced to HQ.</p>
+            <div class="bg-slate-900/50 p-4 rounded-lg text-left mb-6 border border-slate-800">
+                <div class="flex justify-between mb-2"><span class="text-xs text-slate-400">Total Sales:</span><span id="confirm-sales-val" class="text-xs font-bold text-cyan-400"></span></div>
+                <div class="flex justify-between mb-2"><span class="text-xs text-slate-400">Transactions:</span><span id="confirm-trans-val" class="text-xs font-bold text-white"></span></div>
+                <div class="flex justify-between mb-2"><span class="text-xs text-slate-400">MyKasih:</span><span id="confirm-mykasih-val" class="text-xs font-bold text-emerald-400"></span></div>
+                <div class="flex justify-between"><span class="text-xs text-slate-400">Lorry Cost:</span><span id="confirm-lorry-val" class="text-xs font-bold text-purple-400"></span></div>
+            </div>
             <div class="flex gap-4">
                 <button onclick="closeModal('confirm-modal')" class="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700 border border-slate-700">Cancel</button>
                 <button onclick="executeNightSubmit()" class="flex-1 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 shadow-lg shadow-cyan-500/20">Yes, Submit</button>
@@ -714,8 +720,14 @@ function saveGlobalGSUrl() {
           let yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           let yesterdayStr = getYYYYMMDD(yesterday);
-          
-          let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!' };
+        setInterval(() => {
+            todayStr = getYYYYMMDD(new Date());
+            currentMonthStr = todayStr.substring(0, 7);
+            let yd = new Date(); yd.setDate(yd.getDate() - 1);
+            yesterdayStr = getYYYYMMDD(yd);
+        }, 60000);
+        
+        let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!' };
         function getSafeTimeStr() {
             let d = new Date();
             let hh = d.getHours().toString().padStart(2, '0');
@@ -1117,6 +1129,10 @@ function saveGlobalGSUrl() {
         function confirmNightSubmit(e) {
             e.preventDefault();
             pendingNightData = { sales: parseFloat(document.getElementById('f-sales').value) || 0, transactions: parseInt(document.getElementById('f-trans').value) || 0, mykasih: parseFloat(document.getElementById('f-mykasih').value) || 0, lorry: parseFloat(document.getElementById('f-lorry').value) || 0 };
+            document.getElementById('confirm-sales-val').innerText = 'RM ' + formatRM(pendingNightData.sales);
+            document.getElementById('confirm-trans-val').innerText = formatNum(pendingNightData.transactions);
+            document.getElementById('confirm-mykasih-val').innerText = 'RM ' + formatRM(pendingNightData.mykasih);
+            document.getElementById('confirm-lorry-val').innerText = 'RM ' + formatRM(pendingNightData.lorry);
             document.getElementById('confirm-modal').classList.remove('hidden'); document.getElementById('confirm-modal').classList.add('flex');
         }
 
@@ -1330,7 +1346,7 @@ function saveGlobalGSUrl() {
             allBranchesData.forEach(b => {
                 let diffColor = b.diff > 0 ? 'text-emerald-400' : (b.diff < 0 ? 'text-rose-500' : 'text-slate-400');
                 compHtml += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
-                    <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div></td>
+                    <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div><div class="text-[8px] text-cyan-500 font-semibold mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>${b.am}</div></td>
                     <td class="p-3 text-cyan-400 font-semibold">RM ${b.sales.toLocaleString()}</td>
                     <td class="p-3 text-purple-400">RM ${b.lorry.toLocaleString()}</td>
                     <td class="p-3 text-right font-bold ${diffColor}">${b.diff < 0 ? '-' : ''}RM ${Math.abs(b.diff).toLocaleString()}</td>
@@ -1390,7 +1406,7 @@ function saveGlobalGSUrl() {
             
             branches.forEach(b => {
                 let rowHtml = `<td class="p-3 font-bold text-cyan-400 sticky left-0 z-20 bg-slate-950 outline outline-1 outline-slate-800">${b.code}</td>
-                               <td class="p-3 font-bold text-white sticky left-[60px] z-20 bg-slate-950 outline outline-1 outline-slate-800 truncate overflow-hidden whitespace-nowrap max-w-[200px]" title="${b.name}">${b.name}</td>`;
+                               <td class="p-3 font-bold text-white sticky left-[60px] z-20 bg-slate-950 outline outline-1 outline-slate-800 truncate overflow-hidden whitespace-nowrap max-w-[200px]" title="${b.name}">${b.name}<div class="text-[8px] text-cyan-500 font-semibold mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>${b.am}</div></td>`;
                 
                 let bData = dataMap[b.code] || {};
                 let prevSales = null;
@@ -1470,7 +1486,7 @@ function saveGlobalGSUrl() {
                 let acts = (isNightLocked || hasBankIn || adminAct || (date !== todayStr && !sub)) ? `<div class="flex flex-col w-[130px]"><div class="flex gap-2 w-full">${actNight}${actBank}</div>${adminAct}</div>` : `<span class="text-slate-600">-</span>`;
 
                 html += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
-                    <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div></td>
+                    <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div><div class="text-[8px] text-cyan-500 font-semibold mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>${b.am}</div></td>
                     <td class="p-3 text-cyan-400 font-semibold">RM ${formatRM(tSales)}</td>
                     <td class="p-3 text-slate-300">${formatNum(tTrans)}</td>
                     <td class="p-3 text-slate-300">RM ${formatRM(tMy)}</td>
@@ -1658,7 +1674,7 @@ function saveGlobalGSUrl() {
                     if(json.length > 0) {
                         masterBranches = json.map(row => {
                             let getVal = (possible) => { let k = Object.keys(row).find(x => possible.includes(x.toLowerCase())); return k ? row[k] : ""; };
-                            return { code: parseInt(getVal(['code', 'kod'])) || Math.floor(Math.random()*9000)+1000, name: getVal(['outlet', 'name', 'nama']) || "UNKNOWN", am: getVal(['am', 'area manager', 'pengurus']) || "NO AM", state: getVal(['state', 'negeri']) || "N/A" };
+                            return { code: parseInt(getVal(['code', 'kod'])) || Math.floor(Math.random()*9000)+1000, name: getVal(['outlet', 'name', 'nama']) || "UNKNOWN", am: getVal(['am', 'area manager', 'pengurus']) || "NO AM", state: getVal(['state', 'negeri']) || "N/A", warehouse: getVal(['warehouse', 'wh', 'gudang']) || "N/A" };
                         });
                         showToast('success', `Master directory updated with ${masterBranches.length} records.`);
                     }
