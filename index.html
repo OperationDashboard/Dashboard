@@ -688,7 +688,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.49;
+        const APP_VERSION = 9.50;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1330,7 +1330,7 @@ function saveGlobalGSUrl() {
             let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily') : 'daily';
             let targetDate = mode === 'daily' ? document.getElementById(currentTab === 'dashboard' ? 'dash-date' : 'track-date').value : document.getElementById('dash-month').value;
             let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>b.code);
-            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(s.code));
+            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(Number(s.code)));
             
             let subRatioEl = document.getElementById('am-stat-ratio');
             if(subRatioEl) {
@@ -1395,7 +1395,7 @@ function saveGlobalGSUrl() {
             let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
             let targetDate = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
             let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>b.code);
-            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(s.code));
+            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(Number(s.code)));
             
             updateSubmissionRatio();
 
@@ -1467,7 +1467,7 @@ function saveGlobalGSUrl() {
             for(let i=6; i>=0; i--) {
                 let d = getYYYYMMDD(new Date(baseD.getTime() - (i*86400000)));
                 labels.push(d.slice(5)); 
-                let daySum = dbSubmissions.filter(s => s.date === d && branchCodes.includes(s.code) && s.night_locked).reduce((a,c)=>a+(c.sales||0), 0);
+                let daySum = dbSubmissions.filter(s => s.date === d && branchCodes.includes(Number(s.code)) && s.night_locked).reduce((a,c)=>a+(c.sales||0), 0);
                 salesData.push(daySum);
             }
             if(trendChartObj) trendChartObj.destroy();
@@ -1659,7 +1659,7 @@ function saveGlobalGSUrl() {
                 let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; }
                 renderTrackingTable();
-                syncToCloud('reset_night', { date: date, code: code, amName: currentUser.name });
+                syncToCloud('reset_night', { date: date, code: Number(code), amName: currentUser.name });
             }
         }
 
@@ -1668,7 +1668,7 @@ function saveGlobalGSUrl() {
                 let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].bank1 = 0; dbSubmissions[idx].bank2 = 0; dbSubmissions[idx].bank_edit_time = ""; }
                 renderTrackingTable();
-                syncToCloud('reset_bank', { date: date, code: code, amName: currentUser.name });
+                syncToCloud('reset_bank', { date: date, code: Number(code), amName: currentUser.name });
             }
         }
 
@@ -1678,7 +1678,7 @@ function saveGlobalGSUrl() {
                 if (result.isConfirmed) {
                     let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                     if(idx > -1) dbSubmissions[idx].night_unlocked = true;
-                    syncToCloud('unlock_night', {date: date, code: code, amName: currentUser.name}, () => { renderTrackingTable(); });
+                    syncToCloud('unlock_night', {date: date, code: Number(code), amName: currentUser.name}, () => { renderTrackingTable(); });
                 }
             });
         }
@@ -1689,7 +1689,7 @@ function saveGlobalGSUrl() {
                 if(idx > -1) { dbSubmissions[idx].bank2_unlocked = true; }
                 else { dbSubmissions.push({date: date, code: code, bank2_unlocked: true}); }
                 renderTrackingTable();
-                syncToCloud('unlock_bank2', { date: date, code: code, amName: currentUser.name });
+                syncToCloud('unlock_bank2', { date: date, code: Number(code), amName: currentUser.name });
             }
         }
 
