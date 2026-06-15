@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.40;
+        const APP_VERSION = 9.41;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1810,6 +1810,40 @@ function saveGlobalGSUrl() {
                       });
                   }, 500);
               }
+        }
+        async function patchDatabase() {
+            if(!confirm("Mula proses baiki database? (Jangan tutup page ini sehingga siap)")) return;
+            setSyncing(true);
+            try {
+                let snap = await db.collection("submissions").where("date", ">=", "2026-06-01").get();
+                let batch = db.batch();
+                let count = 0;
+                let batches = [];
+                snap.forEach(doc => {
+                    let d = doc.data();
+                    if(!d.am && d.code) { 
+                        let b = masterBranches.find(x => x.code === d.code);
+                        if(b && b.am) {
+                            batch.update(doc.ref, { am: b.am });
+                            count++;
+                            if(count === 400) {
+                                batches.push(batch.commit());
+                                batch = db.batch();
+                                count = 0;
+                            }
+                        }
+                    }
+                });
+                if(count > 0) batches.push(batch.commit());
+                await Promise.all(batches);
+                setSyncing(false);
+                alert("Selesai! Semua data telah berjaya dibaiki. AM kini boleh lihat semula data lama.");
+                syncManagerFromCloud();
+            } catch(e) {
+                console.error(e);
+                setSyncing(false);
+                alert("Ralat semasa membaiki database!");
+            }
         }
 
         // --- 6. Admin Utils ---
