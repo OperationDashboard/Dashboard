@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.42;
+        const APP_VERSION = 9.43;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -985,19 +985,21 @@ function saveGlobalGSUrl() {
             if (action === 'reset_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({
+                    date: payloadData.date, code: payloadData.code,
                     sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true, am: bAm
                 }, {merge: true});
             } else if (action === 'reset_bank' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({
+                    date: payloadData.date, code: payloadData.code,
                     bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true, am: bAm
                 }, {merge: true});
             } else if (action === 'unlock_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
-                fbPromise = db.collection("submissions").doc(docId).set({ night_unlocked: true, am: bAm }, {merge: true});
+                fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, night_unlocked: true, am: bAm }, {merge: true});
             } else if (action === 'unlock_bank2' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
-                fbPromise = db.collection("submissions").doc(docId).set({ bank2_unlocked: true, am: bAm }, {merge: true});
+                fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, bank2_unlocked: true, am: bAm }, {merge: true});
             } else if (action === 'master_reset' && payloadData.date) {
                 fbPromise = db.collection("submissions").where("date", "==", payloadData.date).get().then(async snap => {
                     let docs = snap.docs;
