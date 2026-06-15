@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.47;
+        const APP_VERSION = 9.48;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -982,7 +982,7 @@ function saveGlobalGSUrl() {
             
             let bAm = "";
             if (payloadData && payloadData.code) {
-                let b = masterBranches.find(x => x.code === payloadData.code);
+                let b = masterBranches.find(x => x.code == payloadData.code);
                 if (b && b.am) bAm = b.am;
             }
 
