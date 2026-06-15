@@ -510,7 +510,7 @@ function doGet(e) {
     let bData = bSheet.getDataRange().getValues();
     let branches = [];
     for (let i = 1; i < bData.length; i++) {
-      if(bData[i][0]) branches.push({code: parseInt(bData[i][0]), name: String(bData[i][1]).trim(), am: String(bData[i][2]).trim(), state: String(bData[i][3]).trim()});
+        if(bData[i][0]) branches.push({code: parseInt(bData[i][0]), name: String(bData[i][1]||"").trim(), am: String(bData[i][2]||"").trim(), state: String(bData[i][3]||"").trim(), warehouse: String(bData[i][4]||"").trim()});
     }
     return ContentService.createTextOutput(JSON.stringify(branches)).setMimeType(ContentService.MimeType.JSON);
   }
@@ -740,6 +740,7 @@ function saveGlobalGSUrl() {
                         ams.forEach(am => html += `<option value="${am}">${am}</option>`);
                         document.getElementById('am-select').innerHTML = html;
                     }
+                    if(typeof populateFilters === 'function') populateFilters();
                 }
             }).catch(e => console.error("Branch fetch error", e));
         }
