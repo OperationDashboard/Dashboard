@@ -1840,7 +1840,7 @@ function saveGlobalGSUrl() {
                 snap.forEach(doc => {
                     let d = doc.data();
                     if(!d.am && d.code) { 
-                        let b = masterBranches.find(x => x.code === d.code);
+                        let b = masterBranches.find(x => x.code == d.code);
                         if(b && b.am) {
                             batch.update(doc.ref, { am: b.am });
                             count++;
