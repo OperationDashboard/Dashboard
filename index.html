@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.46;
+        const APP_VERSION = 9.47;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1692,8 +1692,8 @@ function saveGlobalGSUrl() {
               let branches = getManagerFilteredBranches();
               let missing = [];
               if(document.getElementById('dash-mode').value === 'daily') {
-                  let submittedCodes = dbSubmissions.filter(s => s.date === mdate && s.sales !== undefined && s.sales !== null).map(s => s.code);
-                  missing = branches.filter(b => !submittedCodes.includes(b.code));
+                  let submittedCodes = dbSubmissions.filter(s => s.date === mdate && s.night_locked).map(s => String(s.code));
+                  missing = branches.filter(b => !submittedCodes.includes(String(b.code)));
               } else {
                   document.getElementById('missing-sales-list').innerHTML = '<p class="text-sm text-amber-500 p-4">Missing Sales Tracker is only available in Daily Mode.</p>';
                   document.getElementById('missing-sales-modal').classList.remove('hidden');
