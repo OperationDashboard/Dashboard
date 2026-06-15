@@ -244,6 +244,7 @@
                     <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                         <button onclick="toggleMasterLock()" id="btn-master-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
                           <button onclick="togglePastLock()" id="btn-past-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
+                          <button onclick="showMissingSales()" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-amber-600/20 text-amber-500 border border-amber-500/50 hover:bg-amber-600 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow"><i class="fa-solid fa-user-xmark mr-1"></i> Missing Sales</button>
                         <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-green-400 border border-green-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
                         <button onclick="exportData('pdf')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
                     </div>
@@ -392,8 +393,16 @@
                             <span data-i18n="tab_comparison">Daily Comparison</span>
                         </h2>
                     </div>
-                    <div class="flex flex-wrap items-center gap-4">
-                        <div class="relative group cursor-pointer" onclick="document.getElementById('compare-month').showPicker()">
+                      <div class="flex flex-wrap items-center gap-4">
+                          <div class="admin-only hidden sm:flex items-center gap-2">
+                              <button onclick="exportComparisonCSV()" class="bg-emerald-600/20 text-emerald-500 border border-emerald-500/50 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow" title="Export CSV for Excel">
+                                  <i class="fa-solid fa-file-csv mr-1"></i> CSV
+                              </button>
+                              <button onclick="exportComparisonPDF()" class="bg-rose-600/20 text-rose-500 border border-rose-500/50 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow" title="Export as PDF">
+                                  <i class="fa-solid fa-file-pdf mr-1"></i> PDF
+                              </button>
+                          </div>
+                          <div class="relative group cursor-pointer" onclick="document.getElementById('compare-month').showPicker()">
                             <div class="flex items-center gap-2 bg-slate-800 group-hover:bg-slate-700 border border-slate-600 px-4 py-2 rounded-lg transition-colors shadow">
                                 <i class="fa-solid fa-calendar-days text-cyan-400"></i>
                                 <span id="compare-month-display" class="text-xs font-bold text-white pointer-events-none">Select Month</span>
@@ -403,10 +412,17 @@
                     </div>
                 </div>
                 
+                <div class="admin-only pbi-card rounded-xl p-4 shadow-xl">
+                    <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-chart-area mr-1.5 text-amber-500"></i> Monthly Sales Trend (Total Company)</h3>
+                    <div class="w-full h-48">
+                        <canvas id="chart-monthly-trend"></canvas>
+                    </div>
+                </div>
+
                 <!-- Table -->
                 <div class="pbi-card rounded-xl overflow-hidden shadow-xl" id="comparison-table-wrapper">
-                    <div class="overflow-x-auto max-h-[600px]">
-                        <table class="w-full text-left text-[11px] border-collapse whitespace-nowrap" id="comparison-table">
+                    <div class="overflow-x-auto max-h-[600px]" id="comparison-table-area">
+                        <table class="w-full text-left text-[11px] border-collapse whitespace-nowrap" id="main-comparison-table">
                             <thead class="sticky top-0 z-30 bg-slate-950 shadow-md" id="comparison-thead">
                                 <!-- Dynamically generated headers -->
                             </thead>
@@ -617,6 +633,23 @@ function doPost(e) {
             <div class="flex gap-4">
                 <button onclick="closeModal('confirm-modal')" class="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700 border border-slate-700">Cancel</button>
                 <button onclick="executeNightSubmit()" class="flex-1 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 shadow-lg shadow-cyan-500/20">Yes, Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Missing Sales Modal -->
+    <div id="missing-sales-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-2xl shadow-2xl relative">
+            <h3 class="text-lg font-black text-amber-400 mb-2 uppercase flex justify-between items-center">
+                <span><i class="fa-solid fa-user-xmark mr-2"></i> Missing Submissions (<span id="missing-date-display"></span>)</span>
+                <button onclick="closeModal('missing-sales-modal')" class="text-slate-500 hover:text-white"><i class="fa-solid fa-times text-xl"></i></button>
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">List of branches that have not submitted sales for the selected date.</p>
+            <div class="max-h-96 overflow-y-auto pr-2 space-y-2" id="missing-sales-list">
+                <!-- Content injected here -->
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('missing-sales-modal')" class="px-6 py-2.5 bg-slate-800 border border-slate-700 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors shadow">Close</button>
             </div>
         </div>
     </div>
@@ -874,6 +907,20 @@ function saveGlobalGSUrl() {
 
             setSyncing(true);
             
+            let cacheKey = `manager_cache_${mode}_${dateStr}`;
+            let cached = sessionStorage.getItem(cacheKey);
+            if(cached) {
+                let parsed = JSON.parse(cached);
+                if(Date.now() - parsed.time < 120000) { // 2 minutes TTL
+                    dbSubmissions = parsed.data;
+                    if(currentTab==='dashboard') renderDashboard(); 
+                    else if(currentTab==='comparison') renderComparisonTable();
+                    else renderTrackingTable();
+                    setSyncing(false);
+                    return;
+                }
+            }
+            
             let query = mode === 'daily' ? 
                 db.collection("submissions").where("date", "==", dateStr) : 
                 db.collection("submissions").where("date", ">=", dateStr + "-01").where("date", "<=", dateStr + "-31");
@@ -890,6 +937,8 @@ function saveGlobalGSUrl() {
                 else dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
                 
                 dbSubmissions.push(...fbData);
+                sessionStorage.setItem(cacheKey, JSON.stringify({time: Date.now(), data: dbSubmissions}));
+                
                 if(currentTab==='dashboard') renderDashboard(); 
                 else if(currentTab==='comparison') renderComparisonTable();
                 else renderTrackingTable();
@@ -1425,10 +1474,26 @@ function saveGlobalGSUrl() {
                 }
                 prevTotSales = s;
                 let salesDisplay = s > 0 ? s.toLocaleString('en-MY', {minimumFractionDigits:2}) : '-';
-                let transDisplay = t > 0 ? t : '-';
+                let transDisplay = t > 0 ? t.toLocaleString('en-US') : '-';
                 totalRowHtml += `<td class="p-3 border-l border-slate-700 text-right ${salesClass}">${salesDisplay}</td><td class="p-3 text-[10px] text-amber-500/90 text-right font-bold">${transDisplay}</td>`;
             }
             tbody += `<tr class="bg-slate-900 border-b-2 border-amber-500/50 shadow-md">${totalRowHtml}</tr>`;
+            
+            let labels = [];
+            let salesData = [];
+            for(let d=1; d<=daysInMonth; d++) {
+                labels.push(`${d}hb`);
+                salesData.push(dailyTotals[d].sales);
+            }
+            if(window.monthlyTrendChartObj) window.monthlyTrendChartObj.destroy();
+            let trendCtx = document.getElementById('chart-monthly-trend');
+            if(trendCtx) {
+                window.monthlyTrendChartObj = new Chart(trendCtx.getContext('2d'), {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: 'Total Sales (RM)', data: salesData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', tension: 0.3, fill: true, pointBackgroundColor: '#f59e0b', pointRadius: 3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(51,65,85,0.3)' } }, x: { grid: { color: 'rgba(51,65,85,0.3)' } } } }
+                });
+            }
             
             branches.forEach(b => {
                 let rowHtml = `<td class="p-3 font-bold text-cyan-400 sticky left-0 z-20 bg-slate-950 outline outline-1 outline-slate-800">${b.code}</td>
@@ -1455,7 +1520,7 @@ function saveGlobalGSUrl() {
                     prevSales = sales;
                     
                     let salesDisplay = sales > 0 ? sales.toLocaleString('en-MY', {minimumFractionDigits:2}) : '-';
-                    let transDisplay = trans > 0 ? trans : '-';
+                    let transDisplay = trans > 0 ? trans.toLocaleString('en-US') : '-';
                     
                     rowHtml += `<td class="p-3 border-l border-slate-800/60 text-right ${salesClass}">${salesDisplay}</td>
                                 <td class="p-3 text-[10px] text-amber-500/70 text-right">${transDisplay}</td>`;
@@ -1566,6 +1631,80 @@ function saveGlobalGSUrl() {
                 syncToCloud('unlock_bank2', { date: date, code: code, amName: currentUser.name });
             }
         }
+
+          function showMissingSales() {
+              let mdate = document.getElementById('dash-mode').value === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
+              document.getElementById('missing-date-display').innerText = mdate;
+              let branches = getManagerFilteredBranches();
+              let missing = [];
+              if(document.getElementById('dash-mode').value === 'daily') {
+                  let submittedCodes = dbSubmissions.filter(s => s.date === mdate && s.sales !== undefined && s.sales !== null).map(s => s.code);
+                  missing = branches.filter(b => !submittedCodes.includes(b.code));
+              } else {
+                  document.getElementById('missing-sales-list').innerHTML = '<p class="text-sm text-amber-500 p-4">Missing Sales Tracker is only available in Daily Mode.</p>';
+                  document.getElementById('missing-sales-modal').classList.remove('hidden');
+                  document.getElementById('missing-sales-modal').classList.add('flex');
+                  return;
+              }
+              let html = '';
+              if(missing.length === 0) {
+                  html = '<p class="text-sm text-emerald-400 font-bold p-4 text-center bg-emerald-500/10 rounded-lg border border-emerald-500/20"><i class="fa-solid fa-check-circle mr-2"></i>All branches have submitted!</p>';
+              } else {
+                  html = missing.map((b,i) => `
+                      <div class="flex items-center justify-between p-3 bg-slate-950/80 border border-slate-800 rounded-lg mb-2">
+                          <div class="flex items-center gap-3">
+                              <span class="text-xs font-black text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-700">${i+1}</span>
+                              <div>
+                                  <p class="text-sm font-bold text-rose-400">${b.name} <span class="text-[10px] text-slate-500 ml-1 tracking-widest">${b.code}</span></p>
+                                  <p class="text-[10px] text-cyan-500 mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>AM: ${b.am || 'N/A'} <span class="text-slate-500 mx-2">|</span> <i class="fa-solid fa-warehouse mr-1"></i>WH: ${b.warehouse || 'N/A'}</p>
+                              </div>
+                          </div>
+                      </div>
+                  `).join('');
+              }
+              document.getElementById('missing-sales-list').innerHTML = html;
+              document.getElementById('missing-sales-modal').classList.remove('hidden');
+              document.getElementById('missing-sales-modal').classList.add('flex');
+          }
+          
+          function exportComparisonCSV() {
+              let table = document.getElementById('main-comparison-table');
+              if(!table) return;
+              let rows = Array.from(table.querySelectorAll('tr'));
+              let csv = rows.map(row => {
+                  let cells = Array.from(row.querySelectorAll('th, td'));
+                  return cells.map(cell => '"' + cell.innerText.replace(/"/g, '""') + '"').join(',');
+              }).join('\n');
+              let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              let link = document.createElement("a");
+              let url = URL.createObjectURL(blob);
+              link.setAttribute("href", url);
+              link.setAttribute("download", `Daily_Comparison_${document.getElementById('compare-month').value}.csv`);
+              link.style.visibility = 'hidden';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+          }
+          
+          function exportComparisonPDF() {
+              let area = document.getElementById('comparison-table-area');
+              let sl = area.scrollLeft;
+              let opt = {
+                margin:       0.2,
+                filename:     `Daily_Comparison_${document.getElementById('compare-month').value}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' }
+              };
+              area.classList.remove('max-h-[600px]', 'overflow-x-auto');
+              showToast('info', 'Generating PDF... Please wait.');
+              setTimeout(() => {
+                  html2pdf().set(opt).from(area).save().then(()=>{
+                      area.classList.add('max-h-[600px]', 'overflow-x-auto');
+                      area.scrollLeft = sl;
+                  });
+              }, 500);
+          }
 
         function confirmMasterReset() {
             let date = document.getElementById('track-date').value;
