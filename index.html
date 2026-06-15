@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.41;
+        const APP_VERSION = 9.42;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -845,11 +845,22 @@ function saveGlobalGSUrl() {
                     if(data.app_version && data.app_version > APP_VERSION) {
                         window.location.href = window.location.pathname + '?v=' + new Date().getTime();
                     }
-                    if (data.past_lock !== undefined) { pastLock = data.past_lock; } else { pastLock = true; }
-                      if (data.global_lock !== undefined) {
-                        masterLock = data.global_lock;
+                    if (data.past_lock !== undefined) { 
+                        pastLock = data.past_lock; 
                         if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
+                        if(currentUser && currentUser.role === 'branch') {
+                            if(typeof setupBranchView === 'function') setupBranchView();
+                        }
+                    } else { 
+                        pastLock = true; 
                     }
+                      if (data.global_lock !== undefined) {
+                          masterLock = data.global_lock;
+                          if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
+                          if(currentUser && currentUser.role === 'branch') {
+                              if(typeof setupBranchView === 'function') setupBranchView();
+                          }
+                      }
                 }
             });
         }
