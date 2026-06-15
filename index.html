@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.44;
+        const APP_VERSION = 9.45;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -870,7 +870,7 @@ function saveGlobalGSUrl() {
             setSyncing(true);
             let docId = ndate + "_" + currentUser.id;
             db.collection("submissions").doc(docId).get().then(doc => {
-                dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === ndate));
+                dbSubmissions = dbSubmissions.filter(s => !(s.code == currentUser.id && s.date === ndate));
                 if(doc.exists) dbSubmissions.push(doc.data());
                 setupBranchView();
                 setSyncing(false);
@@ -881,7 +881,7 @@ function saveGlobalGSUrl() {
             setSyncing(true);
             let docId = todayStr + "_" + currentUser.id;
             db.collection("submissions").doc(docId).get().then(doc => {
-                dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === todayStr));
+                dbSubmissions = dbSubmissions.filter(s => !(s.code == currentUser.id && s.date === todayStr));
                 if(doc.exists) dbSubmissions.push(doc.data());
                 setupBranchView();
                 setSyncing(false);
@@ -893,7 +893,7 @@ function saveGlobalGSUrl() {
             setSyncing(true);
             let docId = bDate + "_" + currentUser.id;
             db.collection("submissions").doc(docId).get().then(doc => {
-                dbSubmissions = dbSubmissions.filter(s => !(s.code === currentUser.id && s.date === bDate));
+                dbSubmissions = dbSubmissions.filter(s => !(s.code == currentUser.id && s.date === bDate));
                 if(doc.exists) dbSubmissions.push(doc.data());
                 setupBranchView();
                 setSyncing(false);
@@ -1141,7 +1141,7 @@ function saveGlobalGSUrl() {
             document.getElementById('info-branch-am').innerText = b.am;
             
             let nightDate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
-            let nightRec = dbSubmissions.find(s => s.code === currentUser.id && s.date === nightDate);
+            let nightRec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
             let timeEl = document.getElementById('info-branch-submit-time');
             
             let parseD = (str) => { if(!str) return 0; let p=str.split('-'); return new Date(p[0], p[1]-1, p[2]).getTime(); };
@@ -1187,7 +1187,7 @@ function saveGlobalGSUrl() {
             }
             
             let bankDate = document.getElementById('bank-in-date').value;
-            let bankRec = dbSubmissions.find(s => s.code === currentUser.id && s.date === bankDate);
+            let bankRec = dbSubmissions.find(s => s.code == currentUser.id && s.date === bankDate);
             
             let fBank2 = document.getElementById('f-bank2');
             let diffDays = Math.round((parseD(todayStr) - parseD(bankDate)) / 86400000);
@@ -1222,7 +1222,7 @@ function saveGlobalGSUrl() {
 
         function executeNightSubmit() {
             let nightDate = document.getElementById('night-date').value;
-            let rec = dbSubmissions.find(s => s.code === currentUser.id && s.date === nightDate);
+            let rec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
             
             let updatePayload = {
                 date: nightDate, code: currentUser.id, name: currentUser.name,
@@ -1242,7 +1242,7 @@ function saveGlobalGSUrl() {
             e.preventDefault();
             let bDate = document.getElementById('bank-in-date').value;
             if(!bDate) { showToast('error', 'Select Sales Date first!'); return; }
-            let rec = dbSubmissions.find(s => s.code === currentUser.id && s.date === bDate);
+            let rec = dbSubmissions.find(s => s.code == currentUser.id && s.date === bDate);
             
             let pBank1 = rec ? (rec.bank1 || 0) : 0;
             let pBank2 = rec ? (rec.bank2 || 0) : 0;
@@ -1594,7 +1594,7 @@ function saveGlobalGSUrl() {
                 if(term && !(b.code.toString().includes(term) || b.name.toLowerCase().includes(term))) return;
                 if(rendered > 300) return; rendered++;
 
-                let sub = dbSubmissions.find(s => s.code === b.code && s.date === date);
+                let sub = dbSubmissions.find(s => s.code == b.code && s.date === date);
                 let isNightLocked = !!(sub && sub.night_locked);
                 let hasBankIn = sub && ((sub.bank1||0)>0 || (sub.bank2||0)>0);
                 
@@ -1644,7 +1644,7 @@ function saveGlobalGSUrl() {
 
         function resetNight(date, code) {
             if(confirm(`Reset Night Data for ${code}?\nThis will instruct the server to delete the row's night operations data.`)) {
-                let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; }
                 renderTrackingTable();
                 syncToCloud('reset_night', { date: date, code: code, amName: currentUser.name });
@@ -1653,7 +1653,7 @@ function saveGlobalGSUrl() {
 
         function resetBank(date, code) {
             if(confirm(`Reset Bank-In Data for ${code}?`)) {
-                let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].bank1 = 0; dbSubmissions[idx].bank2 = 0; dbSubmissions[idx].bank_edit_time = ""; }
                 renderTrackingTable();
                 syncToCloud('reset_bank', { date: date, code: code, amName: currentUser.name });
@@ -1664,7 +1664,7 @@ function saveGlobalGSUrl() {
             Swal.fire({ title: 'Unlock Night Sales?', text: 'Allow branch to edit primary operations data for ' + date + '?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Unlock' })
             .then((result) => { 
                 if (result.isConfirmed) {
-                    let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                    let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                     if(idx > -1) dbSubmissions[idx].night_unlocked = true;
                     syncToCloud('unlock_night', {date: date, code: code, amName: currentUser.name}, () => { renderTrackingTable(); });
                 }
@@ -1673,7 +1673,7 @@ function saveGlobalGSUrl() {
 
         function unlockBank2(date, code) {
             if(confirm(`Unlock 2nd Bank-In for Branch ${code} on ${date}?`)) {
-                let idx = dbSubmissions.findIndex(s => s.code === code && s.date === date);
+                let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].bank2_unlocked = true; }
                 else { dbSubmissions.push({date: date, code: code, bank2_unlocked: true}); }
                 renderTrackingTable();
