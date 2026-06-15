@@ -246,7 +246,7 @@
                           <button onclick="togglePastLock()" id="btn-past-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
                           <button onclick="showMissingSales()" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-amber-600/20 text-amber-500 border border-amber-500/50 hover:bg-amber-600 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow"><i class="fa-solid fa-user-xmark mr-1"></i> Missing Sales</button>
                         <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-green-400 border border-green-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
-                        <button onclick="exportData('pdf')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
+                        <button onclick="exportData('pdf')" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
                     </div>
                 </div>
 
@@ -1766,17 +1766,23 @@ function saveGlobalGSUrl() {
                     return { Date: date, Code: b.code, Branch: b.name, AM: b.am, Sales: s.sales, Trans: s.trans, MyKasih: s.mykasih, Lorry: s.lorry, Bank1: s.bank1, Bank2: s.bank2, Balance: s.sales-(s.bank1+s.bank2) };
                 });
                 let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
-            } else if (type === 'pdf') {
-                showToast('info', `Generating PDF...`);
-                if(currentTab !== 'tracking') switchTab('tracking'); 
-                document.getElementById('pdf-table-title').innerText = `Operations Report (${date})`; document.getElementById('pdf-table-header').classList.remove('hidden'); document.querySelectorAll('.pdf-exclude').forEach(el => el.style.display = 'none');
-                let element = document.getElementById('pdf-table-area'); 
-                let opt = { margin: 0.3, filename: `Report_${date}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.5, useCORS: true }, jsPDF: { unit: 'in', format: 'legal', orientation: 'landscape' } };
-                html2pdf().set(opt).from(element).save().then(()=>{
-                    document.getElementById('pdf-table-header').classList.add('hidden'); document.querySelectorAll('.pdf-exclude').forEach(el => el.style.display = '');
-                    if(currentTab !== 'dashboard') switchTab('dashboard'); 
-                });
-            }
+              } else if (type === 'pdf' && currentUser.role === 'admin') {
+                  showToast('info', `Generating PDF... Please wait.`);
+                  if(currentTab !== 'tracking') switchTab('tracking'); 
+                  document.getElementById('pdf-table-title').innerText = `Operations Report (${date})`; document.getElementById('pdf-table-header').classList.remove('hidden'); document.querySelectorAll('.pdf-exclude').forEach(el => el.style.display = 'none');
+                  let element = document.getElementById('pdf-table-area'); 
+                  let sl = element.scrollLeft;
+                  element.classList.remove('max-h-[800px]', 'overflow-x-auto');
+                  let opt = { margin: 0.3, filename: `Report_${date}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.5, useCORS: true }, jsPDF: { unit: 'in', format: 'legal', orientation: 'landscape' } };
+                  setTimeout(() => {
+                      html2pdf().set(opt).from(element).save().then(()=>{
+                          element.classList.add('max-h-[800px]', 'overflow-x-auto');
+                          element.scrollLeft = sl;
+                          document.getElementById('pdf-table-header').classList.add('hidden'); document.querySelectorAll('.pdf-exclude').forEach(el => el.style.display = '');
+                          if(currentTab !== 'dashboard') switchTab('dashboard'); 
+                      });
+                  }, 500);
+              }
         }
 
         // --- 6. Admin Utils ---
@@ -1847,7 +1853,7 @@ function saveGlobalGSUrl() {
                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     if(json.length > 0) {
                         masterBranches = json.map(row => {
-                            let getVal = (possible) => { let k = Object.keys(row).find(x => possible.includes(x.toLowerCase())); return k ? row[k] : ""; };
+                            let getVal = (possible) => { let k = Object.keys(row).find(x => possible.includes(x.trim().toLowerCase())); return k ? row[k] : ""; };
                             return { code: parseInt(getVal(['code', 'kod'])) || Math.floor(Math.random()*9000)+1000, name: getVal(['outlet', 'name', 'nama']) || "UNKNOWN", am: getVal(['am', 'area manager', 'pengurus']) || "NO AM", state: getVal(['state', 'negeri']) || "N/A", warehouse: getVal(['warehouse', 'wh', 'gudang']) || "N/A" };
                         });
                         showToast('success', `Master directory updated with ${masterBranches.length} records.`);
