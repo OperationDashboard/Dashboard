@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.45;
+        const APP_VERSION = 9.46;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -864,40 +864,45 @@ function saveGlobalGSUrl() {
                 }
             });
         }
-
+        let unsubNight = null;
         function syncBranchNightData() {
             let ndate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
             setSyncing(true);
             let docId = ndate + "_" + currentUser.id;
-            db.collection("submissions").doc(docId).get().then(doc => {
+            if(unsubNight) unsubNight();
+            unsubNight = db.collection("submissions").doc(docId).onSnapshot(doc => {
                 dbSubmissions = dbSubmissions.filter(s => !(s.code == currentUser.id && s.date === ndate));
                 if(doc.exists) dbSubmissions.push(doc.data());
                 setupBranchView();
                 setSyncing(false);
-            }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
+            }, e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
+        let unsubToday = null;
         function syncBranchFromCloud() {
             setSyncing(true);
             let docId = todayStr + "_" + currentUser.id;
-            db.collection("submissions").doc(docId).get().then(doc => {
+            if(unsubToday) unsubToday();
+            unsubToday = db.collection("submissions").doc(docId).onSnapshot(doc => {
                 dbSubmissions = dbSubmissions.filter(s => !(s.code == currentUser.id && s.date === todayStr));
                 if(doc.exists) dbSubmissions.push(doc.data());
                 setupBranchView();
                 setSyncing(false);
-            }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
+            }, e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
+        let unsubBank = null;
         function syncBranchBankData() {
             let bDate = document.getElementById('bank-in-date').value;
             setSyncing(true);
             let docId = bDate + "_" + currentUser.id;
-            db.collection("submissions").doc(docId).get().then(doc => {
+            if(unsubBank) unsubBank();
+            unsubBank = db.collection("submissions").doc(docId).onSnapshot(doc => {
                 dbSubmissions = dbSubmissions.filter(s => !(s.code == currentUser.id && s.date === bDate));
                 if(doc.exists) dbSubmissions.push(doc.data());
                 setupBranchView();
                 setSyncing(false);
-            }).catch(e => { console.error(e); setupBranchView(); setSyncing(false); });
+            }, e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
         let managerSnapshotUnsubscribe = null;
@@ -1160,10 +1165,10 @@ function saveGlobalGSUrl() {
             }
 
             if (nightUnlocked) {
-                fnSales.disabled = false; fnSales.readOnly = false; fnSales.classList.remove('opacity-50', 'cursor-not-allowed');
-                fnTrans.disabled = false; fnTrans.readOnly = false; fnTrans.classList.remove('opacity-50', 'cursor-not-allowed');
-                fnMyKasih.disabled = false; fnMyKasih.readOnly = false; fnMyKasih.classList.remove('opacity-50', 'cursor-not-allowed');
-                fnLorry.disabled = false; fnLorry.readOnly = false; fnLorry.classList.remove('opacity-50', 'cursor-not-allowed');
+                fnSales.disabled = false; fnSales.readOnly = false; fnSales.classList.remove('opacity-50', 'cursor-not-allowed'); fnSales.placeholder = "0.00";
+                fnTrans.disabled = false; fnTrans.readOnly = false; fnTrans.classList.remove('opacity-50', 'cursor-not-allowed'); fnTrans.placeholder = "0";
+                fnMyKasih.disabled = false; fnMyKasih.readOnly = false; fnMyKasih.classList.remove('opacity-50', 'cursor-not-allowed'); fnMyKasih.placeholder = "0.00";
+                fnLorry.disabled = false; fnLorry.readOnly = false; fnLorry.classList.remove('opacity-50', 'cursor-not-allowed'); fnLorry.placeholder = "0.00";
                 if(btnNight) { btnNight.disabled = false; btnNight.classList.remove('hidden'); }
             } else {
                 fnSales.disabled = true; fnSales.readOnly = true; fnSales.classList.add('opacity-50', 'cursor-not-allowed');
