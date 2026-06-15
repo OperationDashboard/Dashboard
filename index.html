@@ -681,7 +681,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.43;
+        const APP_VERSION = 9.44;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1610,16 +1610,16 @@ function saveGlobalGSUrl() {
                 let balCol = `<span class="${bal === 0 ? 'text-emerald-500' : 'text-rose-500'} font-bold">RM ${formatRM(bal)}</span>`;
                 let statusBadge = isNightLocked ? `<span class="bg-emerald-950/60 text-emerald-400 border border-emerald-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Sent</span>` : `<span class="bg-amber-950/60 text-amber-500 border border-amber-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Pending</span>`;
                 
-                let actNight = isNightLocked ? `<button onclick="resetNight('${date}', ${b.code})" class="flex-1 bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST SALES</button>` : `<div class="flex-1"></div>`;
-                let actBank = hasBankIn ? `<button onclick="resetBank('${date}', ${b.code})" class="flex-1 bg-amber-950/80 text-amber-400 border border-amber-900/50 hover:bg-amber-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST BANK</button>` : `<div class="flex-1"></div>`;
+                let actNight = isNightLocked ? `<button onclick="resetNight('${date}', '${b.code}')" class="flex-1 bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST SALES</button>` : `<div class="flex-1"></div>`;
+                let actBank = hasBankIn ? `<button onclick="resetBank('${date}', '${b.code}')" class="flex-1 bg-amber-950/80 text-amber-400 border border-amber-900/50 hover:bg-amber-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST BANK</button>` : `<div class="flex-1"></div>`;
                 
                 let adminAct = "";
                 let todayD = new Date(todayStr); let salesD = new Date(date);
                 let diffDays = Math.floor((todayD - salesD) / (1000 * 60 * 60 * 24));
                 
-                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && (isNightLocked || (date !== todayStr && (!sub || !sub.night_unlocked)))) ? `<button onclick="unlockNight('${date}', ${b.code})" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
+                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && (isNightLocked || (date !== todayStr && (!sub || !sub.night_unlocked)))) ? `<button onclick="unlockNight('${date}', '${b.code}')" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
                 
-                let adminUnlockBank = (currentUser.role === 'admin' && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', ${b.code})" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
+                let adminUnlockBank = (currentUser.role === 'admin' && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', '${b.code}')" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
                 
                 adminAct = adminUnlockNight + adminUnlockBank;
 
