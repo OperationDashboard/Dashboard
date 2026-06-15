@@ -63,7 +63,7 @@
                     <i class="fa-solid fa-language mr-1"></i> <span id="lang-indicator">EN</span>
                 </button>
                 <div class="w-px h-4 bg-slate-600"></div>
-                <button onclick="location.reload()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors" title="Refresh App">
+                <button onclick="sessionStorage.clear(); location.reload()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors" title="Refresh App">
                     <i class="fa-solid fa-rotate-right mr-1"></i> <span class="hidden sm:inline" data-i18n="btn_refresh">Refresh</span>
                 </button>
             </div>
@@ -949,6 +949,7 @@ function saveGlobalGSUrl() {
 
         function syncToCloud(action, payloadData, callback) {
             setSyncing(true);
+            sessionStorage.clear(); // Clear cache to ensure fresh data after mutation
 
             let fbPromise = Promise.resolve();
             if (action === 'reset_night' && payloadData.date && payloadData.code) {
