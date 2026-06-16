@@ -161,9 +161,9 @@
                         </div>
                         <form id="branch-night-form" onsubmit="confirmNightSubmit(event)" class="space-y-4 relative z-0">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_sales">Daily Sales (RM)</label><input type="number" step="0.01" id="f-sales" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_sales">Daily Sales (RM)</label><input type="number" step="0.05" id="f-sales" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
                                 <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_trans">Transactions</label><input type="number" id="f-trans" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
-                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_mykasih">MyKasih (RM)</label><input type="number" step="0.01" id="f-mykasih" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_mykasih">MyKasih (RM)</label><input type="number" step="0.05" id="f-mykasih" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
                                 <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_lorry">Lorry Cost (RM)</label><input type="number" step="0.01" id="f-lorry" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
                             </div>
                             <button type="submit" id="btn-submit-night" class="w-full mt-4 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> <span data-i18n="btn_submit_night">Submit & Sync to HQ</span></button>
@@ -1224,7 +1224,29 @@ function saveGlobalGSUrl() {
         let pendingNightData = null;
         function confirmNightSubmit(e) {
             e.preventDefault();
-            pendingNightData = { sales: parseFloat(document.getElementById('f-sales').value) || 0, transactions: parseInt(document.getElementById('f-trans').value) || 0, mykasih: parseFloat(document.getElementById('f-mykasih').value) || 0, lorry: parseFloat(document.getElementById('f-lorry').value) || 0 };
+
+            let sVal = document.getElementById('f-sales').value;
+            let mVal = document.getElementById('f-mykasih').value;
+            
+            let isValidCents = (v) => {
+                if(!v) return true;
+                let parts = v.split('.');
+                if(parts.length === 1) return true;
+                if(parts[1].length > 2) return false;
+                let cents = parseInt((parts[1] + '00').substring(0, 2));
+                return cents % 5 === 0;
+            };
+            
+            if(!isValidCents(sVal) || !isValidCents(mVal)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Ralat Nilai Sen',
+                    text: 'Sila pastikan sen untuk Daily Sales dan MyKasih dalam gandaan 5 (contoh: .00, .05, .10, .50). Jangan masukkan nilai pelik seperti .02 atau .03'
+                });
+                return;
+            }
+
+            pendingNightData = { sales: parseFloat(sVal) || 0, transactions: parseInt(document.getElementById('f-trans').value) || 0, mykasih: parseFloat(mVal) || 0, lorry: parseFloat(document.getElementById('f-lorry').value) || 0 };
             document.getElementById('confirm-sales-val').innerText = 'RM ' + formatRM(pendingNightData.sales);
             document.getElementById('confirm-trans-val').innerText = formatNum(pendingNightData.transactions);
             document.getElementById('confirm-mykasih-val').innerText = 'RM ' + formatRM(pendingNightData.mykasih);
@@ -1410,7 +1432,7 @@ function saveGlobalGSUrl() {
 
             let diff = tKPI.lorry - tKPI.sales;
             let diffEl = document.getElementById('kpi-diff');
-            diffEl.innerText = `${diff < 0 ? '-' : ''}RM ${Math.abs(diff).toLocaleString()}`;
+            diffEl.innerText = `${diff < 0 ? '-' : ''}RM ${formatRM(Math.abs(diff))}`;
             let diffStatus = document.getElementById('kpi-diff-status');
             if(diff > 0) {
                 diffEl.className = "text-2xl sm:text-3xl font-black text-emerald-400";
@@ -1448,9 +1470,9 @@ function saveGlobalGSUrl() {
                 let diffColor = b.diff > 0 ? 'text-emerald-400' : (b.diff < 0 ? 'text-rose-500' : 'text-slate-400');
                 compHtml += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
                     <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div><div class="text-[8px] text-cyan-500 font-semibold mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>${b.am}</div></td>
-                    <td class="p-3 text-cyan-400 font-semibold">RM ${b.sales.toLocaleString()}</td>
-                    <td class="p-3 text-purple-400">RM ${b.lorry.toLocaleString()}</td>
-                    <td class="p-3 text-right font-bold ${diffColor}">${b.diff < 0 ? '-' : ''}RM ${Math.abs(b.diff).toLocaleString()}</td>
+                    <td class="p-3 text-cyan-400 font-semibold">RM ${formatRM(b.sales)}</td>
+                    <td class="p-3 text-purple-400">RM ${formatRM(b.lorry)}</td>
+                    <td class="p-3 text-right font-bold ${diffColor}">${b.diff < 0 ? '-' : ''}RM ${formatRM(Math.abs(b.diff))}</td>
                 </tr>`;
             });
             document.getElementById('dashboard-compare-tbody').innerHTML = compHtml || '<tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No data</td></tr>';
@@ -1530,8 +1552,8 @@ function saveGlobalGSUrl() {
                     else if(s < prevTotSales) salesClass = "text-rose-400 font-bold bg-rose-500/10";
                 }
                 prevTotSales = s;
-                let salesDisplay = s > 0 ? s.toLocaleString('en-MY', {minimumFractionDigits:2}) : '-';
-                let transDisplay = t > 0 ? t.toLocaleString('en-US') : '-';
+                let salesDisplay = s > 0 ? formatRM(s) : '-';
+                let transDisplay = t > 0 ? formatNum(t) : '-';
                 totalRowHtml += `<td class="p-3 border-l border-slate-700 text-right ${salesClass}">${salesDisplay}</td><td class="p-3 text-[10px] text-amber-500/90 text-right font-bold">${transDisplay}</td>`;
             }
             tbody += `<tr class="bg-slate-900 border-b-2 border-amber-500/50 shadow-md">${totalRowHtml}</tr>`;
@@ -1580,8 +1602,8 @@ function saveGlobalGSUrl() {
                     
                     prevSales = sales;
                     
-                    let salesDisplay = sales > 0 ? sales.toLocaleString('en-MY', {minimumFractionDigits:2}) : '-';
-                    let transDisplay = trans > 0 ? trans.toLocaleString('en-US') : '-';
+                    let salesDisplay = sales > 0 ? formatRM(sales) : '-';
+                    let transDisplay = trans > 0 ? formatNum(trans) : '-';
                     
                     rowHtml += `<td class="p-3 border-l border-slate-800/60 text-right ${salesClass}">${salesDisplay}</td>
                                 <td class="p-3 text-[10px] text-amber-500/70 text-right">${transDisplay}</td>`;
