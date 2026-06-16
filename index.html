@@ -688,7 +688,7 @@ function doPost(e) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.50;
+        const APP_VERSION = 9.51;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -998,7 +998,7 @@ function saveGlobalGSUrl() {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({
                     date: payloadData.date, code: payloadData.code,
-                    sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true, am: bAm
+                      sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false, am: bAm
                 }, {merge: true});
             } else if (action === 'reset_bank' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
@@ -1019,7 +1019,7 @@ function saveGlobalGSUrl() {
                         let batch = db.batch();
                         let chunk = docs.slice(i, i + 400);
                         chunk.forEach(doc => {
-                            batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: true });
+                              batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false });
                         });
                         await batch.commit();
                     }
@@ -1651,7 +1651,14 @@ function saveGlobalGSUrl() {
                 let todayD = new Date(todayStr); let salesD = new Date(date);
                 let diffDays = Math.floor((todayD - salesD) / (1000 * 60 * 60 * 24));
                 
-                let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && (isNightLocked || (date !== todayStr && (!sub || !sub.night_unlocked)))) ? `<button onclick="unlockNight('${date}', '${b.code}')" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
+                  let needsUnlockNight = false;
+                  if (date === todayStr) {
+                      if (masterLock) needsUnlockNight = !sub || !sub.night_unlocked;
+                      else needsUnlockNight = isNightLocked;
+                  } else {
+                      needsUnlockNight = !sub || !sub.night_unlocked;
+                  }
+                  let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && needsUnlockNight) ? `<button onclick="unlockNight('${date}', '${b.code}')" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
                 
                 let adminUnlockBank = (currentUser.role === 'admin' && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', '${b.code}')" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
                 
@@ -1679,7 +1686,7 @@ function saveGlobalGSUrl() {
         function resetNight(date, code) {
             if(confirm(`Reset Night Data for ${code}?\nThis will instruct the server to delete the row's night operations data.`)) {
                 let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
-                if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; }
+                  if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; dbSubmissions[idx].night_unlocked = false; }
                 renderTrackingTable();
                 syncToCloud('reset_night', { date: date, code: Number(code), amName: currentUser.name });
             }
