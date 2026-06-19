@@ -2635,13 +2635,13 @@ function saveGlobalGSUrl() {
             function fD(v) { if(!v || v==='N/A') return 'N/A'; if(typeof v === 'string' && v.includes('T')) return v.split('T')[0]; return v; }
             document.getElementById('hub-res-lic-biz1').innerText = fD(b['LIC_LESEN BISNES 1'] || b['LIC_NORM_LESENBISNES1'] || b['LIC_LESEN 1'] || b['LIC_NORM_LESEN1'] || 'N/A');
             document.getElementById('hub-res-lic-biz2').innerText = fD(b['LIC_LESEN BISNES 2'] || b['LIC_NORM_LESENBISNES2'] || b['LIC_LESEN 2'] || b['LIC_NORM_LESEN2'] || 'N/A');
-            document.getElementById('hub-res-lic-kakilima').innerText = fD(b['LIC_LESEN KAKI LIMA'] || b['LIC_NORM_LESENKAKILIMA'] || 'N/A');
+            document.getElementById('hub-res-lic-kakilima').innerText = fD(b['LIC_LESEN KAKI LIMA'] || b['LIC_NORM_LESENKAKILIMA'] || b['LIC_ESEN KAKI LIM'] || b['LIC_NORM_ESENKAKILIM'] || 'N/A');
             document.getElementById('hub-res-lic-iklan1').innerText = fD(b['LIC_LESEN PENGIKLANAN 1'] || b['LIC_NORM_LESENPENGIKLANAN1'] || 'N/A');
             document.getElementById('hub-res-lic-iklan2').innerText = fD(b['LIC_LESEN PENGIKLANAN 2'] || b['LIC_NORM_LESENPENGIKLANAN2'] || 'N/A');
             document.getElementById('hub-res-lic-beer1').innerText = fD(b['LIC_LESEN MINUMAN BEER'] || b['LIC_NORM_LESENMINUMANBEER'] || 'N/A');
             
-            document.getElementById('hub-res-lic-plastik1').innerText = fD(b['LIC_SIJIL CAJ BEG PLASTIK'] || b['LIC_NORM_SIJILCAJBEGPLASTIK'] || 'N/A');
-            document.getElementById('hub-res-lic-plastik2').innerText = fD(b['LIC_SIJIL BEBAS BEG PLASTIK'] || b['LIC_NORM_SIJILBEBASBEGPLASTIK'] || 'N/A');
+            document.getElementById('hub-res-lic-plastik1').innerText = fD(b['LIC_SIJIL CAJ BEG PLASTIK'] || b['LIC_NORM_SIJILCAJBEGPLASTIK'] || b['LIC_NORM_SIJILCAJBEGPLA'] || b['LIC_SIJIL CAJ BEG PLA'] || b['LIC_NORM_SIJILCAJBEG'] || 'N/A');
+            document.getElementById('hub-res-lic-plastik2').innerText = fD(b['LIC_SIJIL BEBAS BEG PLASTIK'] || b['LIC_NORM_SIJILBEBASBEGPLASTIK'] || b['LIC_NORM_SIJILBEBASBEGPLA'] || b['LIC_SIJIL BEBAS BEG PLA'] || b['LIC_NORM_SIJILBEBASBEG'] || 'N/A');
             
             document.getElementById('hub-res-lic-tembakau').innerText = fD(b['LIC_LESEN TEMBAKAU'] || b['LIC_NORM_LESENTEMBAKAU'] || 'N/A');
             document.getElementById('hub-res-lic-beras').innerText = fD(b['LIC_LESEN BERAS'] || b['LIC_NORM_LESENBERAS'] || 'N/A');
