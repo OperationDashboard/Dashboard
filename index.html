@@ -35,6 +35,7 @@
         .spinner { border: 3px solid rgba(255,255,255,0.1); width: 20px; height: 20px; border-radius: 50%; border-left-color: #06b6d4; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="h-full font-sans antialiased selection:bg-cyan-500 selection:text-slate-900" id="app-root">
 
@@ -78,6 +79,9 @@
                 </button>
                 <button onclick="openLoginModal('admin')" class="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] font-bold transition-all bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700">
                     <i class="fa-solid fa-user-gear"></i> <span class="hidden sm:inline" data-i18n="btn_admin">Admin</span>
+                </button>
+                <button onclick="openLoginModal('operation')" class="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] font-bold transition-all bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700">
+                    <i class="fa-solid fa-briefcase"></i> <span class="hidden sm:inline" data-i18n="btn_op">Operation</span>
                 </button>
             </div>
             
@@ -198,10 +202,12 @@
             
             <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
-                    <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Analytics Dashboard</button>
+                    <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Daily Summary</button>
+                    <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only"><i class="fa-solid fa-chart-line mr-1"></i> Management Analytic</button>
                     <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
                     <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only" data-i18n="tab_comparison">Daily Comparison</button>
-                    <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only" data-i18n="tab_control">System Control</button>
+                    <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
+                    <button onclick="switchTab('hub')" id="tab-btn-hub" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-store mr-1"></i> Ops Branch Hub</button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
                     <i class="fa-solid fa-list-check text-cyan-400"></i>
@@ -220,6 +226,7 @@
                     <div class="admin-only flex-1 min-w-[140px] hidden"><select id="filter-state" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All States</option></select></div>
                     <div class="admin-only flex-1 min-w-[140px] hidden"><select id="filter-am" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Area Managers</option></select></div>
                     <div class="flex-1 min-w-[140px]"><select id="filter-warehouse" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Warehouses</option></select></div>
+                    <div class="flex-1 min-w-[140px]"><select id="filter-branch" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Branches</option></select></div>
                 </div>
             </div>
 
@@ -352,7 +359,7 @@
                     </div>
                     <div class="flex gap-2 w-full sm:w-auto">
                         <input type="text" id="track-search" oninput="renderTrackingTable()" placeholder="Search code/name..." class="flex-1 sm:w-64 rounded-lg bg-slate-950 px-4 py-2 text-xs border border-slate-700 text-white outline-none focus:border-cyan-500 shadow-inner">
-                        <button onclick="confirmMasterReset()" class="admin-only cursor-pointer bg-red-950/80 text-red-500 border border-red-900/50 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-900 hover:text-white transition-all shadow-md whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASTER RESET NIGHT</button>
+                        <button onclick="confirmMasterReset()" class="super-admin cursor-pointer bg-red-950/80 text-red-500 border border-red-900/50 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-900 hover:text-white transition-all shadow-md whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASTER RESET NIGHT</button>
                     </div>
                 </div>
                 
@@ -415,7 +422,7 @@
                 
                 <div class="pbi-card rounded-xl p-4 shadow-xl mb-6">
                     <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-chart-area mr-1.5 text-amber-500"></i> Monthly Sales Trend <span id="trend-title-suffix">(Total Company)</span></h3>
-                    <div class="w-full h-48">
+                    <div class="relative w-full h-48">
                         <canvas id="chart-monthly-trend"></canvas>
                     </div>
                 </div>
@@ -429,6 +436,223 @@
                             </thead>
                             <tbody id="comparison-tbody" class="divide-y divide-slate-800/60"></tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ANALYTICS TAB -->
+            <section id="tab-analytics" class="space-y-6 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Line Chart: Sales Trend -->
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-chart-line text-cyan-400 mr-1.5"></i> Trend Jualan (Bulan Ini)</h3>
+                        <div class="relative w-full h-64">
+                            <canvas id="salesLineChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Pie Chart: AM Contribution -->
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-chart-column text-cyan-400 mr-1.5"></i> Top 15 Jualan Mengikut AM</h3>
+                        <div class="relative w-full h-64">
+                            <canvas id="amPieChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <!-- Dual Axis: Sales vs Lorry -->
+                <div class="pbi-card rounded-xl p-4 shadow-xl">
+                    <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-scale-balanced text-amber-500 mr-1.5"></i> Perbandingan Jualan vs Kos Logistik (Lori)</h3>
+                    <div class="relative w-full h-64">
+                        <canvas id="salesVsLorryChart"></canvas>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Top 10 Branches -->
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-sm font-bold text-emerald-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-trophy mr-1.5"></i> Top 10 Cawangan</h3>
+                        <div id="top-branches-list" class="space-y-2"></div>
+                    </div>
+                    <!-- Bottom 10 Branches -->
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-sm font-bold text-rose-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-arrow-trend-down mr-1.5"></i> 10 Cawangan Tercorot</h3>
+                        <div id="bottom-branches-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BRANCH HUB TAB -->
+            <section id="tab-hub" class="hidden space-y-6">
+                <!-- Search Section -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                    <div class="text-center mb-6">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-teal-50 text-teal-600 mb-3">
+                            <i class="fa-solid fa-store text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-800">Ops Branch Search Hub</h2>
+                        <p class="text-slate-500 text-sm mt-1">A highly focused, lightweight branch operations finder with Google Sheets syncing.</p>
+                    </div>
+
+                    <div class="max-w-2xl mx-auto">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Search Branch (<span id="hub-total-branches">0</span> Outlets)</label>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 flex items-center gap-1"><i class="fa-solid fa-check-circle"></i> OK_SYNC</span>
+                        </div>
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="hub-search-input" placeholder="Type code (e.g. 1001) or Branch Name..." 
+                                class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all shadow-sm text-slate-800">
+                            <div id="hub-search-results" class="absolute w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 hidden max-h-60 overflow-y-auto">
+                                <!-- Results populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
+                            <button onclick="fetchTBCBranches()" class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
+                                <i class="fa-solid fa-database text-teal-600"></i> Import Data & Google Sheet Sync
+                            </button>
+                            <button onclick="resetHubSearch()" class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
+                                <i class="fa-solid fa-arrows-rotate text-slate-400"></i> Reset Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result Card -->
+                <div id="hub-result-card" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-slate-200 max-w-2xl mx-auto relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-50 text-green-600 border border-green-200">CURRENT REGISTERED CODE</span>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <span id="hub-res-code-badge" class="inline-block px-2 py-0.5 bg-rose-50 text-rose-500 font-bold text-xs rounded border border-rose-100 mb-2">CODE</span>
+                        <h3 id="hub-res-name" class="text-2xl font-black text-slate-800">BRANCH NAME</h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-tag text-xs"></i><span class="text-xs font-bold">Code</span>
+                            </div>
+                            <div id="hub-res-code" class="font-bold text-slate-800">N/A</div>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-shop text-xs"></i><span class="text-xs font-bold">Branch Name</span>
+                            </div>
+                            <div id="hub-res-branch" class="font-bold text-slate-800">N/A</div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-map-pin text-xs"></i><span class="text-xs font-bold">Area</span>
+                            </div>
+                            <div id="hub-res-area" class="font-bold text-slate-800">N/A</div>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-user-tie text-xs"></i><span class="text-xs font-bold">Area Manager</span>
+                            </div>
+                            <div id="hub-res-am" class="font-bold text-slate-800">N/A</div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-warehouse text-xs"></i><span class="text-xs font-bold">WH</span>
+                            </div>
+                            <div class="inline-block px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-800" id="hub-res-wh">N/A</div>
+                        </div>
+                        <div></div> <!-- empty grid cell -->
+
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-regular fa-calendar text-xs"></i><span class="text-xs font-bold">Commerce date</span>
+                            </div>
+                            <div id="hub-res-commerce" class="font-bold text-slate-800">N/A</div>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-regular fa-clock text-xs"></i><span class="text-xs font-bold">Business Hour</span>
+                            </div>
+                            <div id="hub-res-hours" class="font-bold text-slate-800">N/A</div>
+                        </div>
+
+                        <div class="col-span-1 md:col-span-2">
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-beer-mug-empty text-xs"></i><span class="text-xs font-bold">Beer Category</span>
+                            </div>
+                            <div class="inline-block px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg font-bold text-sm" id="hub-res-beer">Class B</div>
+                        </div>
+
+                        <div class="col-span-1 md:col-span-2">
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-location-dot text-xs"></i><span class="text-xs font-bold">Branch Address</span>
+                            </div>
+                            <div id="hub-res-address" class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 leading-relaxed">N/A</div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-building text-xs"></i><span class="text-xs font-bold">Majlis</span>
+                            </div>
+                            <div id="hub-res-majlis" class="font-bold text-slate-800">N/A</div>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 text-slate-400 mb-1">
+                                <i class="fa-solid fa-map text-xs"></i><span class="text-xs font-bold">Negeri</span>
+                            </div>
+                            <div id="hub-res-negeri" class="font-bold text-slate-800">N/A</div>
+                        </div>
+                    </div>
+
+                    <!-- License Status Section -->
+                    <div class="mt-8 border-t border-slate-200 pt-6 col-span-1 md:col-span-2">
+                        <h4 class="text-sm font-bold text-slate-800 mb-4 uppercase tracking-widest"><i class="fa-solid fa-id-card mr-2 text-indigo-500"></i>Status Lesen</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Bisnes</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1 flex flex-col gap-1">
+                                    <div class="flex justify-between"><span>Lesen 1:</span> <span id="hub-res-lic-biz1">N/A</span></div>
+                                    <div class="flex justify-between"><span>Lesen 2:</span> <span id="hub-res-lic-biz2">N/A</span></div>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Kaki Lima</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1" id="hub-res-lic-kakilima">N/A</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Pengiklanan</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1 flex flex-col gap-1">
+                                    <div class="flex justify-between"><span>Lesen 1:</span> <span id="hub-res-lic-iklan1">N/A</span></div>
+                                    <div class="flex justify-between"><span>Lesen 2:</span> <span id="hub-res-lic-iklan2">N/A</span></div>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Minuman Beer</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1" id="hub-res-lic-beer2">N/A</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Sijil Beg Plastik</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1 flex flex-col gap-1">
+                                    <div class="flex justify-between"><span>Caj Beg:</span> <span id="hub-res-lic-plastik1">N/A</span></div>
+                                    <div class="flex justify-between"><span>Bebas Beg:</span> <span id="hub-res-lic-plastik2">N/A</span></div>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Tembakau</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1" id="hub-res-lic-tembakau">N/A</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Beras</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1" id="hub-res-lic-beras">N/A</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Runcit</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1" id="hub-res-lic-runcit">N/A</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Lesen Arak</div>
+                                <div class="text-xs font-bold text-slate-700 mt-1" id="hub-res-lic-arak">N/A</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -479,7 +703,7 @@
                     </div>
 
                     <!-- Google Sheets Apps Script Info -->
-                    <div class="pbi-card rounded-xl p-6 shadow-xl md:col-span-2 relative overflow-hidden admin-only">
+                    <div class="pbi-card rounded-xl p-6 shadow-xl md:col-span-2 relative overflow-hidden super-admin">
                         <div class="absolute right-0 top-0 opacity-5"><i class="fa-brands fa-google text-9xl"></i></div>
                         <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-2 relative z-10"><i class="fa-solid fa-cloud text-blue-500 mr-1.5"></i> Auto-Sync Database Webhook</h3>
                         
@@ -693,6 +917,9 @@ function doPost(e) {
         let currentUser = null; 
         let currentTab = 'dashboard';
         let dbSubmissions = []; 
+        let salesLineChartInstance = null;
+        let amPieChartInstance = null;
+        let salesVsLorryChartInstance = null;
         let isSyncing = false;
         
         const DICT = {
@@ -770,7 +997,7 @@ function saveGlobalGSUrl() {
             yesterdayStr = getYYYYMMDD(yd);
         }, 60000);
         
-        let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!' };
+        let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!', 'operation': 'Operation2026!' };
         function getSafeTimeStr() {
             let d = new Date();
             let hh = d.getHours().toString().padStart(2, '0');
@@ -819,8 +1046,9 @@ function saveGlobalGSUrl() {
             if(savedUser) {
                 try {
                     currentUser = JSON.parse(savedUser); let role = currentUser.role;
-                    document.querySelectorAll('.admin-only').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
-                    document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin') ? 'flex' : 'none');
+                    document.querySelectorAll('.super-admin').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none');
+                    document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none');
             document.getElementById('header-subtitle').classList.add('hidden');
                     document.getElementById('nav-buttons').classList.add('hidden');
                     document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
@@ -830,6 +1058,218 @@ function saveGlobalGSUrl() {
             }
         });
 
+        function renderAnalytics() {
+            let monthStr = todayStr.substring(0, 7);
+            let fs = document.getElementById('filter-state').value;
+            let fa = document.getElementById('filter-am').value;
+            let fw = document.getElementById('filter-warehouse').value;
+            let fb = document.getElementById('filter-branch') ? document.getElementById('filter-branch').value : "";
+            
+            // 1. Max days logic
+            let currentMonthStr = new Date().toISOString().substring(0,7);
+            let daysInMonth = new Date(parseInt(monthStr.split('-')[0]), parseInt(monthStr.split('-')[1]), 0).getDate();
+            let maxDay = (monthStr === currentMonthStr) ? new Date().getDate() : daysInMonth;
+            
+            let labelsLine = [];
+            let dataLine = [];
+            let dataLorry = []; 
+            
+            let dailySales = {};
+            let dailyLorry = {};
+            for(let d=1; d<=daysInMonth; d++) {
+                dailySales[d] = 0;
+                dailyLorry[d] = 0;
+            }
+            
+            // 2. Prepare data for Bar Chart (Sales by AM)
+            let amSales = {};
+            if (currentUser && currentUser.role === 'am') fa = currentUser.name;
+            
+            // 3. Prepare data for Top/Bottom branches
+            let branchSales = {};
+            masterBranches.forEach(b => { 
+                if (fs && b.state !== fs) return;
+                if (fw && b.warehouse !== fw) return;
+                if (fa && b.am !== fa) return;
+                if (fb && String(b.code) !== String(fb)) return;
+                branchSales[b.code] = {name: b.name, am: b.am || 'N/A', wh: b.warehouse || 'N/A', sales: 0}; 
+            });
+
+            dbSubmissions.forEach(sub => {
+                if(!sub.date || !sub.date.startsWith(monthStr)) return;
+                
+                let b = masterBranches.find(x => x.code === sub.code);
+                if(fs && b && b.state !== fs) return;
+                if(fw && b && b.warehouse !== fw) return;
+                if(fa && sub.am !== fa) return;
+                if(fb && String(sub.code) !== String(fb)) return;
+                
+                let day = parseInt(sub.date.split('-')[2]);
+                let sales = parseFloat(sub.sales || 0);
+                let lorry = parseFloat(sub.lorry || 0);
+                
+                dailySales[day] += sales;
+                dailyLorry[day] += lorry;
+                
+                let am = sub.am || "Unknown";
+                if(!amSales[am]) amSales[am] = 0;
+                amSales[am] += sales;
+                
+                if(branchSales[sub.code]) branchSales[sub.code].sales += sales;
+            });
+            
+            for(let d=1; d<=maxDay; d++) {
+                labelsLine.push(d);
+                dataLine.push(dailySales[d]);
+                dataLorry.push(dailyLorry[d]);
+            }
+            
+            // Render Line Chart
+            let ctxLine = document.getElementById('salesLineChart').getContext('2d');
+            if(salesLineChartInstance) salesLineChartInstance.destroy();
+            salesLineChartInstance = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: labelsLine,
+                    datasets: [{
+                        label: 'Total Sales (RM)',
+                        data: dataLine,
+                        borderColor: '#22d3ee',
+                        backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#0f172a',
+                        pointBorderColor: '#22d3ee'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+            
+            // Render AM Bar Chart (Top 15)
+            let sortedAMs = Object.keys(amSales).sort((a,b) => amSales[b] - amSales[a]).slice(0, 15);
+            let labelsPie = sortedAMs;
+            let dataPie = sortedAMs.map(am => amSales[am]);
+            let ctxPie = document.getElementById('amPieChart').getContext('2d');
+            if(amPieChartInstance) amPieChartInstance.destroy();
+            amPieChartInstance = new Chart(ctxPie, {
+                type: 'bar', 
+                data: {
+                    labels: labelsPie,
+                    datasets: [{
+                        label: 'Jualan (RM)',
+                        data: dataPie,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#cbd5e1' } },
+                        y: { grid: { display: false }, ticks: { color: '#cbd5e1' } }
+                    }
+                }
+            });
+            
+            // Render Sales vs Lorry Chart (Dual Axis)
+            let ctxDual = document.getElementById('salesVsLorryChart').getContext('2d');
+            if(salesVsLorryChartInstance) salesVsLorryChartInstance.destroy();
+            salesVsLorryChartInstance = new Chart(ctxDual, {
+                type: 'bar',
+                data: {
+                    labels: labelsLine,
+                    datasets: [
+                        {
+                            label: 'Total Sales (RM)',
+                            data: dataLine,
+                            backgroundColor: 'rgba(16, 185, 129, 0.8)', // Emerald
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Lorry Cost (RM)',
+                            data: dataLorry,
+                            type: 'line',
+                            borderColor: '#fbbf24', // Amber 400
+                            borderWidth: 3,
+                            backgroundColor: '#fbbf24',
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#fbbf24',
+                            pointRadius: 4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                      mode: 'index',
+                      intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#10b981' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#fbbf24' }
+                        },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+            
+            // Render Leaderboard (Top 10 / Bottom 10)
+            let sortedBranches = Object.values(branchSales).sort((a,b) => b.sales - a.sales);
+            
+            let topHtml = '';
+            for(let i=0; i<Math.min(10, sortedBranches.length); i++) {
+                let b = sortedBranches[i];
+                if(b.sales === 0 && i > 0) continue; 
+                topHtml += `<div class="flex justify-between items-center bg-slate-900/50 p-2 rounded border border-slate-800">
+                    <div class="flex flex-col pr-2 min-w-0">
+                        <span class="text-xs text-slate-300 font-bold truncate">${i+1}. ${b.name}</span>
+                        <span class="text-[9px] text-slate-500 font-semibold truncate"><i class="fa-solid fa-user-tie text-cyan-500/50 mr-1"></i>${b.am} <span class="mx-1 text-slate-600">|</span> <i class="fa-solid fa-warehouse text-amber-500/50 mr-1"></i>${b.wh}</span>
+                    </div>
+                    <span class="text-xs text-emerald-400 font-black whitespace-nowrap">RM ${b.sales.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                </div>`;
+            }
+            document.getElementById('top-branches-list').innerHTML = topHtml || '<div class="text-slate-500 text-xs italic">No data yet</div>';
+            
+            let bottomHtml = '';
+            let bottomBranches = [...sortedBranches].reverse();
+            for(let i=0; i<Math.min(10, bottomBranches.length); i++) {
+                let b = bottomBranches[i];
+                bottomHtml += `<div class="flex justify-between items-center bg-slate-900/50 p-2 rounded border border-slate-800">
+                    <div class="flex flex-col pr-2 min-w-0">
+                        <span class="text-xs text-slate-300 font-bold truncate">${bottomBranches.length-i}. ${b.name}</span>
+                        <span class="text-[9px] text-slate-500 font-semibold truncate"><i class="fa-solid fa-user-tie text-cyan-500/50 mr-1"></i>${b.am} <span class="mx-1 text-slate-600">|</span> <i class="fa-solid fa-warehouse text-amber-500/50 mr-1"></i>${b.wh}</span>
+                    </div>
+                    <span class="text-xs text-rose-400 font-black whitespace-nowrap">RM ${b.sales.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                </div>`;
+            }
+            document.getElementById('bottom-branches-list').innerHTML = bottomHtml || '<div class="text-slate-500 text-xs italic">No data yet</div>';
+        }
+        
         function setSyncing(status) {
             isSyncing = status;
             let el = document.getElementById('sync-status');
@@ -921,6 +1361,9 @@ function saveGlobalGSUrl() {
             if (currentTab === 'dashboard') {
                 mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
                 dateStr = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
+            } else if (currentTab === 'analytics') {
+                mode = 'monthly';
+                dateStr = todayStr.substring(0,7);
             } else if (currentTab === 'comparison') {
                 mode = 'monthly';
                 let cm = document.getElementById('compare-month');
@@ -956,6 +1399,7 @@ function saveGlobalGSUrl() {
                     dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
                     dbSubmissions.push(...fbData);
                     if(currentTab==='dashboard') renderDashboard(); 
+                    else if(currentTab==='analytics') renderAnalytics();
                     else if(currentTab==='comparison') renderComparisonTable();
                     else renderTrackingTable();
                     setSyncing(false);
@@ -976,6 +1420,7 @@ function saveGlobalGSUrl() {
                     dbSubmissions = dbSubmissions.filter(s => mode === 'daily' ? s.date !== dateStr : !s.date.startsWith(dateStr));
                     dbSubmissions.push(...fbData);
                     if(currentTab==='dashboard') renderDashboard(); 
+                    else if(currentTab==='analytics') renderAnalytics();
                     else if(currentTab==='comparison') renderComparisonTable();
                     else renderTrackingTable();
                     setSyncing(false);
@@ -1071,7 +1516,7 @@ function saveGlobalGSUrl() {
             document.getElementById('auth-role').value = role;
             document.getElementById('auth-search-container').classList.add('hidden');
             document.getElementById('auth-search').value = ""; document.getElementById('auth-selected-id').value = ""; document.getElementById('auth-pwd').value = "";
-            document.getElementById('auth-title').innerText = role==='branch'?(currentLang==='EN'?"Branch Login":"Log Masuk Cawangan"):role==='am'?(currentLang==='EN'?"AM Login":"Log Masuk AM"):(currentLang==='EN'?"Admin Login":"Log Masuk Admin");
+            document.getElementById('auth-title').innerText = role==='branch'?(currentLang==='EN'?"Branch Login":"Log Masuk Cawangan"):role==='am'?(currentLang==='EN'?"AM Login":"Log Masuk AM"):role==='operation'?(currentLang==='EN'?"Operation Login":"Log Masuk Operasi"):(currentLang==='EN'?"Admin Login":"Log Masuk Admin");
             if (role === 'branch' || role === 'am') document.getElementById('auth-search-container').classList.remove('hidden');
             document.getElementById('auth-modal').classList.remove('hidden'); document.getElementById('auth-modal').classList.add('flex');
         }
@@ -1130,7 +1575,7 @@ function saveGlobalGSUrl() {
 
         function switchTab(tab) {
             currentTab = tab;
-            ['dashboard', 'tracking', 'comparison', 'control'].forEach(t => {
+            ['dashboard', 'analytics', 'tracking', 'comparison', 'control', 'hub'].forEach(t => {
                 let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
@@ -1139,7 +1584,7 @@ function saveGlobalGSUrl() {
             if(aSec) aSec.classList.remove('hidden');
             if(aBtn) { aBtn.classList.remove('tab-inactive'); aBtn.classList.add('tab-active'); }
             
-            if(tab === 'dashboard' || tab === 'tracking' || tab === 'comparison') triggerDataSync();
+            if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison') triggerDataSync();
         }
 
         // --- 4. Branch Logic ---
@@ -1315,9 +1760,11 @@ function saveGlobalGSUrl() {
             let fAM = document.getElementById('filter-am') ? document.getElementById('filter-am').value : '';
             let fState = document.getElementById('filter-state') ? document.getElementById('filter-state').value : '';
             let fWH = document.getElementById('filter-warehouse') ? document.getElementById('filter-warehouse').value : '';
+            let fB = document.getElementById('filter-branch') ? document.getElementById('filter-branch').value : '';
             if(fAM) base = base.filter(b => b.am === fAM);
             if(fState) base = base.filter(b => b.state === fState);
             if(fWH) base = base.filter(b => b.warehouse === fWH);
+            if(fB) base = base.filter(b => String(b.code) === String(fB));
             return base;
         }
 
@@ -1346,6 +1793,15 @@ function saveGlobalGSUrl() {
             whs.forEach(x => whHtml += `<option value="${x}">${x}</option>`);
             document.getElementById('filter-warehouse').innerHTML = whHtml;
             document.getElementById('filter-warehouse').value = prevWH;
+            
+            if(document.getElementById('filter-branch')) {
+                let branches = base.map(b => ({code: b.code, name: b.name})).sort((a,b) => a.name.localeCompare(b.name));
+                let prevBranch = document.getElementById('filter-branch').value;
+                let branchHtml = '<option value="">All Branches</option>';
+                branches.forEach(x => branchHtml += `<option value="${x.code}">${x.name} (${x.code})</option>`);
+                document.getElementById('filter-branch').innerHTML = branchHtml;
+                document.getElementById('filter-branch').value = prevBranch;
+            }
         }
 
         function updateSubmissionRatio() {
@@ -1912,22 +2368,38 @@ function saveGlobalGSUrl() {
                 return;
             }
 
+            let fDate = document.getElementById('track-date').value;
+            if (!fDate) {
+                Swal.fire({
+                    title: 'Pilih Tarikh Dahulu',
+                    text: 'Sila pilih Tarikh (Date) pada filter di atas sebelum menekan butang Push. Ini untuk mengelakkan sistem memproses data sebulan sekaligus yang boleh menyebabkan proses menjadi lambat dan data berulang (double).',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            let dataToPush = dbSubmissions.filter(d => d.date === fDate);
+            if(dataToPush.length === 0) {
+                showToast('info', 'Tiada data untuk tarikh ' + fDate);
+                return;
+            }
+
             Swal.fire({
-                title: 'Confirm Push to Google Sheets?',
-                text: `You are about to push ${dbSubmissions.length} records. This might take a few moments.`,
+                title: 'Sahkan Push Data?',
+                text: `Sistem akan memasukkan ${dataToPush.length} rekod khas untuk tarikh ${fDate} ke dalam Google Sheets.`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#10b981',
                 cancelButtonColor: '#334155',
-                confirmButtonText: 'Yes, Push Data'
+                confirmButtonText: 'Ya, Push Data'
             }).then((result) => {
                 if (result.isConfirmed) {
                     setSyncing(true);
                     showToast('info', 'Pushing data in batches...');
                     
                     let chunks = [];
-                    for (let i = 0; i < dbSubmissions.length; i += 50) { // Batch of 50 for Google Apps Script limits
-                        chunks.push(dbSubmissions.slice(i, i + 50));
+                    for (let i = 0; i < dataToPush.length; i += 50) { // Batch of 50 for Google Apps Script limits
+                        chunks.push(dataToPush.slice(i, i + 50));
                     }
 
                     async function pushBatches() {
@@ -1956,6 +2428,7 @@ function saveGlobalGSUrl() {
             PASSWORDS['admin']=document.getElementById('pwd-admin').value||PASSWORDS['admin']; 
             PASSWORDS['am']=document.getElementById('pwd-am').value||PASSWORDS['am']; 
             PASSWORDS['branch']=document.getElementById('pwd-branch').value||PASSWORDS['branch'];
+            PASSWORDS['operation']=document.getElementById('pwd-op').value||PASSWORDS['operation'];
             showToast('success', 'Passwords updated in active session!');
         }
 
@@ -2039,6 +2512,110 @@ function saveGlobalGSUrl() {
             document.getElementById('toast-title').className = `text-xs font-bold text-${tType}-400 uppercase`; document.getElementById('toast-title').innerText = type;
             document.getElementById('toast-msg').innerText = msg;
             setTimeout(() => { t.classList.add('translate-y-20', 'opacity-0'); }, 3000);
+        }
+        let tbcBranches = [];
+        
+        function fetchTBCBranches() {
+            let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
+            if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") {
+                alert("Sila tetapkan Webhook URL dahulu di menu System Control.");
+                return;
+            }
+            document.getElementById('hub-total-branches').innerText = "Syncing...";
+            fetch(url + '?t=' + new Date().getTime() + '&action=get_tbc_branches')
+            .then(r=>r.json())
+            .then(data => {
+                if(Array.isArray(data) && data.length > 0) {
+                    tbcBranches = data;
+                    document.getElementById('hub-total-branches').innerText = tbcBranches.length;
+                    showToast('success', 'Data Ops Branch Hub berjaya dimuat turun!');
+                } else if (data.error) {
+                    showToast('error', "Ralat dari Google Sheet: " + data.error);
+                } else {
+                    showToast('info', "Tiada data ditemui atau format salah.");
+                }
+            }).catch(e => {
+                console.error(e);
+                showToast('error', "Ralat sambungan ketika muat turun data TBC.");
+            });
+        }
+        
+        function resetHubSearch() {
+            document.getElementById('hub-search-input').value = "";
+            document.getElementById('hub-search-results').classList.add('hidden');
+            document.getElementById('hub-result-card').classList.add('hidden');
+        }
+        
+        document.getElementById('hub-search-input').addEventListener('input', function(e) {
+            let q = e.target.value.toLowerCase().trim();
+            let resBox = document.getElementById('hub-search-results');
+            resBox.innerHTML = '';
+            if(q.length < 2) {
+                resBox.classList.add('hidden');
+                return;
+            }
+            
+            let matches = tbcBranches.filter(b => {
+                let code = String(b['CODE'] || '').toLowerCase();
+                let name = String(b['BRANCH NAME'] || '').toLowerCase();
+                return code.includes(q) || name.includes(q);
+            }).slice(0, 10);
+            
+            if(matches.length > 0) {
+                matches.forEach(b => {
+                    let div = document.createElement('div');
+                    div.className = "p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0";
+                    div.innerHTML = `<div class="font-bold text-slate-800">${b['CODE'] || 'N/A'} - ${b['BRANCH NAME'] || 'N/A'}</div><div class="text-xs text-slate-500">${b['AREA'] || 'N/A'} | ${b['WH'] || 'N/A'}</div>`;
+                    div.onclick = function() {
+                        showHubResult(b);
+                        resBox.classList.add('hidden');
+                        document.getElementById('hub-search-input').value = (b['CODE'] || '') + ' - ' + (b['BRANCH NAME'] || '');
+                    };
+                    resBox.appendChild(div);
+                });
+                resBox.classList.remove('hidden');
+            } else {
+                resBox.innerHTML = `<div class="p-3 text-slate-500 text-sm italic">Tiada padanan ditemui</div>`;
+                resBox.classList.remove('hidden');
+            }
+        });
+
+        // hide search results on click outside
+        document.addEventListener('click', function(e) {
+            let sInput = document.getElementById('hub-search-input');
+            let sRes = document.getElementById('hub-search-results');
+            if(sInput && sRes && !sInput.contains(e.target) && !sRes.contains(e.target)) {
+                sRes.classList.add('hidden');
+            }
+        });
+
+        function showHubResult(b) {
+            document.getElementById('hub-result-card').classList.remove('hidden');
+            document.getElementById('hub-res-code-badge').innerText = b['CODE'] || 'N/A';
+            document.getElementById('hub-res-name').innerText = b['BRANCH NAME'] || 'N/A';
+            
+            document.getElementById('hub-res-code').innerText = b['CODE'] || 'N/A';
+            document.getElementById('hub-res-branch').innerText = b['BRANCH NAME'] || 'N/A';
+            document.getElementById('hub-res-area').innerText = b['AREA'] || 'N/A';
+            document.getElementById('hub-res-am').innerText = b['AREA MANAGER'] || 'N/A';
+            document.getElementById('hub-res-wh').innerText = b['WH'] || 'N/A';
+            
+            let commDate = b['COMMERCE DATE'] || 'N/A';
+            if(commDate && commDate !== 'N/A' && commDate.includes('T')) commDate = commDate.split('T')[0];
+            document.getElementById('hub-res-commerce').innerText = commDate;
+            
+            document.getElementById('hub-res-hours').innerText = b['BUSINESS HOUR'] || 'N/A';
+            
+            let beer = b['BEER CATEGORY'] || 'N/A';
+            let beerEl = document.getElementById('hub-res-beer');
+            beerEl.innerText = beer;
+            if(beer.includes('A')) { beerEl.className = "inline-block px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-lg font-bold text-sm"; }
+            else if(beer.includes('B')) { beerEl.className = "inline-block px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg font-bold text-sm"; }
+            else { beerEl.className = "inline-block px-3 py-1 bg-slate-50 border border-slate-200 text-slate-700 rounded-lg font-bold text-sm"; }
+            
+            document.getElementById('hub-res-address').innerText = b['ADDRESS'] || b['BRANCH ADDRESS'] || 'N/A';
+            document.getElementById('hub-res-majlis').innerText = b['MAJLIS'] || 'N/A';
+            document.getElementById('hub-res-negeri').innerText = b['NEGERI'] || 'N/A';
         }
     </script>
 </body>
