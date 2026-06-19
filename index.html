@@ -859,6 +859,9 @@ function doPost(e) {
                         <span class="ml-3 text-slate-400 font-bold tracking-widest text-sm">ANALYZING DATA...</span>
                     </div>
 
+                    <div class="flex justify-end items-center mb-2">
+                        <button onclick="exportDropAnalysisExcel()" id="btn-drop-excel" class="hidden bg-emerald-600 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-emerald-500 transition-colors shadow-lg"><i class="fa-solid fa-file-excel mr-1"></i> Download Excel</button>
+                    </div>
                     <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/50">
                         <table class="w-full text-left border-collapse min-w-[600px]">
                             <thead>
@@ -2499,9 +2502,14 @@ function saveGlobalGSUrl() {
                 results.sort((a, b) => b.dropCount - a.dropCount);
 
                 let tbody = document.getElementById('drop-results-body');
+                let btnExcel = document.getElementById('btn-drop-excel');
                 if (results.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-emerald-500 text-sm font-bold"><i class="fa-solid fa-check-circle mr-2"></i>No branches found with ${targetDrops} consecutive drops!</td></tr>`;
+                    if(btnExcel) btnExcel.classList.add('hidden');
+                    window.currentDropResults = null;
                 } else {
+                    window.currentDropResults = results;
+                    if(btnExcel) btnExcel.classList.remove('hidden');
                     let html = '';
                     results.forEach((r, idx) => {
                         let pathHtml = r.path.map(p => `<span class="inline-block bg-slate-950 px-2 py-1 rounded text-[10px] mx-0.5 border border-slate-700">${p.date.slice(5)}: <span class="text-rose-400 font-bold">RM${formatRM(p.sales)}</span></span>`).join(' <i class="fa-solid fa-caret-right text-slate-600 text-xs"></i> ');
@@ -2524,6 +2532,29 @@ function saveGlobalGSUrl() {
                 document.getElementById('drop-loading').classList.add('hidden');
                 document.getElementById('drop-loading').classList.remove('flex');
             }
+        }
+
+        function exportDropAnalysisExcel() {
+            if (!window.currentDropResults || window.currentDropResults.length === 0) return;
+            
+            showToast('info', 'Generating EXCEL for Drop Analysis...');
+            let exportArr = window.currentDropResults.map(r => {
+                let dropPathText = r.path.map(p => `${p.date} (RM${p.sales})`).join(' -> ');
+                return {
+                    "Code": r.code,
+                    "Branch Name": r.name,
+                    "AM": r.am,
+                    "Consecutive Drops": r.dropCount,
+                    "Drop Pattern": dropPathText
+                };
+            });
+            
+            let wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Drop Analysis");
+            
+            let startDate = document.getElementById('drop-start').value;
+            let endDate = document.getElementById('drop-end').value;
+            XLSX.writeFile(wb, `DropAnalysis_${startDate}_to_${endDate}.xlsx`);
         }
 
         async function patchDatabase() {
