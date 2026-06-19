@@ -1358,7 +1358,15 @@ function saveGlobalGSUrl() {
         function triggerDataSync() {
             if(!currentUser) return;
             if(currentUser.role === 'branch') syncBranchFromCloud();
-            else syncManagerFromCloud();
+            else {
+                if (currentTab === 'drop') {
+                    if (document.getElementById('drop-start').value && document.getElementById('drop-end').value) {
+                        runDropAnalysis();
+                    }
+                } else {
+                    syncManagerFromCloud();
+                }
+            }
         }
 
         let configListener = null;
