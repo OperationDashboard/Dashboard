@@ -208,6 +208,7 @@
                     <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only" data-i18n="tab_comparison">Daily Comparison</button>
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
                     <button onclick="switchTab('hub')" id="tab-btn-hub" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-store mr-1"></i> Ops Branch Hub</button>
+                    <button onclick="switchTab('drop')" id="tab-btn-drop" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-arrow-trend-down mr-1 text-rose-500"></i> Drop Analysis</button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
                     <i class="fa-solid fa-list-check text-cyan-400"></i>
@@ -821,6 +822,60 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify({status: "success"})).setMimeType(ContentService.MimeType.JSON);
 }</pre>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DROP ANALYSIS TAB (ADMIN/OPERATION ONLY) -->
+            <section id="tab-drop" class="hidden space-y-6">
+                <div class="pbi-card rounded-xl p-6 shadow-xl">
+                    <h2 class="text-xl font-black text-white uppercase tracking-wider mb-4"><i class="fa-solid fa-arrow-trend-down text-rose-500 mr-2"></i> Consecutive Sales Drop Analysis</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Start Date</label>
+                            <input type="date" id="drop-start" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:border-cyan-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">End Date</label>
+                            <input type="date" id="drop-end" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:border-cyan-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Consecutive Drops</label>
+                            <select id="drop-days" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:border-cyan-500 outline-none appearance-none cursor-pointer">
+                                <option value="2">2 Days Straight</option>
+                                <option value="3" selected>3 Days Straight</option>
+                                <option value="4">4 Days Straight</option>
+                                <option value="5">5 Days Straight</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="runDropAnalysis()" class="w-full bg-rose-600 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-rose-500 transition-all flex justify-center items-center gap-2"><i class="fa-solid fa-search"></i> Run Analysis</button>
+                        </div>
+                    </div>
+
+                    <div id="drop-loading" class="hidden justify-center items-center py-10">
+                        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-rose-500"></i>
+                        <span class="ml-3 text-slate-400 font-bold tracking-widest text-sm">ANALYZING DATA...</span>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/50">
+                        <table class="w-full text-left border-collapse min-w-[600px]">
+                            <thead>
+                                <tr class="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                                    <th class="p-3 text-xs w-16">No.</th>
+                                    <th class="p-3 text-xs w-24">Code</th>
+                                    <th class="p-3 text-xs">Branch Name</th>
+                                    <th class="p-3 text-xs">AM</th>
+                                    <th class="p-3 text-xs text-right">Drop Pattern</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drop-results-body">
+                                <tr>
+                                    <td colspan="5" class="p-6 text-center text-slate-500 text-sm font-semibold">Select dates and run analysis.</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -1608,7 +1663,7 @@ function saveGlobalGSUrl() {
 
         function switchTab(tab) {
             currentTab = tab;
-            ['dashboard', 'analytics', 'tracking', 'comparison', 'control', 'hub'].forEach(t => {
+            ['dashboard', 'analytics', 'tracking', 'comparison', 'control', 'hub', 'drop'].forEach(t => {
                 let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
@@ -2353,8 +2408,124 @@ function saveGlobalGSUrl() {
                           if(currentTab !== 'dashboard') switchTab('dashboard'); 
                       });
                   }, 500);
-              }
+                }
         }
+
+        async function runDropAnalysis() {
+            let startDate = document.getElementById('drop-start').value;
+            let endDate = document.getElementById('drop-end').value;
+            let targetDrops = parseInt(document.getElementById('drop-days').value);
+            
+            if (!startDate || !endDate) {
+                showToast('error', 'Please select both start and end dates.');
+                return;
+            }
+            if (new Date(startDate) > new Date(endDate)) {
+                showToast('error', 'Start Date cannot be later than End Date.');
+                return;
+            }
+
+            document.getElementById('drop-results-body').innerHTML = '';
+            document.getElementById('drop-loading').classList.remove('hidden');
+            document.getElementById('drop-loading').classList.add('flex');
+
+            try {
+                let branches = getManagerFilteredBranches();
+                let bCodes = branches.map(b => String(b.code));
+                
+                let snap = await db.collection("submissions")
+                    .where("date", ">=", startDate)
+                    .where("date", "<=", endDate)
+                    .get();
+
+                let data = [];
+                snap.forEach(doc => {
+                    let d = doc.data();
+                    if (d.night_locked && bCodes.includes(String(d.code))) {
+                        data.push(d);
+                    }
+                });
+
+                // Group by branch
+                let grouped = {};
+                data.forEach(s => {
+                    let c = String(s.code);
+                    if (!grouped[c]) grouped[c] = [];
+                    grouped[c].push({ date: s.date, sales: s.sales || 0 });
+                });
+
+                let results = [];
+                
+                for (let code in grouped) {
+                    let arr = grouped[code].sort((a, b) => a.date.localeCompare(b.date));
+                    
+                    let maxDropStreak = 0;
+                    let currentStreak = 0;
+                    let streakPath = [];
+                    let bestStreakPath = [];
+
+                    for (let i = 1; i < arr.length; i++) {
+                        let prev = arr[i-1];
+                        let curr = arr[i];
+                        
+                        let d1 = new Date(prev.date);
+                        let d2 = new Date(curr.date);
+                        let diffTime = Math.abs(d2 - d1);
+                        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays === 1 && curr.sales < prev.sales) {
+                            if (currentStreak === 0) {
+                                streakPath = [prev, curr];
+                                currentStreak = 1;
+                            } else {
+                                streakPath.push(curr);
+                                currentStreak++;
+                            }
+                            if (currentStreak >= maxDropStreak) {
+                                maxDropStreak = currentStreak;
+                                bestStreakPath = [...streakPath];
+                            }
+                        } else {
+                            currentStreak = 0;
+                        }
+                    }
+
+                    if (maxDropStreak >= targetDrops) {
+                        let b = branches.find(x => String(x.code) === code) || {name: 'Unknown', am: 'Unknown'};
+                        results.push({ code: code, name: b.name, am: b.am, path: bestStreakPath, dropCount: maxDropStreak });
+                    }
+                }
+
+                results.sort((a, b) => b.dropCount - a.dropCount);
+
+                let tbody = document.getElementById('drop-results-body');
+                if (results.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-emerald-500 text-sm font-bold"><i class="fa-solid fa-check-circle mr-2"></i>No branches found with ${targetDrops} consecutive drops!</td></tr>`;
+                } else {
+                    let html = '';
+                    results.forEach((r, idx) => {
+                        let pathHtml = r.path.map(p => `<span class="inline-block bg-slate-950 px-2 py-1 rounded text-[10px] mx-0.5 border border-slate-700">${p.date.slice(5)}: <span class="text-rose-400 font-bold">RM${formatRM(p.sales)}</span></span>`).join(' <i class="fa-solid fa-caret-right text-slate-600 text-xs"></i> ');
+                        html += `<tr class="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                            <td class="p-3 text-xs font-mono text-slate-500">${idx+1}</td>
+                            <td class="p-3 text-xs font-mono text-slate-400 tracking-wider">${r.code}</td>
+                            <td class="p-3 text-xs font-bold text-slate-300">${r.name}</td>
+                            <td class="p-3 text-[10px] font-semibold text-cyan-500 uppercase">${r.am}</td>
+                            <td class="p-3 text-right whitespace-nowrap">${pathHtml}</td>
+                        </tr>`;
+                    });
+                    tbody.innerHTML = html;
+                }
+
+            } catch(e) {
+                console.error(e);
+                showToast('error', 'Error fetching analysis data.');
+                document.getElementById('drop-results-body').innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500 text-sm font-bold">Failed to load data.</td></tr>`;
+            } finally {
+                document.getElementById('drop-loading').classList.add('hidden');
+                document.getElementById('drop-loading').classList.remove('flex');
+            }
+        }
+
         async function patchDatabase() {
             if(!confirm("Mula proses baiki database? (Jangan tutup page ini sehingga siap)")) return;
             setSyncing(true);
