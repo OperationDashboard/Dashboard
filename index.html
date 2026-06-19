@@ -2533,8 +2533,13 @@ function saveGlobalGSUrl() {
             }
             document.getElementById('hub-total-branches').innerText = "Syncing...";
             fetch(url + '?t=' + new Date().getTime() + '&action=get_tbc_branches')
-            .then(r=>r.json())
-            .then(data => {
+              .then(r=>r.json())
+              .then(data => {
+                  if(data && data.error) {
+                      alert("RALAT GOOGLE SHEET: " + data.error);
+                      document.getElementById('hub-total-branches').innerText = "Ralat";
+                      return;
+                  }
                 if(Array.isArray(data) && data.length > 0) {
                     tbcBranches = data;
                     document.getElementById('hub-total-branches').innerText = tbcBranches.length;
