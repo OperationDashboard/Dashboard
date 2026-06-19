@@ -985,8 +985,17 @@ function saveGlobalGSUrl() {
                         document.getElementById('am-select').innerHTML = html;
                     }
                     if(typeof populateFilters === 'function' && currentUser && currentUser.role !== 'branch') populateFilters();
+                    if (typeof currentUser !== 'undefined' && currentUser && typeof currentTab !== 'undefined') {
+                        if (currentTab === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
+                        else if (currentTab === 'analytics' && typeof renderAnalytics === 'function') renderAnalytics();
+                        else if (currentTab === 'comparison' && typeof renderComparisonTable === 'function') renderComparisonTable();
+                        else if (currentTab === 'tracking' && typeof renderTrackingTable === 'function') renderTrackingTable();
+                    }
                 }
-            }).catch(e => console.error("Branch fetch error", e));
+            }).catch(e => {
+                alert("Ralat memuat turun dari Google Sheet: " + e.message + "\nSila matikan ad-blocker atau semak capaian internet.");
+                console.error("Branch fetch error", e);
+            });
         }
           function getYYYYMMDD(date) {
               let d = new Date(date), month = '' + (d.getMonth() + 1), day = '' + d.getDate(), year = d.getFullYear();
