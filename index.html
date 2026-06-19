@@ -225,8 +225,8 @@
                 <div class="flex flex-wrap gap-3 flex-1 w-full">
                     <div class="admin-only flex-1 min-w-[140px] hidden"><select id="filter-state" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All States</option></select></div>
                     <div class="admin-only flex-1 min-w-[140px] hidden"><select id="filter-am" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Area Managers</option></select></div>
-                    <div class="flex-1 min-w-[140px]"><select id="filter-warehouse" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Warehouses</option></select></div>
-                    <div class="flex-1 min-w-[140px]"><select id="filter-branch" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Branches</option></select></div>
+                    <div class="flex-1 min-w-[140px] hide-from-operation"><select id="filter-warehouse" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Warehouses</option></select></div>
+                    <div class="flex-1 min-w-[140px] hide-from-operation"><select id="filter-branch" onchange="triggerDataSync()" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-700 focus:border-cyan-500 cursor-pointer"><option value="">All Branches</option></select></div>
                 </div>
             </div>
 
@@ -250,11 +250,11 @@
                     </div>
                     
                     <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                        <button onclick="toggleMasterLock()" id="btn-master-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
-                          <button onclick="togglePastLock()" id="btn-past-lock" class="admin-only hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
+                        <button onclick="toggleMasterLock()" id="btn-master-lock" class="super-admin hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
+                          <button onclick="togglePastLock()" id="btn-past-lock" class="super-admin hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
                           <button onclick="showMissingSales()" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-amber-600/20 text-amber-500 border border-amber-500/50 hover:bg-amber-600 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow"><i class="fa-solid fa-user-xmark mr-1"></i> Missing Sales</button>
                         <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-green-400 border border-green-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
-                        <button onclick="exportData('pdf')" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
+                        <button onclick="exportData('pdf')" class="super-admin hidden flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
                     </div>
                 </div>
 
@@ -406,7 +406,7 @@
                               <button onclick="exportComparisonCSV()" class="bg-emerald-600/20 text-emerald-500 border border-emerald-500/50 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow" title="Export CSV for Excel">
                                   <i class="fa-solid fa-file-csv mr-1"></i> CSV
                               </button>
-                              <button onclick="exportComparisonPDF()" class="bg-rose-600/20 text-rose-500 border border-rose-500/50 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow" title="Export as PDF">
+                              <button onclick="exportComparisonPDF()" class="super-admin bg-rose-600/20 text-rose-500 border border-rose-500/50 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow" title="Export as PDF">
                                   <i class="fa-solid fa-file-pdf mr-1"></i> PDF
                               </button>
                           </div>
@@ -1049,6 +1049,7 @@ function saveGlobalGSUrl() {
                     
             
                       document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
+                      document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
                       document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
                       document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
 
@@ -1551,6 +1552,7 @@ function saveGlobalGSUrl() {
             
             
                       document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
+                      document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
                       document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
                       document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
 
@@ -1830,20 +1832,20 @@ function saveGlobalGSUrl() {
               let btnPast = document.getElementById('btn-past-lock');
               if(!btn) return;
               if(masterLock) {
-                btn.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                btn.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                 btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked (Today)`;
             } else {
-                btn.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                btn.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                 btn.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked (Today)`;
               }
               if(currentUser && currentUser.role === 'admin') btn.classList.remove('hidden');
 
               if(btnPast) {
                   if(pastLock) {
-                      btnPast.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                      btnPast.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                       btnPast.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked (Past)`;
                   } else {
-                      btnPast.className = "admin-only hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                      btnPast.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                       btnPast.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked (Past)`;
                   }
                   if(currentUser && currentUser.role === 'admin') btnPast.classList.remove('hidden');
@@ -2624,6 +2626,22 @@ function saveGlobalGSUrl() {
             document.getElementById('hub-res-address').innerText = b['ADDRESS'] || b['BRANCH ADDRESS'] || 'N/A';
             document.getElementById('hub-res-majlis').innerText = b['MAJLIS'] || 'N/A';
             document.getElementById('hub-res-negeri').innerText = b['NEGERI'] || 'N/A';
+
+            document.getElementById('hub-res-lic-biz1').innerText = b['LIC_LESEN 1'] || b['LIC_NORM_LESEN1'] || b['LIC_NORM_LESENBISNES1'] || b['LIC_NORM_LESENBISNES'] || 'N/A';
+            document.getElementById('hub-res-lic-biz2').innerText = b['LIC_LESEN 2'] || b['LIC_NORM_LESEN2'] || b['LIC_NORM_LESENBISNES2'] || 'N/A';
+            document.getElementById('hub-res-lic-kakilima').innerText = b['LIC_LESEN KAKI LIMA'] || b['LIC_NORM_LESENKAKILIMA'] || 'N/A';
+            document.getElementById('hub-res-lic-iklan1').innerText = b['LIC_LESEN PENGIKLANAN 1'] || b['LIC_NORM_LESEN1'] || b['LIC_NORM_LESENPENGIKLANAN1'] || b['LIC_NORM_LESENPENGIKLANAN'] || 'N/A';
+            document.getElementById('hub-res-lic-iklan2').innerText = b['LIC_LESEN PENGIKLANAN 2'] || b['LIC_NORM_LESEN2'] || b['LIC_NORM_LESENPENGIKLANAN2'] || 'N/A';
+            document.getElementById('hub-res-lic-beer1').innerText = b['LIC_LESEN MINUMAN BEER'] || b['LIC_NORM_LESENMINUMANBEER'] || 'N/A';
+            
+            document.getElementById('hub-res-lic-plastik1').innerText = b['LIC_SIJIL CAJ BEG PLASTIK'] || b['LIC_NORM_SIJILCAJBEGPLASTIK'] || 'N/A';
+            document.getElementById('hub-res-lic-plastik2').innerText = b['LIC_SIJIL BEBAS BEG PLASTIK'] || b['LIC_NORM_SIJILBEBASBEGPLASTIK'] || 'N/A';
+            
+            document.getElementById('hub-res-lic-tembakau').innerText = b['LIC_LESEN TEMBAKAU'] || b['LIC_NORM_LESENTEMBAKAU'] || 'N/A';
+            document.getElementById('hub-res-lic-beras').innerText = b['LIC_LESEN BERAS'] || b['LIC_NORM_LESENBERAS'] || 'N/A';
+            document.getElementById('hub-res-lic-runcit').innerText = b['LIC_LESEN RUNCIT'] || b['LIC_NORM_LESENRUNCIT'] || 'N/A';
+            document.getElementById('hub-res-lic-arak').innerText = b['LIC_LESEN ARAK'] || b['LIC_NORM_LESENARAK'] || 'N/A';
+
         }
     </script>
 </body>
