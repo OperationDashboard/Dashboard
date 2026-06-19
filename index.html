@@ -896,6 +896,14 @@ function doPost(e) {
     </div>
 
     <script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    alert('JS Error: ' + msg + '\nLine: ' + lineNo);
+    return false;
+};
+window.onunhandledrejection = function(event) {
+    alert('Promise Error: ' + event.reason);
+};
+
         // --- Firebase Config ---
         const firebaseConfig = {
           apiKey: "AIzaSyAuMQnfR6hbCkT_4Mk7GhkPagWLaFIc3jE",
