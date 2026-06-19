@@ -1576,8 +1576,12 @@ function saveGlobalGSUrl() {
             document.getElementById('header-subtitle').classList.add('hidden');
             
             if (role === 'branch') {
-                currentUser.id = parseInt(selId); let b = masterBranches.find(x => x.code === currentUser.id);
-                currentUser.name = b.name; currentUser.am = b.am;
+                currentUser.id = selId; let b = masterBranches.find(x => String(x.code) === String(currentUser.id));
+                if(b) {
+                    currentUser.name = b.name; currentUser.am = b.am;
+                } else {
+                    currentUser.name = "Unknown Branch"; currentUser.am = "";
+                }
                 localStorage.setItem('pbi_user', JSON.stringify(currentUser));
                 syncBranchFromCloud(); // Trigger sync before showing branch view
             } else if (role === 'am') {
