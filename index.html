@@ -1935,7 +1935,7 @@ function saveGlobalGSUrl() {
             }
 
             let grouped = {};
-            dashData.filter(s=>s.night_locked || s.bank1>0 || s.bank2>0).forEach(s => {
+            dashData.filter(s=>s.night_locked).forEach(s => {
                 if(!grouped[s.code]) grouped[s.code] = { code: s.code, sales: 0, lorry: 0 };
                 grouped[s.code].sales += (s.sales || 0);
                 grouped[s.code].lorry += (s.lorry || 0);
