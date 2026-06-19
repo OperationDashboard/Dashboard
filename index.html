@@ -83,6 +83,9 @@
                 <button onclick="openLoginModal('operation')" class="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] font-bold transition-all bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700">
                     <i class="fa-solid fa-briefcase"></i> <span class="hidden sm:inline" data-i18n="btn_op">Operation</span>
                 </button>
+                <button onclick="openLoginModal('operation')" class="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] font-bold transition-all bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700">
+                    <i class="fa-solid fa-briefcase"></i> <span class="hidden sm:inline" data-i18n="btn_op">Operation</span>
+                </button>
             </div>
             
             <!-- Logged in Controls -->
@@ -1046,9 +1049,12 @@ function saveGlobalGSUrl() {
             if(savedUser) {
                 try {
                     currentUser = JSON.parse(savedUser); let role = currentUser.role;
-                    document.querySelectorAll('.super-admin').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none');
-                    document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none');
+                    
+            
+                      document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
+                      document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
+                      document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
+
             document.getElementById('header-subtitle').classList.add('hidden');
                     document.getElementById('nav-buttons').classList.add('hidden');
                     document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
@@ -1545,8 +1551,12 @@ function saveGlobalGSUrl() {
             
             closeModal('auth-modal');
             currentUser = { role: role };
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = role==='admin' ? 'block' : 'none');
-            document.querySelectorAll('.am-only').forEach(el => el.style.display = (role==='am' || role==='admin') ? 'flex' : 'none');
+            
+            
+                      document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
+                      document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
+                      document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
+
             document.getElementById('header-subtitle').classList.add('hidden');
             
             if (role === 'branch') {
@@ -2428,6 +2438,7 @@ function saveGlobalGSUrl() {
             PASSWORDS['admin']=document.getElementById('pwd-admin').value||PASSWORDS['admin']; 
             PASSWORDS['am']=document.getElementById('pwd-am').value||PASSWORDS['am']; 
             PASSWORDS['branch']=document.getElementById('pwd-branch').value||PASSWORDS['branch'];
+            PASSWORDS['operation']=document.getElementById('pwd-op').value||PASSWORDS['operation'];
             PASSWORDS['operation']=document.getElementById('pwd-op').value||PASSWORDS['operation'];
             showToast('success', 'Passwords updated in active session!');
         }
