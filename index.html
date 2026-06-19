@@ -2546,15 +2546,34 @@ function saveGlobalGSUrl() {
             if (!window.currentDropResults || window.currentDropResults.length === 0) return;
             
             showToast('info', 'Generating EXCEL for Drop Analysis...');
+            
+            let allDates = new Set();
+            window.currentDropResults.forEach(r => {
+                r.path.forEach(p => allDates.add(p.date));
+            });
+            let sortedDates = Array.from(allDates).sort();
+            
+            let formatDateStr = (dStr) => {
+                let parts = dStr.split('-');
+                if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                return dStr;
+            };
+
             let exportArr = window.currentDropResults.map(r => {
-                let dropPathText = r.path.map(p => `${p.date} (RM${p.sales})`).join(' -> ');
-                return {
+                let row = {
                     "Code": r.code,
                     "Branch Name": r.name,
                     "AM": r.am,
-                    "Consecutive Drops": r.dropCount,
-                    "Drop Pattern": dropPathText
+                    "Consecutive Drops": r.dropCount
                 };
+                
+                sortedDates.forEach(d => {
+                    let p = r.path.find(x => x.date === d);
+                    let headerDate = formatDateStr(d);
+                    row[headerDate] = p ? `RM${formatRM(p.sales)}` : "-";
+                });
+                
+                return row;
             });
             
             let wb = XLSX.utils.book_new();
