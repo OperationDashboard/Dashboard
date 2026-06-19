@@ -1763,7 +1763,7 @@ function saveGlobalGSUrl() {
         }
 
         function getManagerFilteredBranches() {
-            let base = currentUser.role === 'admin' ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
+            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
             let fAM = document.getElementById('filter-am') ? document.getElementById('filter-am').value : '';
             let fState = document.getElementById('filter-state') ? document.getElementById('filter-state').value : '';
             let fWH = document.getElementById('filter-warehouse') ? document.getElementById('filter-warehouse').value : '';
@@ -1777,7 +1777,7 @@ function saveGlobalGSUrl() {
 
         function populateFilters() {
             if(!document.getElementById('filter-am')) return;
-            let base = currentUser.role === 'admin' ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
+            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
             
             let ams = [...new Set(base.map(b=>b.am).filter(Boolean))].sort();
             let states = [...new Set(base.map(b=>b.state).filter(Boolean))].sort();
