@@ -984,7 +984,7 @@ function saveGlobalGSUrl() {
                         ams.forEach(am => html += `<option value="${am}">${am}</option>`);
                         document.getElementById('am-select').innerHTML = html;
                     }
-                    if(typeof populateFilters === 'function') populateFilters();
+                    if(typeof populateFilters === 'function' && currentUser && currentUser.role !== 'branch') populateFilters();
                 }
             }).catch(e => console.error("Branch fetch error", e));
         }
@@ -1773,6 +1773,7 @@ function saveGlobalGSUrl() {
         }
 
         function getManagerFilteredBranches() {
+            if(!currentUser) return [];
             let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
             let fAM = document.getElementById('filter-am') ? document.getElementById('filter-am').value : '';
             let fState = document.getElementById('filter-state') ? document.getElementById('filter-state').value : '';
@@ -1786,7 +1787,7 @@ function saveGlobalGSUrl() {
         }
 
         function populateFilters() {
-            if(!document.getElementById('filter-am')) return;
+            if(!document.getElementById('filter-am') || !currentUser) return;
             let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
             
             let ams = [...new Set(base.map(b=>b.am).filter(Boolean))].sort();
