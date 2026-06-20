@@ -1916,7 +1916,7 @@ function saveGlobalGSUrl() {
         function updateSubmissionRatio() {
             let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily') : 'daily';
             let targetDate = mode === 'daily' ? document.getElementById(currentTab === 'dashboard' ? 'dash-date' : 'track-date').value : document.getElementById('dash-month').value;
-            let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>b.code);
+            let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>String(b.code));
             let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(String(s.code)));
             
             let subRatioEl = document.getElementById('am-stat-ratio');
@@ -1981,7 +1981,7 @@ function saveGlobalGSUrl() {
         function renderDashboard() {
             let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
             let targetDate = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
-            let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>b.code);
+            let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>String(b.code));
             let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(String(s.code)));
             
             updateSubmissionRatio();
