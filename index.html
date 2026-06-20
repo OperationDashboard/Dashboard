@@ -2679,6 +2679,7 @@ function saveGlobalGSUrl() {
                             let payloadData = { action: 'batch_upsert', data: chunk };
                             await fetch(url, {
                                 method: 'POST',
+                                mode: 'no-cors',
                                 headers: { 'Content-Type': 'text/plain' },
                                 body: JSON.stringify(payloadData)
                             });
