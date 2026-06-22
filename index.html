@@ -2045,6 +2045,7 @@ function saveGlobalGSUrl() {
 
         function logout() {
             currentUser = null; localStorage.removeItem('pbi_user');
+            if(typeof hasAlertedSurvey !== 'undefined') hasAlertedSurvey = false;
             document.getElementById('header-subtitle').classList.remove('hidden');
             document.getElementById('logged-in-controls').classList.add('hidden'); document.getElementById('logged-in-controls').classList.remove('flex');
             document.getElementById('nav-buttons').classList.remove('hidden'); document.getElementById('section-branch').classList.add('hidden');
@@ -2123,6 +2124,10 @@ function saveGlobalGSUrl() {
                 document.getElementById('f-mykasih').value = nightRec.mykasih; document.getElementById('f-lorry').value = nightRec.lorry;
             } else {
                 document.getElementById('branch-night-locked').classList.add('hidden'); 
+            }
+            
+            if (typeof surveysLoaded !== 'undefined' && surveysLoaded && responsesLoaded) {
+                checkSurveyAlerts();
             }
             
             let bankDate = document.getElementById('bank-in-date').value;
@@ -2235,6 +2240,10 @@ function saveGlobalGSUrl() {
             if (currentUser.role === 'admin') {
                 let btnPatch = document.getElementById('btn-patch-db');
                 if(btnPatch) btnPatch.classList.remove('hidden');
+            }
+            
+            if (typeof surveysLoaded !== 'undefined' && surveysLoaded && responsesLoaded) {
+                checkSurveyAlerts();
             }
         }
 
