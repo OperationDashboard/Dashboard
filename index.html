@@ -118,6 +118,8 @@
 
         <!-- CAWANGAN SECTION -->
         <main class="flex-1 p-4 sm:p-6 lg:p-8 hidden" id="section-branch">
+            <div id="branch-survey-container" class="mb-6"></div>
+
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-l-4 border-cyan-500 bg-slate-900/60 p-4 rounded-r-xl mb-6 gap-4">
                 <div>
                     <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-file-pen mr-2 text-cyan-400"></i><span data-i18n="branch_form_title">Daily Data Entry Form</span></h2>
@@ -209,6 +211,9 @@
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
                     <button onclick="switchTab('hub')" id="tab-btn-hub" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-store mr-1"></i> Ops Branch Hub</button>
                     <button onclick="switchTab('drop')" id="tab-btn-drop" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-arrow-trend-down mr-1 text-rose-500"></i> Drop Analysis</button>
+                    <button onclick="switchTab('audit')" id="tab-btn-audit" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-triangle-exclamation mr-1 text-yellow-500"></i> Audit & Anomaly</button>
+                    <button onclick="switchTab('lorry')" id="tab-btn-lorry" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only"><i class="fa-solid fa-truck-fast mr-1 text-orange-400"></i> Lorry Tracker</button>
+                    <button onclick="switchTab('survey')" id="tab-btn-survey" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap relative"><i class="fa-solid fa-clipboard-list mr-1 text-purple-400"></i> Survey & Tracking<span id="survey-badge" class="hidden absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">0</span></button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
                     <i class="fa-solid fa-list-check text-cyan-400"></i>
@@ -248,6 +253,9 @@
                             <input type="date" id="dash-date" onchange="updateDateDisplay('dash-date'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer">
                             <input type="month" id="dash-month" onchange="updateDateDisplay('dash-month'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer hidden">
                         </div>
+                        <button onclick="clearCacheAndRefresh()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg px-4 py-2.5 shadow-lg transition-colors border border-indigo-500 flex items-center gap-2">
+                            <i class="fa-solid fa-arrows-rotate"></i> Muat Semula Data
+                        </button>
                     </div>
                     
                     <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
@@ -298,6 +306,15 @@
                         <h3 id="kpi-diff" class="text-2xl sm:text-3xl font-black text-white">RM 0</h3>
                         <p id="kpi-diff-status" class="text-[10px] font-bold uppercase mt-1"></p>
                     </div>
+                </div>
+
+                <!-- Smart Alert: 3 Consecutive Days Drop -->
+                <div id="alert-3days-drop" class="hidden bg-rose-950 border border-rose-800 rounded-xl p-4 shadow-lg">
+                    <div class="flex items-center gap-3 mb-2">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-500 text-xl animate-pulse"></i>
+                        <h3 class="text-rose-400 font-bold text-sm uppercase tracking-wider">AMARAN: Risiko Penurunan Jualan (3 Hari Berturut-turut)</h3>
+                    </div>
+                    <div id="alert-3days-content" class="text-xs text-rose-200/80 font-medium leading-relaxed"></div>
                 </div>
 
                 <!-- Charts Area -->
@@ -891,6 +908,190 @@ function doPost(e) {
                     </div>
                 </div>
             </section>
+
+            <!-- AUDIT & ANOMALY TAB -->
+            <section id="tab-audit" class="hidden space-y-6">
+                <div class="pbi-card rounded-xl p-6 shadow-xl">
+                    <h2 class="text-xl font-black text-white uppercase tracking-wider mb-4"><i class="fa-solid fa-triangle-exclamation text-yellow-500 mr-2"></i> Audit & Anomaly (Salah Key-in)</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">Pilih Tarikh</label>
+                            <input type="date" id="audit-date" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">Had Jualan (RM)</label>
+                            <input type="number" id="audit-limit-sales" value="50000" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">Had Lori (RM)</label>
+                            <input type="number" id="audit-limit-lorry" value="90000" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-teal-500">
+                        </div>
+                    </div>
+                    
+                    <button onclick="runAuditCheck()" class="px-6 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-bold rounded-lg hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg"><i class="fa-solid fa-magnifying-glass mr-2"></i> Semak Anomaly</button>
+                </div>
+                
+                <div class="pbi-card rounded-xl p-4 shadow-xl overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-700">
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Tarikh</th>
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">AM</th>
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Cawangan</th>
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Jualan (RM)</th>
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Lori (RM)</th>
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Isu Jualan</th>
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Isu Lori</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table-body" class="text-sm">
+                            <tr><td colspan="7" class="text-center py-4 text-slate-500">Sila jalankan semakan.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- LORRY TRACKER TAB -->
+            <section id="tab-lorry" class="hidden space-y-6">
+                <div class="pbi-card rounded-xl p-6 shadow-xl">
+                    <h2 class="text-xl font-black text-white uppercase tracking-wider mb-4"><i class="fa-solid fa-truck-fast text-orange-400 mr-2"></i> Lorry Trip Weekly Summary</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Select Month</label>
+                            <input type="month" id="lorry-month" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:border-cyan-500 outline-none" onchange="triggerDataSync()">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="triggerDataSync()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                <i class="fa-solid fa-search mr-2"></i> Analyze
+                            </button>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="exportLorryExcel()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                <i class="fa-solid fa-file-excel mr-2"></i> Export Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-700 shadow-inner bg-slate-900/50">
+                        <table class="w-full text-left border-collapse min-w-max">
+                            <thead>
+                                <tr id="lorry-table-header" class="bg-slate-800 border-b border-slate-700 text-slate-300 text-[10px] uppercase tracking-wider font-bold">
+                                    <th class="py-3 px-4 sticky left-0 bg-slate-800 z-10 border-r border-slate-700">Code</th>
+                                    <th class="py-3 px-4">Outlet</th>
+                                    <th class="py-3 px-4">Area Manager</th>
+                                    <th class="py-3 px-4 text-right">Jumlah Sales</th>
+                                    <th class="py-3 px-4 text-right">Jumlah Lorry Trip</th>
+                                    <th class="py-3 px-4 text-right border-r border-slate-700">Short</th>
+                                    <!-- Dynamic week headers will go here -->
+                                </tr>
+                            </thead>
+                            <tbody id="lorry-table-body" class="divide-y divide-slate-800/50 text-sm">
+                                <tr><td colspan="100%" class="py-8 text-center text-slate-500">Select a month and click Analyze</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SURVEY & TRACKING TAB -->
+            <section id="tab-survey" class="hidden space-y-6">
+                <!-- AM VIEW -->
+                <div id="survey-am-view" class="am-only hidden">
+                    <div class="pbi-card rounded-xl p-6 shadow-xl border-l-4 border-purple-500">
+                        <h2 class="text-xl font-black text-white uppercase tracking-wider mb-4"><i class="fa-solid fa-clipboard-list text-purple-400 mr-2"></i> Survey Pending Feedback</h2>
+                        <div id="survey-am-list" class="space-y-4">
+                            <!-- JS will populate active surveys here -->
+                            <div class="text-slate-400 text-sm py-4 text-center">Loading surveys...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMIN VIEW -->
+                <div id="survey-admin-view" class="admin-only hidden space-y-6">
+                    <!-- Create Survey Form -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl border-t-4 border-indigo-500">
+                        <h2 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-plus-circle text-indigo-400 mr-2"></i> Create New Survey</h2>
+                        <div class="flex flex-col gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Survey Title / Question</label>
+                                    <input type="text" id="survey-new-title" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="e.g. Semakan Stok Mingguan atau e.g. Semua cawangan telah siap pamerkan planogram kecuali:">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Target Audience</label>
+                                    <select id="survey-new-target" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500">
+                                        <option value="am">Area Manager (AM)</option>
+                                        <option value="branch">Cawangan (Branch)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Survey Type</label>
+                                    <select id="survey-new-type" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500" onchange="toggleSurveyTypeUI()">
+                                        <option value="exception">Klasik: Pengecualian Cawangan</option>
+                                        <option value="custom">Custom: Soalan Dinamik (Item, Ya/Tidak, Teks)</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end">
+                                    <button onclick="createSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap"><i class="fa-solid fa-paper-plane mr-2"></i> Publish Survey</button>
+                                </div>
+                            </div>
+
+                            <!-- Custom Survey Builder Area (Hidden by default) -->
+                            <div id="survey-builder-area" class="hidden mt-2 p-4 border border-dashed border-indigo-500/50 rounded-lg bg-indigo-900/10">
+                                <h3 class="text-sm font-bold text-indigo-300 mb-3"><i class="fa-solid fa-list-check mr-2"></i>Custom Questions</h3>
+                                <div id="survey-builder-questions" class="flex flex-col gap-2 mb-4 empty:hidden">
+                                    <!-- Questions will be listed here -->
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                    <input type="text" id="survey-builder-qlabel" class="md:col-span-2 w-full bg-slate-950 text-white rounded-lg px-3 py-1.5 border border-slate-700 text-sm" placeholder="Question Label (e.g. Kuantiti Maggi)">
+                                    <select id="survey-builder-qtype" class="w-full bg-slate-950 text-white rounded-lg px-3 py-1.5 border border-slate-700 text-sm">
+                                        <option value="number">Kuantiti (Nombor)</option>
+                                        <option value="yesno">Pilihan (Ya/Tidak)</option>
+                                        <option value="text">Teks Pendek</option>
+                                    </select>
+                                    <button onclick="addCustomQuestion()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold py-1.5 px-3 rounded-lg"><i class="fa-solid fa-plus"></i> Add</button>
+                                </div>
+                                
+                                <div class="mt-4 pt-4 border-t border-slate-700/50">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Bulk Add Items (Paste list of items)</label>
+                                    <div class="flex gap-2">
+                                        <textarea id="survey-builder-bulk" rows="3" class="w-full bg-slate-950 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm" placeholder="Paste item list here (one per line). All will be added as 'Kuantiti (Nombor)' type."></textarea>
+                                        <button onclick="bulkAddQuestions()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold py-2 px-4 rounded-lg self-end"><i class="fa-solid fa-upload"></i> Process</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Survey List & Reports -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-bold text-white"><i class="fa-solid fa-chart-pie text-cyan-400 mr-2"></i> Survey Reports</h2>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-800/50">
+                                        <th class="p-3 text-xs font-bold text-slate-300 uppercase tracking-wide rounded-tl-lg border-b border-slate-700">Date Created</th>
+                                        <th class="p-3 text-xs font-bold text-slate-300 uppercase tracking-wide border-b border-slate-700">Question</th>
+                                        <th class="p-3 text-xs font-bold text-slate-300 uppercase tracking-wide border-b border-slate-700 text-center">Status</th>
+                                        <th class="p-3 text-xs font-bold text-slate-300 uppercase tracking-wide border-b border-slate-700 text-center">Responses</th>
+                                        <th class="p-3 text-xs font-bold text-slate-300 uppercase tracking-wide rounded-tr-lg border-b border-slate-700 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="survey-admin-list" class="divide-y divide-slate-800/50">
+                                    <!-- JS populates here -->
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">Loading surveys...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -987,7 +1188,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.51;
+        const APP_VERSION = 9.52;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1056,7 +1257,9 @@ function saveGlobalGSUrl() {
                         if (currentTab === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
                         else if (currentTab === 'analytics' && typeof renderAnalytics === 'function') renderAnalytics();
                         else if (currentTab === 'comparison' && typeof renderComparisonTable === 'function') renderComparisonTable();
-                        else if (currentTab === 'tracking' && typeof renderTrackingTable === 'function') renderTrackingTable();
+                        else if (currentTab === 'survey' && typeof renderSurveys === 'function') renderSurveys();
+                        updateSurveyUI();
+                        if (currentTab === 'tracking' && typeof renderTrackingTable === 'function') renderTrackingTable();
                     }
                 }
             }).catch(e => {
@@ -1372,6 +1575,8 @@ function saveGlobalGSUrl() {
                     if (document.getElementById('drop-start').value && document.getElementById('drop-end').value) {
                         runDropAnalysis();
                     }
+                } else if (currentTab === 'lorry') {
+                    renderLorryTracker();
                 } else {
                     syncManagerFromCloud();
                 }
@@ -1448,7 +1653,29 @@ function saveGlobalGSUrl() {
             }, e => { console.error(e); setupBranchView(); setSyncing(false); });
         }
 
-        let managerSnapshotUnsubscribe = null;
+        window.activeListeners = window.activeListeners || {};
+        window.fetchedQueries = window.fetchedQueries || {};
+
+        function clearCacheAndRefresh() {
+            setSyncing(true);
+            
+            // Clear current listeners
+            for (let key in window.activeListeners) {
+                if (typeof window.activeListeners[key] === 'function') {
+                    window.activeListeners[key]();
+                }
+            }
+            window.activeListeners = {};
+            window.fetchedQueries = {};
+            dbSubmissions = [];
+            
+            // Re-fetch everything
+            if (currentUser.role === 'branch') {
+                syncBranchFromCloud();
+            } else {
+                syncManagerFromCloud();
+            }
+        }
 
         function syncManagerFromCloud() {
             let mode = 'daily';
@@ -1472,12 +1699,22 @@ function saveGlobalGSUrl() {
                 dateStr = td.value;
             }
 
+            let queryKey = mode + "_" + dateStr + "_" + currentUser.role;
+
+            if (window.activeListeners[queryKey] || window.fetchedQueries[queryKey]) {
+                if(currentTab==='dashboard') renderDashboard(); 
+                else if(currentTab==='analytics') renderAnalytics();
+                else if(currentTab==='comparison') renderComparisonTable();
+                else renderTrackingTable();
+                if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
+                return;
+            }
+
             setSyncing(true);
             
-            if (managerSnapshotUnsubscribe) {
-                managerSnapshotUnsubscribe();
-                managerSnapshotUnsubscribe = null;
-            }
+            let isCurrentMonth = dateStr === todayStr.substring(0,7);
+            let isCurrentDay = dateStr === todayStr;
+            let needsLive = (mode === 'monthly' && isCurrentMonth) || (mode === 'daily' && isCurrentDay);
             
             if (mode === 'monthly' && currentUser.role === 'am') {
                 let days = [];
@@ -1486,7 +1723,7 @@ function saveGlobalGSUrl() {
                 for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
                 
                 let promises = chunks.map(chunk => {
-                    return db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get();
+                    return db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get({ source: needsLive ? 'default' : 'cache' }).catch(e => db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get());
                 });
                 
                 Promise.all(promises).then(snaps => {
@@ -1494,13 +1731,13 @@ function saveGlobalGSUrl() {
                     snaps.forEach(snap => snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); }));
                     dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
                     dbSubmissions.push(...fbData);
+                    window.fetchedQueries[queryKey] = true;
                     if(currentTab==='dashboard') renderDashboard(); 
                     else if(currentTab==='analytics') renderAnalytics();
                     else if(currentTab==='comparison') renderComparisonTable();
                     else renderTrackingTable();
                     setSyncing(false);
                 }).catch(e => { console.error(e); setSyncing(false); });
-                managerSnapshotUnsubscribe = () => {};
             } else {
                 let query = mode === 'daily' ? 
                     db.collection("submissions").where("date", "==", dateStr) : 
@@ -1510,7 +1747,7 @@ function saveGlobalGSUrl() {
                     query = query.where("am", "==", currentUser.name);
                 }
                 
-                managerSnapshotUnsubscribe = query.onSnapshot(snap => {
+                let processSnap = (snap) => {
                     let fbData = [];
                     snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
                     dbSubmissions = dbSubmissions.filter(s => mode === 'daily' ? s.date !== dateStr : !s.date.startsWith(dateStr));
@@ -1519,8 +1756,141 @@ function saveGlobalGSUrl() {
                     else if(currentTab==='analytics') renderAnalytics();
                     else if(currentTab==='comparison') renderComparisonTable();
                     else renderTrackingTable();
+                    if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                     setSyncing(false);
-                }, e => { console.error(e); setSyncing(false); });
+                };
+
+                if (needsLive) {
+                    window.activeListeners[queryKey] = query.onSnapshot(snap => {
+                        processSnap(snap);
+                    }, e => { console.error(e); setSyncing(false); });
+                } else {
+                    query.get({ source: 'cache' }).then(snap => {
+                        if(snap.empty) throw new Error('empty_cache');
+                        window.fetchedQueries[queryKey] = true;
+                        processSnap(snap);
+                    }).catch(e => {
+                        query.get().then(snap => {
+                            window.fetchedQueries[queryKey] = true;
+                            processSnap(snap);
+                        }).catch(err => { console.error(err); setSyncing(false); });
+                    });
+                }
+            }
+        }
+
+        window.historicalDropCache = window.historicalDropCache || {};
+        let checkDropAlertId = 0;
+
+        async function check3DaysDropAlert(currentDateStr) {
+            let currentId = ++checkDropAlertId;
+            let alertBox = document.getElementById('alert-3days-drop');
+            let alertContent = document.getElementById('alert-3days-content');
+            if(!alertBox) return;
+            
+            if(document.getElementById('dash-mode').value !== 'daily') {
+                alertBox.classList.add('hidden');
+                return;
+            }
+
+            let d = new Date(currentDateStr);
+            let dates = [];
+            for(let i=0; i<3; i++) {
+                let dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                dates.push(dStr);
+                d.setDate(d.getDate() - 1);
+            }
+
+            try {
+                if(alertBox.classList.contains('hidden') || !alertContent.innerHTML.includes('Senarai Cawangan')) {
+                    alertBox.classList.remove('hidden');
+                    alertContent.innerHTML = `<div class="py-3 text-center text-rose-300 font-bold animate-pulse text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Menganalisis rekod jualan... Sila tunggu.</div>`;
+                }
+
+                let datesToFetch = [dates[1], dates[2]].filter(d => !window.historicalDropCache[d]);
+                if(datesToFetch.length > 0) {
+                    let promises = datesToFetch.map(dStr => db.collection("submissions").where("date", "==", dStr).get());
+                    let snaps = await Promise.all(promises);
+                    if(currentId !== checkDropAlertId) return;
+                    
+                    snaps.forEach((snap, idx) => {
+                        let dStr = datesToFetch[idx];
+                        window.historicalDropCache[dStr] = {};
+                        snap.forEach(doc => {
+                            let data = doc.data();
+                            window.historicalDropCache[dStr][data.code] = parseFloat(data.sales) || 0;
+                        });
+                    });
+                }
+
+                if(currentId !== checkDropAlertId) return;
+
+                let currentDayRecords = {};
+                dbSubmissions.forEach(data => {
+                    if(data.date === dates[0]) {
+                        currentDayRecords[data.code] = parseFloat(data.sales) || 0;
+                    }
+                });
+
+                let branches = getManagerFilteredBranches();
+                let droppingBranches = [];
+
+                branches.forEach(b => {
+                    let s0 = currentDayRecords[b.code] !== undefined ? currentDayRecords[b.code] : null;
+                    let s1 = window.historicalDropCache[dates[1]] && window.historicalDropCache[dates[1]][b.code] !== undefined ? window.historicalDropCache[dates[1]][b.code] : null;
+                    let s2 = window.historicalDropCache[dates[2]] && window.historicalDropCache[dates[2]][b.code] !== undefined ? window.historicalDropCache[dates[2]][b.code] : null;
+                    
+                    if(s0 !== null && s1 !== null && s2 !== null) {
+                        if(s0 > 0 && s1 > 0 && s2 > 0) {
+                            if(s0 < s1 && s1 < s2) {
+                                droppingBranches.push({ code: b.code, name: b.name, am: b.am });
+                            }
+                        }
+                    }
+                });
+
+                if(droppingBranches.length > 0) {
+                    droppingBranches.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    window.dropAlertList = droppingBranches.map(b => {
+                        if(currentUser.role === 'admin' || currentUser.role === 'operation') {
+                            return `${b.code} - ${b.name} (AM: ${b.am || 'N/A'})`;
+                        } else {
+                            return b.name;
+                        }
+                    });
+                    
+                    window.renderDropAlertPage = function(page) {
+                        const ITEMS_PER_PAGE = 15;
+                        let totalPages = Math.ceil(window.dropAlertList.length / ITEMS_PER_PAGE);
+                        if(page < 1) page = 1;
+                        if(page > totalPages) page = totalPages;
+                        
+                        let start = (page - 1) * ITEMS_PER_PAGE;
+                        let end = start + ITEMS_PER_PAGE;
+                        let pageItems = window.dropAlertList.slice(start, end);
+                        
+                        let htmlList = pageItems.map(item => `<li>&#x2022; ${item}</li>`).join('');
+                        
+                        let paginationHtml = '';
+                        if(totalPages > 1) {
+                            paginationHtml = `
+                            <div class="flex items-center gap-2 mt-4 justify-center">
+                                <button onclick="renderDropAlertPage(${page - 1})" class="px-3 py-1 bg-rose-950 border border-rose-800 hover:bg-rose-900 rounded text-[10px] ${page === 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${page === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
+                                <span class="text-[10px] font-bold">Page ${page} of ${totalPages}</span>
+                                <button onclick="renderDropAlertPage(${page + 1})" class="px-3 py-1 bg-rose-950 border border-rose-800 hover:bg-rose-900 rounded text-[10px] ${page === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" ${page === totalPages ? 'disabled' : ''}>Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                            </div>`;
+                        }
+
+                        alertContent.innerHTML = `Senarai Cawangan (Berdasarkan tarikh ${currentDateStr}): <br><ul class="mt-2 mb-2 space-y-1 font-bold text-rose-300 text-[10px] leading-tight">${htmlList}</ul>${paginationHtml}<div class="mt-3 text-center"><span class="italic text-[10px]">Sila siasat dengan segera. Total: ${window.dropAlertList.length} Cawangan</span></div>`;
+                    };
+                    
+                    window.renderDropAlertPage(1);
+                    alertBox.classList.remove('hidden');
+                } else {
+                    alertBox.classList.add('hidden');
+                }
+            } catch(e) {
+                console.error("Drop alert error", e);
             }
         }
 
@@ -1625,11 +1995,11 @@ function saveGlobalGSUrl() {
             if (role === 'branch') {
                 let filtered = masterBranches;
                 if(term) filtered = masterBranches.filter(b => String(b.code).includes(term) || b.name.toLowerCase().includes(term));
-                html = filtered.slice(0, 50).map(b => `<div onclick="selectAuth('${b.code}', '${b.name.replace(/'/g, "\\'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
+                html = filtered.slice(0, 50).map(b => `<div onclick="selectAuth('${b.code}', '${b.name.replace(/'/g, "'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
             } else if (role === 'am') {
                 let filtered = [...new Set(masterBranches.map(b=>b.am).filter(Boolean))];
                 if(term) filtered = filtered.filter(a => a.toLowerCase().includes(term));
-                html = filtered.slice(0, 50).map(a => `<div onclick="selectAuth('${a.replace(/'/g, "\\'")}', '${a.replace(/'/g, "\\'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
+                html = filtered.slice(0, 50).map(a => `<div onclick="selectAuth('${a.replace(/'/g, "'")}', '${a.replace(/'/g, "'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
             }
             if(html) { pop.innerHTML = html; pop.classList.remove('hidden'); } else pop.classList.add('hidden');
         }
@@ -1683,7 +2053,7 @@ function saveGlobalGSUrl() {
 
         function switchTab(tab) {
             currentTab = tab;
-            ['dashboard', 'analytics', 'tracking', 'comparison', 'control', 'hub', 'drop'].forEach(t => {
+            ['dashboard', 'analytics', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey'].forEach(t => {
                 let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
@@ -1692,7 +2062,11 @@ function saveGlobalGSUrl() {
             if(aSec) aSec.classList.remove('hidden');
             if(aBtn) { aBtn.classList.remove('tab-inactive'); aBtn.classList.add('tab-active'); }
             
-            if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison') triggerDataSync();
+            if (tab === 'survey') {
+                renderSurveys();
+            } else {
+                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') triggerDataSync();
+            }
         }
 
         // --- 4. Branch Logic ---
@@ -1856,6 +2230,7 @@ function saveGlobalGSUrl() {
             populateFilters();
             switchTab('dashboard');
             updateMasterLockUI();
+            listenToSurveyBadge();
             
             if (currentUser.role === 'admin') {
                 let btnPatch = document.getElementById('btn-patch-db');
@@ -2431,6 +2806,162 @@ function saveGlobalGSUrl() {
                 }
         }
 
+        function getWeeksForMonth(year, month) {
+            let weeks = [];
+            let firstDay = new Date(year, month - 1, 1);
+            let startDay = new Date(firstDay);
+            let dayOfWeek = startDay.getDay(); 
+            let diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            startDay.setDate(startDay.getDate() + diff);
+            
+            let currentStart = new Date(startDay);
+            while(currentStart.getMonth() === month - 1 || currentStart < firstDay) {
+                let currentEnd = new Date(currentStart);
+                currentEnd.setDate(currentEnd.getDate() + 6);
+                let fmt = (d) => `${d.getDate()}/${d.getMonth()+1}`;
+                let label = `${fmt(currentStart)} - ${fmt(currentEnd)}`;
+                weeks.push({
+                    start: new Date(currentStart),
+                    end: new Date(currentEnd),
+                    label: label
+                });
+                currentStart.setDate(currentStart.getDate() + 7);
+            }
+            return weeks;
+        }
+
+        function renderLorryTracker() {
+            let monthVal = document.getElementById('lorry-month').value;
+            if(!monthVal) {
+                let now = new Date();
+                let m = now.getMonth()+1;
+                document.getElementById('lorry-month').value = `${now.getFullYear()}-${m<10?'0'+m:m}`;
+                monthVal = document.getElementById('lorry-month').value;
+            }
+            
+            let [year, month] = monthVal.split('-').map(Number);
+            let weeks = getWeeksForMonth(year, month);
+            
+            let formatFB = (d) => {
+                let m = d.getMonth()+1; let day = d.getDate();
+                return `${d.getFullYear()}-${m<10?'0'+m:m}-${day<10?'0'+day:day}`;
+            };
+            
+            let fetchStart = formatFB(weeks[0].start);
+            let fetchEnd = formatFB(weeks[weeks.length-1].end);
+            
+            setSyncing(true);
+            db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd).get().then(snapshot => {
+                let subData = [];
+                snapshot.forEach(doc => subData.push(doc.data()));
+                buildLorryTable(weeks, subData);
+                setSyncing(false);
+            }).catch(e => {
+                console.error(e);
+                Swal.fire('Error', 'Gagal memuat turun rekod lori.', 'error');
+                setSyncing(false);
+            });
+        }
+
+        function buildLorryTable(weeks, subData) {
+            let branches = getManagerFilteredBranches();
+            let grouped = {};
+            branches.forEach(b => {
+                grouped[b.code] = {
+                    code: b.code, name: b.name, am: b.am,
+                    totalSales: 0, totalLorry: 0, weeksCount: weeks.map(() => 0)
+                };
+            });
+            
+            subData.forEach(s => {
+                if(!grouped[s.code]) return;
+                let sNum = parseFloat(s.sales)||0;
+                let lNum = parseFloat(s.lorry)||0;
+                if(sNum > 0) grouped[s.code].totalSales += sNum;
+                if(lNum > 0) {
+                    grouped[s.code].totalLorry += lNum;
+                    let [sy, sm, sd] = s.date.split('-').map(Number);
+                    let dObj = new Date(sy, sm-1, sd, 12, 0, 0, 0);
+                    for(let i=0; i<weeks.length; i++) {
+                        let wStart = new Date(weeks[i].start); wStart.setHours(0,0,0,0);
+                        let wEnd = new Date(weeks[i].end); wEnd.setHours(23,59,59,999);
+                        if(dObj >= wStart && dObj <= wEnd) {
+                            grouped[s.code].weeksCount[i]++;
+                            break;
+                        }
+                    }
+                }
+            });
+            
+            let thead = document.getElementById('lorry-table-header');
+            let baseHeaders = `
+                <th class="py-3 px-4 sticky left-0 bg-slate-800 z-10 border-r border-slate-700">Code</th>
+                <th class="py-3 px-4">Outlet</th>
+                <th class="py-3 px-4">Area Manager</th>
+                <th class="py-3 px-4 text-right">Jumlah Sales</th>
+                <th class="py-3 px-4 text-right">Jumlah Lorry Trip</th>
+                <th class="py-3 px-4 text-right border-r border-slate-700">Short</th>
+            `;
+            let weekHeaders = weeks.map(w => `<th class="py-3 px-4 text-center">${w.label}</th>`).join('');
+            thead.innerHTML = baseHeaders + weekHeaders;
+            
+            let tbody = document.getElementById('lorry-table-body');
+            let sorted = Object.values(grouped).filter(r => r.totalSales > 0 || r.totalLorry > 0).sort((a,b) => b.totalLorry - a.totalLorry);
+            
+            let html = '';
+            sorted.forEach(r => {
+                let short = r.totalSales - r.totalLorry;
+                let shortVal = short > 0 ? short : 0;
+                let weekTds = r.weeksCount.map(c => `<td class="py-3 px-4 text-center font-bold ${c > 0 ? 'text-cyan-400' : 'text-slate-600'}">${c}</td>`).join('');
+                
+                html += `
+                <tr class="hover:bg-slate-800/50 transition-colors">
+                    <td class="py-3 px-4 sticky left-0 bg-slate-900 border-r border-slate-800 font-mono text-cyan-400">${r.code}</td>
+                    <td class="py-3 px-4 font-bold text-white">${r.name}</td>
+                    <td class="py-3 px-4 text-slate-300 text-xs">${r.am}</td>
+                    <td class="py-3 px-4 text-right text-emerald-400">RM ${formatRM(r.totalSales)}</td>
+                    <td class="py-3 px-4 text-right text-amber-400">RM ${formatRM(r.totalLorry)}</td>
+                    <td class="py-3 px-4 text-right border-r border-slate-800 ${shortVal > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">${shortVal > 0 ? 'RM '+formatRM(shortVal) : '-'}</td>
+                    ${weekTds}
+                </tr>`;
+            });
+            
+            if(sorted.length === 0) html = '<tr><td colspan="100%" class="py-8 text-center text-slate-500">No data found</td></tr>';
+            tbody.innerHTML = html;
+            
+            window.currentLorryData = sorted;
+            window.currentLorryWeeks = weeks;
+        }
+
+        function exportLorryExcel() {
+            if(!window.currentLorryData || window.currentLorryData.length === 0) {
+                Swal.fire('Info', 'Tiada data untuk dieksport', 'info');
+                return;
+            }
+            let wb = XLSX.utils.book_new();
+            let data = [];
+            
+            let header = ["Code", "Outlet", "Area Manager", "Jumlah Sales", "Jumlah Lorry Trip", "Short"];
+            window.currentLorryWeeks.forEach(w => header.push(w.label));
+            data.push(header);
+            
+            window.currentLorryData.forEach(r => {
+                let row = [
+                    r.code, r.name, r.am,
+                    r.totalSales, r.totalLorry,
+                    (r.totalSales - r.totalLorry > 0 ? r.totalSales - r.totalLorry : 0)
+                ];
+                r.weeksCount.forEach(c => row.push(c));
+                data.push(row);
+            });
+            
+            let ws = XLSX.utils.aoa_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, "Lorry Trip");
+            
+            let monthLabel = document.getElementById('lorry-month').value || "Monthly";
+            XLSX.writeFile(wb, `Lorry_Trip_${monthLabel}.xlsx`);
+        }
+
         async function runDropAnalysis() {
             let startDate = document.getElementById('drop-start').value;
             let endDate = document.getElementById('drop-end').value;
@@ -2837,7 +3368,9 @@ function saveGlobalGSUrl() {
             let matches = tbcBranches.filter(b => {
                 let code = String(b['CODE'] || '').toLowerCase();
                 let name = String(b['BRANCH NAME'] || '').toLowerCase();
-                return code.includes(q) || name.includes(q);
+                let fullStr = `${code} - ${name} ${code} ${name}`;
+                let terms = q.split(/\s+/);
+                return terms.every(t => fullStr.includes(t));
             }).slice(0, 10);
             
             if(matches.length > 0) {
@@ -2896,29 +3429,727 @@ function saveGlobalGSUrl() {
             document.getElementById('hub-res-majlis').innerText = b['MAJLIS'] || 'N/A';
             document.getElementById('hub-res-negeri').innerText = b['NEGERI'] || 'N/A';
 
-            function fD(v) { if(!v || v==='N/A') return 'N/A'; if(typeof v === 'string' && v.includes('T')) return v.split('T')[0]; return v; }
-            document.getElementById('hub-res-lic-biz1').innerText = fD(b['LIC_LESEN BISNES 1'] || b['LIC_NORM_LESENBISNES1'] || b['LIC_LESEN 1'] || b['LIC_NORM_LESEN1'] || 'N/A');
-            document.getElementById('hub-res-lic-biz2').innerText = fD(b['LIC_LESEN BISNES 2'] || b['LIC_NORM_LESENBISNES2'] || b['LIC_LESEN 2'] || b['LIC_NORM_LESEN2'] || 'N/A');
-            document.getElementById('hub-res-lic-kakilima').innerText = fD(b['LIC_LESEN KAKI LIMA'] || b['LIC_NORM_LESENKAKILIMA'] || b['LIC_ESEN KAKI LIM'] || b['LIC_NORM_ESENKAKILIM'] || 'N/A');
-            document.getElementById('hub-res-lic-iklan1').innerText = fD(b['LIC_LESEN PENGIKLANAN 1'] || b['LIC_NORM_LESENPENGIKLANAN1'] || 'N/A');
-            document.getElementById('hub-res-lic-iklan2').innerText = fD(b['LIC_LESEN PENGIKLANAN 2'] || b['LIC_NORM_LESENPENGIKLANAN2'] || 'N/A');
-            document.getElementById('hub-res-lic-beer2').innerText = fD(b['LIC_LESEN MINUMAN BEER'] || b['LIC_NORM_LESENMINUMANBEER'] || 'N/A');
+            function fD(v) { 
+                if(!v || v==='N/A') return 'N/A'; 
+                if(typeof v === 'string' && v.includes('T')) {
+                    let ms = new Date(v).getTime();
+                    if (isNaN(ms)) return v.split('T')[0];
+                    // Tambah 8 jam untuk pastikan ia zon masa Malaysia (UTC+8)
+                    let d = new Date(ms + 8 * 60 * 60 * 1000);
+                    let year = d.getUTCFullYear();
+                    // Fix pepijat Google Sheet (Tahun 30 dibaca sebagai 1930)
+                    if (year > 1900 && year < 2000) year += 100;
+                    let month = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    let day = String(d.getUTCDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+                return v; 
+            }
+            document.getElementById('hub-res-lic-biz1').innerText = fD(b['LIC_LESEN BISNES 1'] || b['LIC_NORM_LESENBISNES1'] || b['LESEN BISNES 1'] || 'N/A');
+            document.getElementById('hub-res-lic-biz2').innerText = fD(b['LIC_LESEN BISNES 2'] || b['LIC_NORM_LESENBISNES2'] || b['LESEN BISNES 2'] || 'N/A');
+            document.getElementById('hub-res-lic-kakilima').innerText = fD(b['LIC_LESEN KAKI LIMA'] || b['LIC_NORM_LESENKAKILIMA'] || b['LESEN KAKI LIMA'] || 'N/A');
+            document.getElementById('hub-res-lic-iklan1').innerText = fD(b['LIC_LESEN PENGIKLANAN 1'] || b['LIC_NORM_LESENPENGIKLANAN1'] || b['LESEN PENGIKLANAN 1'] || 'N/A');
+            document.getElementById('hub-res-lic-iklan2').innerText = fD(b['LIC_LESEN PENGIKLANAN 2'] || b['LIC_NORM_LESENPENGIKLANAN2'] || b['LESEN PENGIKLANAN 2'] || 'N/A');
+            document.getElementById('hub-res-lic-beer2').innerText = fD(b['LIC_LESEN MINUMAN BEER'] || b['LIC_NORM_LESENMINUMANBEER'] || b['LESEN MINUMAN BEER'] || 'N/A');
             
-            document.getElementById('hub-res-lic-plastik1').innerText = fD(b['LIC_SIJIL CAJ BEG PLASTIK'] || b['LIC_NORM_SIJILCAJBEGPLASTIK'] || b['LIC_NORM_SIJILCAJBEGPLA'] || b['LIC_SIJIL CAJ BEG PLA'] || b['LIC_NORM_SIJILCAJBEG'] || 'N/A');
-            document.getElementById('hub-res-lic-plastik2').innerText = fD(b['LIC_SIJIL BEBAS BEG PLASTIK'] || b['LIC_NORM_SIJILBEBASBEGPLASTIK'] || b['LIC_NORM_SIJILBEBASBEGPLA'] || b['LIC_SIJIL BEBAS BEG PLA'] || b['LIC_NORM_SIJILBEBASBEG'] || 'N/A');
+            document.getElementById('hub-res-lic-plastik1').innerText = fD(b['LIC_SIJIL CAJ BEG PLASTIK'] || b['LIC_NORM_SIJILCAJBEGPLASTIK'] || b['SIJIL CAJ BEG PLASTIK'] || 'N/A');
+            document.getElementById('hub-res-lic-plastik2').innerText = fD(b['LIC_SIJIL BEBAS BEG PLASTIK'] || b['LIC_NORM_SIJILBEBASBEGPLASTIK'] || b['SIJIL BEBAS BEG PLASTIK'] || 'N/A');
             
-            document.getElementById('hub-res-lic-tembakau').innerText = fD(b['LIC_LESEN TEMBAKAU'] || b['LIC_NORM_LESENTEMBAKAU'] || 'N/A');
-            document.getElementById('hub-res-lic-beras').innerText = fD(b['LIC_LESEN BERAS'] || b['LIC_NORM_LESENBERAS'] || 'N/A');
-            document.getElementById('hub-res-lic-runcit').innerText = fD(b['LIC_LESEN RUNCIT'] || b['LIC_NORM_LESENRUNCIT'] || 'N/A');
-            document.getElementById('hub-res-lic-arak').innerText = fD(b['LIC_LESEN ARAK'] || b['LIC_NORM_LESENARAK'] || 'N/A');
+            document.getElementById('hub-res-lic-tembakau').innerText = fD(b['LIC_LESEN TEMBAKAU'] || b['LIC_NORM_LESENTEMBAKAU'] || b['LESEN TEMBAKAU'] || 'N/A');
+            document.getElementById('hub-res-lic-beras').innerText = fD(b['LIC_LESEN BERAS'] || b['LIC_NORM_LESENBERAS'] || b['LESEN BERAS'] || 'N/A');
+            document.getElementById('hub-res-lic-runcit').innerText = fD(b['LIC_LESEN RUNCIT'] || b['LIC_NORM_LESENRUNCIT'] || b['LESEN RUNCIT'] || 'N/A');
+            document.getElementById('hub-res-lic-arak').innerText = fD(b['LIC_LESEN ARAK'] || b['LIC_NORM_LESENARAK'] || b['LESEN ARAK'] || 'N/A');
 
         }
+        
+        // --- AUDIT & ANOMALY ---
+        async function runAuditCheck() {
+            let dateStr = document.getElementById('audit-date').value;
+            let limitSales = parseFloat(document.getElementById('audit-limit-sales').value) || 50000;
+            let limitLorry = parseFloat(document.getElementById('audit-limit-lorry').value) || 90000;
+            
+            if(!dateStr) {
+                Swal.fire('Info', 'Sila pilih tarikh.', 'warning');
+                return;
+            }
+            
+            setSyncing(true);
+            try {
+                let snap = await db.collection("submissions").where("date", "==", dateStr).get();
+                let tbody = document.getElementById('audit-table-body');
+                tbody.innerHTML = '';
+                let found = 0;
+                
+                snap.forEach(doc => {
+                    let d = doc.data();
+                    let s = parseFloat(d.sales) || 0;
+                    let l = parseFloat(d.lorry) || 0;
+                    
+                    let isuJualan = s >= limitSales ? `> RM${limitSales}` : '-';
+                    let isuLori = l >= limitLorry ? `> RM${limitLorry}` : '-';
+                    
+                    if(s >= limitSales || l >= limitLorry) {
+                        found++;
+                        
+                        let br = masterBranches.find(b => String(b.code) === String(d.code)) || {};
+                        let amName = br.am || 'N/A';
+                        let branchName = br.name || '';
+                        let cawanganText = branchName ? `${d.code} - ${branchName}` : d.code;
+                        
+                        let tr = document.createElement('tr');
+                        tr.className = "border-b border-slate-800 hover:bg-slate-800/50 transition-colors";
+                        tr.innerHTML = `
+                            <td class="py-3 px-4 text-white">${d.date}</td>
+                            <td class="py-3 px-4 text-slate-300 font-bold">${amName}</td>
+                            <td class="py-3 px-4 font-bold text-white">${cawanganText}</td>
+                            <td class="py-3 px-4 ${s >= limitSales ? 'text-rose-400 font-bold' : 'text-slate-300'}">${s.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                            <td class="py-3 px-4 ${l >= limitLorry ? 'text-rose-400 font-bold' : 'text-slate-300'}">${l.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                            <td class="py-3 px-4 ${s >= limitSales ? 'text-rose-400 font-bold' : 'text-slate-500'}">${isuJualan}</td>
+                            <td class="py-3 px-4 ${l >= limitLorry ? 'text-rose-400 font-bold' : 'text-slate-500'}">${isuLori}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+                });
+                
+                if(found === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-teal-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Tiada Anomaly Ditemui</td></tr>`;
+                }
+                setSyncing(false);
+            } catch(e) {
+                console.error(e);
+                Swal.fire('Ralat', 'Gagal memuat turun data Audit.', 'error');
+                setSyncing(false);
+            }
+        }
+        
     </script>
+<script>
+        // --- SURVEY & TRACKING SYSTEM ---
+        let surveyUnsubscribe = null;
+        let responsesUnsubscribe = null;
+        let allSurveys = [];
+        let allResponses = [];
+        let surveysLoaded = false;
+        let responsesLoaded = false;
+
+        function getActiveAMs() {
+            if (!masterBranches || masterBranches.length === 0) return [];
+            let valid = new Set();
+            masterBranches.forEach(b => {
+                let name = (b.am || '').trim().toUpperCase();
+                if (name && name !== 'N/A' && name !== 'NO AM' && name !== 'UNKNOWN') {
+                    valid.add(name);
+                }
+            });
+            return Array.from(valid).sort();
+        }
+
+        function listenToSurveyBadge() {
+            if (surveyUnsubscribe) surveyUnsubscribe();
+            if (responsesUnsubscribe) responsesUnsubscribe();
+            
+            surveysLoaded = false;
+            responsesLoaded = false;
+            hasAlertedSurvey = false;
+            
+            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').onSnapshot(snap => {
+                allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                surveysLoaded = true;
+                updateSurveyUI();
+                if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+            });
+            
+            responsesUnsubscribe = db.collection('survey_responses').onSnapshot(snap => {
+                allResponses = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                responsesLoaded = true;
+                updateSurveyUI();
+                if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+            });
+        }
+        
+        let hasAlertedSurvey = false;
+        function checkSurveyAlerts() {
+            if (!currentUser) return;
+            
+            let pendingSurveys = [];
+            let badge = null;
+            
+            if (currentUser.role === 'am') {
+                let amName = (currentUser.name || '').trim().toUpperCase();
+                pendingSurveys = allSurveys.filter(s => s.status === 'active' && (!s.targetAudience || s.targetAudience === 'am') && !allResponses.some(r => r.surveyId === s.id && r.amName === amName));
+                badge = document.getElementById('survey-badge');
+            } else if (currentUser.role === 'branch') {
+                let branchCode = currentUser.id;
+                pendingSurveys = allSurveys.filter(s => s.status === 'active' && s.targetAudience === 'branch' && !allResponses.some(r => r.surveyId === s.id && r.branchCode === branchCode));
+                // Assuming branch might not have a badge, but if they do we can handle it here
+            }
+
+            if (pendingSurveys.length > 0) {
+                if (badge) {
+                    badge.innerText = pendingSurveys.length;
+                    badge.classList.remove('hidden');
+                }
+                if (!hasAlertedSurvey) {
+                    hasAlertedSurvey = true;
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Peringatan Survey!',
+                        text: `Anda ada ${pendingSurveys.length} survey yang belum dijawab. Sila semak${currentUser.role === 'am' ? ' tab Survey & Tracking' : ' borang di bawah'}.`,
+                        confirmButtonColor: '#8b5cf6',
+                        background: '#1e293b',
+                        color: '#fff'
+                    });
+                }
+            } else {
+                if (badge) badge.classList.add('hidden');
+            }
+        }
+
+        function renderSurveys() {
+            // Already listening via listenToSurveyBadge, just update UI
+            updateSurveyUI();
+        }
+
+        function generateCustomSurveyHTML(s) {
+            let html = `<div class="bg-slate-800 rounded-lg p-4 border border-indigo-500/50 mb-4 shadow-lg shadow-indigo-900/20" id="survey-box-${s.id}">`;
+            html += `<h3 class="text-md font-bold text-white mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-clipboard-list text-indigo-400 mr-2"></i>${s.title}</h3>`;
+            html += `<div class="space-y-4 mb-4">`;
+            (s.questions || []).forEach(q => {
+                html += `<div><label class="text-xs font-bold text-slate-300 block mb-1">${q.label}</label>`;
+                if(q.type === 'number') {
+                    html += `<input type="number" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Kuantiti (0)">`;
+                } else if (q.type === 'yesno') {
+                    html += `<select id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">
+                        <option value="">-- Pilih --</option>
+                        <option value="Ya">Ya</option>
+                        <option value="Tidak">Tidak</option>
+                    </select>`;
+                } else {
+                    html += `<input type="text" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Jawapan...">`;
+                }
+                html += `</div>`;
+            });
+            html += `</div>`;
+            html += `<button onclick="submitCustomSurveyResponse('${s.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"><i class="fa-solid fa-paper-plane mr-2"></i>Hantar Maklum Balas</button>`;
+            html += `</div>`;
+            return html;
+        }
+
+        function updateSurveyUI() {
+            if(!currentUser) return;
+            
+            if (currentUser.role === 'branch') {
+                let branchCode = currentUser.id;
+                let pendingSurveys = allSurveys.filter(s => s.status === 'active' && s.targetAudience === 'branch' && !allResponses.some(r => r.surveyId === s.id && r.branchCode === branchCode));
+                
+                let html = '';
+                if (pendingSurveys.length > 0) {
+                    pendingSurveys.forEach(s => {
+                        html += generateCustomSurveyHTML(s);
+                    });
+                }
+                let container = document.getElementById('branch-survey-container');
+                if (container) container.innerHTML = html;
+                return;
+            }
+
+            if (currentUser.role === 'am') {
+                document.getElementById('survey-am-view').classList.remove('hidden');
+                document.getElementById('survey-admin-view').classList.add('hidden');
+                
+                let amName = (currentUser.name || '').trim().toUpperCase();
+                let pendingSurveys = allSurveys.filter(s => s.status === 'active' && (!s.targetAudience || s.targetAudience === 'am') && !allResponses.some(r => r.surveyId === s.id && r.amName === amName));
+                
+                let html = '';
+                if (pendingSurveys.length === 0) {
+                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>Anda telah menyelesaikan semua survey yang aktif!</div>';
+                } else {
+                    pendingSurveys.forEach(s => {
+                        if (s.type === 'custom') {
+                            html += generateCustomSurveyHTML(s);
+                        } else {
+                            html += `
+                            <div class="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-4" id="survey-box-${s.id}">
+                                <h3 class="text-md font-bold text-white mb-3">${s.title}</h3>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <label class="text-xs text-slate-400">Jumlah Pengecualian (Cawangan Belum Siap):</label>
+                                    <select id="survey-exc-${s.id}" onchange="renderSurveyInputs('${s.id}')" class="bg-slate-900 text-white rounded px-2 py-1 outline-none border border-slate-600">
+                                        ${[...Array(11).keys()].map(i => `<option value="${i}">${i}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div id="survey-inputs-${s.id}" class="space-y-2 mb-3"></div>
+                                <button onclick="submitSurveyResponse('${s.id}')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 px-4 rounded text-sm transition-colors"><i class="fa-solid fa-check mr-2"></i>Hantar Maklum Balas</button>
+                            </div>
+                            `;
+                        }
+                    });
+                }
+                document.getElementById('survey-am-list').innerHTML = html;
+            } else {
+                // Admin / Operation
+                document.getElementById('survey-admin-view').classList.remove('hidden');
+                document.getElementById('survey-am-view').classList.add('hidden');
+                let html = '';
+                if (allSurveys.length === 0) {
+                    html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">Tiada survey ditemui.</td></tr>';
+                } else {
+                    allSurveys.forEach(s => {
+                        let sResp = allResponses.filter(r => r.surveyId === s.id);
+                        let dateStr = s.createdAt ? new Date(s.createdAt.toMillis()).toLocaleString() : '';
+                        let isClosed = s.status === 'closed';
+                        html += `
+                        <tr class="hover:bg-slate-800/30 transition-colors">
+                            <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50">${dateStr}</td>
+                            <td class="p-3 text-sm text-white font-bold border-b border-slate-800/50">${s.title}</td>
+                            <td class="p-3 text-sm border-b border-slate-800/50 text-center">
+                                <span class="${isClosed ? 'text-red-400' : 'text-green-400'} font-bold text-xs uppercase bg-slate-900 px-2 py-1 rounded border ${isClosed ? 'border-red-500/30' : 'border-green-500/30'}">${s.status}</span>
+                            </td>
+                            <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50 text-center font-bold">${sResp.length} / ${getActiveAMs().length}</td>
+                            <td class="p-3 text-sm border-b border-slate-800/50 text-right">
+                                <button onclick="viewSurveyReport('${s.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-chart-pie mr-1"></i> Semak</button>
+                                ${isClosed ? '' : `<button onclick="closeSurvey('${s.id}')" class="bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1"><i class="fa-solid fa-lock mr-1"></i> Tutup</button>`}
+                                <button onclick="deleteSurvey('${s.id}')" class="bg-rose-900 hover:bg-rose-700 text-rose-300 text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1"><i class="fa-solid fa-trash mr-1"></i> Padam</button>
+                            </td>
+                        </tr>
+                        `;
+                    });
+                }
+                document.getElementById('survey-admin-list').innerHTML = html;
+            }
+        }
+
+        function renderSurveyInputs(id) {
+            let count = parseInt(document.getElementById(`survey-exc-${id}`).value) || 0;
+            let html = '';
+            
+            let amName = (currentUser.name || '').trim().toUpperCase();
+            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName).sort((a,b) => String(a.code).localeCompare(String(b.code)));
+            
+            let optionsHtml = '<option value="" disabled selected>-- Pilih Cawangan Pengecualian --</option>';
+            myBranches.forEach(b => {
+                let safeName = (b.name || '').replace(/"/g, '&quot;');
+                optionsHtml += `<option value="${b.code}" data-name="${safeName}">${b.code} - ${b.name}</option>`;
+            });
+
+            for(let i=0; i<count; i++) {
+                html += `
+                <div class="mb-2">
+                    <select id="survey-code-${id}-${i}" class="w-full bg-slate-950 text-white rounded px-3 py-2 border border-slate-700 outline-none text-sm focus:border-purple-500">
+                        ${optionsHtml}
+                    </select>
+                </div>`;
+            }
+            document.getElementById(`survey-inputs-${id}`).innerHTML = html;
+        }
+
+        let builderQuestions = [];
+
+        function toggleSurveyTypeUI() {
+            let type = document.getElementById('survey-new-type').value;
+            let area = document.getElementById('survey-builder-area');
+            if (type === 'custom') {
+                area.classList.remove('hidden');
+                renderBuilderQuestions();
+            } else {
+                area.classList.add('hidden');
+            }
+        }
+
+        function renderBuilderQuestions() {
+            let container = document.getElementById('survey-builder-questions');
+            if (builderQuestions.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-400 italic">No questions added yet.</div>';
+                return;
+            }
+            let html = '';
+            builderQuestions.forEach((q, idx) => {
+                let icon = q.type === 'number' ? 'fa-hashtag' : (q.type === 'yesno' ? 'fa-toggle-on' : 'fa-font');
+                let typeName = q.type === 'number' ? 'Kuantiti' : (q.type === 'yesno' ? 'Ya/Tidak' : 'Teks');
+                html += `
+                <div class="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-700">
+                    <div class="text-sm text-white"><i class="fa-solid ${icon} text-indigo-400 w-5"></i> ${q.label} <span class="text-xs text-slate-500 ml-2">(${typeName})</span></div>
+                    <button onclick="removeCustomQuestion(${idx})" class="text-rose-500 hover:text-rose-400"><i class="fa-solid fa-times"></i></button>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function addCustomQuestion() {
+            let label = document.getElementById('survey-builder-qlabel').value.trim();
+            let type = document.getElementById('survey-builder-qtype').value;
+            if (!label) return showToast('error', 'Sila masukkan label soalan.');
+            builderQuestions.push({ id: 'q_' + Date.now() + '_' + Math.floor(Math.random()*1000), label, type });
+            document.getElementById('survey-builder-qlabel').value = '';
+            renderBuilderQuestions();
+        }
+
+        function removeCustomQuestion(idx) {
+            builderQuestions.splice(idx, 1);
+            renderBuilderQuestions();
+        }
+
+        function bulkAddQuestions() {
+            let text = document.getElementById('survey-builder-bulk').value;
+            let lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length === 0) return showToast('error', 'Tiada senarai item dijumpai.');
+            lines.forEach(l => {
+                builderQuestions.push({ id: 'q_' + Date.now() + '_' + Math.floor(Math.random()*1000), label: l, type: 'number' });
+            });
+            document.getElementById('survey-builder-bulk').value = '';
+            renderBuilderQuestions();
+            showToast('success', `${lines.length} item ditambah!`);
+        }
+
+        async function createSurvey() {
+            let title = document.getElementById('survey-new-title').value.trim();
+            let target = document.getElementById('survey-new-target').value;
+            let type = document.getElementById('survey-new-type').value;
+            
+            if(!title) return showToast('error', 'Sila masukkan soalan/tajuk survey.');
+            if(type === 'custom' && builderQuestions.length === 0) {
+                return showToast('error', 'Sila tambah sekurang-kurangnya 1 soalan untuk Custom Survey.');
+            }
+            
+            let surveyData = {
+                title: title,
+                targetAudience: target,
+                type: type,
+                createdBy: currentUser.name,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: 'active'
+            };
+            
+            if(type === 'custom') {
+                surveyData.questions = builderQuestions;
+            }
+            
+            try {
+                await db.collection('surveys').add(surveyData);
+                
+                document.getElementById('survey-new-title').value = '';
+                document.getElementById('survey-new-type').value = 'exception';
+                document.getElementById('survey-new-target').value = 'am';
+                builderQuestions = [];
+                toggleSurveyTypeUI();
+                renderBuilderQuestions();
+                
+                showToast('success', 'Survey Berjaya Diterbitkan!');
+            } catch(e) {
+                showToast('error', 'Ralat: ' + e.message);
+            }
+        }
+
+        async function closeSurvey(id) {
+            if(!confirm('Anda pasti mahu menutup survey ini? AM tidak lagi boleh menghantar maklum balas.')) return;
+            try {
+                await db.collection('surveys').doc(id).update({ status: 'closed' });
+                showToast('success', 'Survey Ditutup!');
+            } catch(e) {
+                showToast('error', 'Ralat: ' + e.message);
+            }
+        }
+
+        function deleteSurvey(id) {
+            Swal.fire({
+                title: 'Padam Survey?',
+                text: "Anda pasti mahu padam survey ini secara kekal? Semua data maklum balas juga akan dipadam.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#475569',
+                confirmButtonText: 'Ya, Padam!',
+                cancelButtonText: 'Batal',
+                background: '#1e293b',
+                color: '#fff'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        let responses = allResponses.filter(r => r.surveyId === id);
+                        let batch = db.batch();
+                        responses.forEach(r => {
+                            batch.delete(db.collection('survey_responses').doc(r.id));
+                        });
+                        batch.delete(db.collection('surveys').doc(id));
+                        await batch.commit();
+                        showToast('success', 'Survey berjaya dipadam.');
+                    } catch(e) {
+                        showToast('error', 'Ralat memadam survey: ' + e.message);
+                    }
+                }
+            });
+        }
+
+        async function submitCustomSurveyResponse(id) {
+            let s = allSurveys.find(x => x.id === id);
+            if(!s) return;
+            
+            let answers = {};
+            for (let q of (s.questions || [])) {
+                let val = document.getElementById(`sq_${s.id}_${q.id}`).value.trim();
+                if(!val) {
+                    return showToast('error', `Sila isi jawapan untuk: ${q.label}`);
+                }
+                answers[q.id] = { label: q.label, type: q.type, value: val };
+            }
+            
+            let btn = document.querySelector(`#survey-box-${id} button`);
+            let oldHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Menghantar...';
+                btn.disabled = true;
+            }
+            
+            try {
+                let payload = {
+                    surveyId: id,
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    answers: answers,
+                    type: 'custom'
+                };
+                
+                if (currentUser.role === 'am') {
+                    payload.amName = currentUser.name.trim().toUpperCase();
+                } else if (currentUser.role === 'branch') {
+                    payload.branchCode = currentUser.id;
+                    payload.branchName = currentUser.name;
+                }
+                
+                await db.collection('survey_responses').add(payload);
+                showToast('success', 'Maklum balas telah direkodkan!');
+                let box = document.getElementById(`survey-box-${id}`);
+                if (box) {
+                    box.innerHTML = '<div class="text-emerald-400 text-sm font-bold py-2"><i class="fa-solid fa-check-circle mr-2"></i>Maklum balas telah direkodkan.</div>';
+                    setTimeout(() => { if(box) box.remove(); }, 2000);
+                }
+            } catch(e) {
+                showToast('error', 'Ralat: ' + e.message);
+                if (btn) {
+                    btn.innerHTML = oldHtml;
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        async function submitSurveyResponse(id) {
+            let count = parseInt(document.getElementById(`survey-exc-${id}`).value) || 0;
+            let exceptions = [];
+            if(count > 0) {
+                let selectedCodes = new Set();
+                for(let i=0; i<count; i++) {
+                    let sel = document.getElementById(`survey-code-${id}-${i}`);
+                    let code = sel.value;
+                    let opt = sel.options[sel.selectedIndex];
+                    let bname = opt ? opt.getAttribute('data-name') : null;
+                    if(!code || !bname) {
+                        return showToast('error', 'Sila pilih cawangan pengecualian yang sah dari senarai.');
+                    }
+                    if(selectedCodes.has(code)) {
+                        return showToast('error', 'Cawangan pengecualian tidak boleh berulang.');
+                    }
+                    selectedCodes.add(code);
+                    exceptions.push({ code: code, name: bname });
+                }
+            }
+            
+            let btn = document.querySelector(`#survey-box-${id} button`);
+            let oldHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Menghantar...';
+                btn.disabled = true;
+            }
+
+            try {
+                await db.collection('survey_responses').add({
+                    surveyId: id,
+                    amName: currentUser.name.trim().toUpperCase(),
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    exceptionCount: count,
+                    exceptions: exceptions
+                });
+                showToast('success', 'Terima kasih! Maklum balas berjaya dihantar.');
+                let box = document.getElementById(`survey-box-${id}`);
+                if (box) {
+                    box.innerHTML = '<div class="text-emerald-400 text-sm font-bold py-2"><i class="fa-solid fa-check-circle mr-2"></i>Maklum balas telah direkodkan.</div>';
+                }
+            } catch(e) {
+                showToast('error', 'Ralat: ' + e.message);
+                if (btn) {
+                    btn.innerHTML = oldHtml;
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        function viewSurveyReport(id) {
+            let s = allSurveys.find(x => x.id === id);
+            if(!s) return;
+            let sResp = allResponses.filter(x => x.surveyId === id);
+            
+            if (s.type === 'custom') {
+                let theads = `<th class="p-2 border border-slate-700">Responden</th>`;
+                (s.questions || []).forEach(q => {
+                    theads += `<th class="p-2 border border-slate-700">${q.label}</th>`;
+                });
+                theads += `<th class="p-2 border border-slate-700">Masa</th>`;
+                
+                let tbodys = '';
+                sResp.forEach(r => {
+                    let name = r.amName || `${r.branchCode} - ${r.branchName}`;
+                    let dateStr = r.submittedAt ? new Date(r.submittedAt.toMillis()).toLocaleString() : '';
+                    tbodys += `<tr><td class="p-2 border border-slate-700 font-bold">${name}</td>`;
+                    (s.questions || []).forEach(q => {
+                        let ans = (r.answers && r.answers[q.id]) ? r.answers[q.id].value : '-';
+                        tbodys += `<td class="p-2 border border-slate-700 text-center">${ans}</td>`;
+                    });
+                    tbodys += `<td class="p-2 border border-slate-700 text-xs">${dateStr}</td></tr>`;
+                });
+                
+                if(sResp.length === 0) {
+                    tbodys = `<tr><td colspan="${(s.questions||[]).length + 2}" class="p-4 text-center text-slate-400">Belum ada maklum balas.</td></tr>`;
+                }
+
+                Swal.fire({
+                    title: '<span class="text-lg">Laporan Survey Custom</span>',
+                    html: `
+                        <div class="text-left space-y-5">
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                                <div class="text-[10px] text-slate-400 uppercase font-black tracking-wider mb-1">Soalan Survey</div>
+                                <div class="text-sm text-cyan-400 font-bold">${s.title}</div>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="text-xs text-purple-400 uppercase font-bold tracking-wider"><i class="fa-solid fa-list-ul mr-1"></i> Data Maklum Balas</div>
+                                <button onclick="downloadSurveyExcel('${id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Muat Turun CSV</button>
+                            </div>
+                            <div class="bg-slate-950 rounded-lg max-h-80 overflow-auto border border-slate-800 shadow-inner">
+                                <table class="w-full text-xs text-white text-left whitespace-nowrap">
+                                    <thead class="bg-slate-800 sticky top-0"><tr>${theads}</tr></thead>
+                                    <tbody>${tbodys}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `,
+                    width: '800px',
+                    background: '#0f172a',
+                    showConfirmButton: false,
+                    showCloseButton: true
+                });
+                return;
+            }
+
+            let ams = getActiveAMs();
+            
+            let submittedAMs = [...new Set(sResp.map(r => r.amName))].sort();
+            let missingAMs = ams.filter(a => !submittedAMs.includes(a)).sort();
+            
+            let exHtml = '';
+            let totalExceptions = 0;
+            sResp.forEach(r => {
+                if(r.exceptionCount > 0 && r.exceptions) {
+                    totalExceptions += r.exceptionCount;
+                    r.exceptions.forEach(ex => {
+                        exHtml += `<div class="text-xs text-slate-300 py-1.5 border-b border-slate-800"><span class="font-bold text-rose-400 mr-2">[${ex.code}]</span> ${ex.name} <span class="text-slate-500 float-right text-[10px] bg-slate-950 px-2 py-0.5 rounded">${r.amName}</span></div>`;
+                    });
+                }
+            });
+            
+            if(exHtml === '') exHtml = '<div class="text-emerald-400 text-xs font-bold py-4 text-center">Tiada cawangan yang belum siap! Semua Ok.</div>';
+            
+            let submittedHtml = submittedAMs.map(a => `<span class="bg-emerald-950 border border-emerald-900 text-emerald-400 px-2 py-0.5 rounded text-[10px] mr-1 mb-1 font-bold inline-block">${a}</span>`).join('');
+            if(submittedHtml === '') submittedHtml = '<span class="text-slate-500 font-bold text-xs">Belum ada maklum balas.</span>';
+
+            let missingHtml = missingAMs.map(a => `<span class="bg-rose-950 border border-rose-900 text-rose-400 px-2 py-0.5 rounded text-[10px] mr-1 mb-1 font-bold inline-block">${a}</span>`).join('');
+            if(missingHtml === '') missingHtml = '<span class="text-emerald-400 font-bold text-xs"><i class="fa-solid fa-check-double mr-1"></i> Semua AM telah hantar maklum balas!</span>';
+            
+            Swal.fire({
+                title: '<span class="text-lg">Laporan Survey</span>',
+                html: `
+                    <div class="text-left space-y-5">
+                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                            <div class="text-[10px] text-slate-400 uppercase font-black tracking-wider mb-1">Soalan Survey</div>
+                            <div class="text-sm text-cyan-400 font-bold">${s.title}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-emerald-400 uppercase font-bold mb-2 tracking-wider"><i class="fa-solid fa-user-check mr-1"></i> Telah Maklum Balas (${submittedAMs.length})</div>
+                            <div class="p-2 bg-slate-900 rounded-lg border border-slate-800">${submittedHtml}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-rose-400 uppercase font-bold mb-2 tracking-wider"><i class="fa-solid fa-user-xmark mr-1"></i> Belum Maklum Balas (${missingAMs.length})</div>
+                            <div class="p-2 bg-slate-900 rounded-lg border border-slate-800">${missingHtml}</div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="text-xs text-purple-400 uppercase font-bold tracking-wider"><i class="fa-solid fa-list-ul mr-1"></i> Senarai Cawangan Pengecualian (${totalExceptions})</div>
+                                <button onclick="downloadSurveyExcel('${id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Muat Turun CSV</button>
+                            </div>
+                            <div class="bg-slate-950 p-3 rounded-lg max-h-60 overflow-y-auto border border-slate-800 shadow-inner">${exHtml}</div>
+                        </div>
+                    </div>
+                `,
+                background: '#0f172a',
+                color: '#fff',
+                width: '600px',
+                showConfirmButton: false,
+                showCloseButton: true
+            });
+        }
+
+        function downloadSurveyExcel(id) {
+            let s = allSurveys.find(x => x.id === id);
+            let sResp = allResponses.filter(x => x.surveyId === id);
+            let csv = '';
+            
+            if (s.type === 'custom') {
+                let headers = ['Soalan Survey', 'Responden', 'Tarikh Hantar'];
+                (s.questions || []).forEach(q => headers.push(q.label));
+                csv += headers.map(h => '"' + h.replace(/"/g, '""') + '"').join(',') + '\n';
+                
+                sResp.forEach(r => {
+                    let title = '"' + s.title.replace(/"/g, '""') + '"';
+                    let name = '"' + (r.amName || `${r.branchCode} - ${r.branchName}`).replace(/"/g, '""') + '"';
+                    let dateStr = r.submittedAt ? new Date(r.submittedAt.toMillis()).toLocaleString() : '';
+                    let dateEsc = '"' + dateStr + '"';
+                    
+                    let row = [title, name, dateEsc];
+                    (s.questions || []).forEach(q => {
+                        let ans = (r.answers && r.answers[q.id]) ? r.answers[q.id].value : '-';
+                        row.push('"' + String(ans).replace(/"/g, '""') + '"');
+                    });
+                    csv += row.join(',') + '\n';
+                });
+            } else {
+                csv = 'Soalan Survey,Nama AM,Tarikh Hantar,Kod Cawangan Pengecualian,Nama Cawangan Pengecualian\n';
+                sResp.forEach(r => {
+                    let dateStr = r.submittedAt ? new Date(r.submittedAt.toMillis()).toLocaleString() : '';
+                    let title = '"' + s.title.replace(/"/g, '""') + '"';
+                    let amName = '"' + r.amName.replace(/"/g, '""') + '"';
+                    let dateEsc = '"' + dateStr + '"';
+                    
+                    if (r.exceptionCount === 0 || !r.exceptions || r.exceptions.length === 0) {
+                        csv += title + ',' + amName + ',' + dateEsc + ',TIADA PENGECUALIAN,-\n';
+                    } else {
+                        r.exceptions.forEach(ex => {
+                            let code = '"' + ex.code + '"';
+                            let name = '"' + ex.name.replace(/"/g, '""') + '"';
+                            csv += title + ',' + amName + ',' + dateEsc + ',' + code + ',' + name + '\n';
+                        });
+                    }
+                });
+            }
+            
+            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            let url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "Laporan_Survey_" + id + ".csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+</script>
+
 </body>
-</html>
-
-
-
 
 
 
