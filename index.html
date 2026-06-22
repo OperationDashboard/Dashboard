@@ -3578,13 +3578,20 @@ function saveGlobalGSUrl() {
                 let amName = (currentUser.name || '').trim().toUpperCase();
                 pendingSurveys = allSurveys.filter(s => {
                     if (s.status !== 'active') return false;
-                    if (s.targetAudience && s.targetAudience !== 'am') return false;
-                    if (s.type === 'custom') {
-                        let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
+                    if (!s.targetAudience || s.targetAudience === 'am') {
+                        if (s.type === 'custom') {
+                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
+                            let myBranches = masterBranches.filter(b => b.am === amName);
+                            return myBranches.some(b => !respondedBranches.includes(String(b.code)));
+                        }
+                        return !allResponses.some(r => r.surveyId === s.id && r.amName === amName);
+                    }
+                    if (s.targetAudience === 'branch') {
+                        let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
                         let myBranches = masterBranches.filter(b => b.am === amName);
                         return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                     }
-                    return !allResponses.some(r => r.surveyId === s.id && r.amName === amName);
+                    return false;
                 });
                 badge = document.getElementById('survey-badge');
             } else if (currentUser.role === 'branch') {
@@ -3619,37 +3626,66 @@ function saveGlobalGSUrl() {
             updateSurveyUI();
         }
 
-        function generateCustomSurveyHTML(s, remainingBranches = null) {
+        function generateCustomSurveyHTML(s, amBranches = null) {
             let html = `<div class="bg-slate-800 rounded-lg p-4 border border-indigo-500/50 mb-4 shadow-lg shadow-indigo-900/20" id="survey-box-${s.id}">`;
             html += `<h3 class="text-md font-bold text-white mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-clipboard-list text-indigo-400 mr-2"></i>${s.title}</h3>`;
             
-            if (remainingBranches && remainingBranches.length > 0) {
-                html += `<div class="mb-4"><label class="text-xs font-bold text-slate-300 block mb-1">Pilih Cawangan:</label>`;
-                html += `<select id="sq_branch_${s.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">`;
-                remainingBranches.forEach(b => {
-                    html += `<option value="${b.code}">${b.code} - ${b.name}</option>`;
+            if (amBranches && amBranches.length > 0) {
+                html += `<div class="overflow-x-auto mb-4">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="text-xs text-slate-400 bg-slate-800/50">
+                            <tr>
+                                <th class="p-2 border border-slate-700 whitespace-nowrap">CODE</th>
+                                <th class="p-2 border border-slate-700 whitespace-nowrap">BRANCH NAME</th>`;
+                (s.questions || []).forEach(q => {
+                    html += `<th class="p-2 border border-slate-700 text-center">${q.label}</th>`;
                 });
-                html += `</select></div>`;
-            }
-
-            html += `<div class="space-y-4 mb-4">`;
-            (s.questions || []).forEach(q => {
-                html += `<div><label class="text-xs font-bold text-slate-300 block mb-1">${q.label}</label>`;
-                if(q.type === 'number') {
-                    html += `<input type="number" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Kuantiti (0)">`;
-                } else if (q.type === 'yesno') {
-                    html += `<select id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">
-                        <option value="">-- Pilih --</option>
-                        <option value="Ya">Ya</option>
-                        <option value="Tidak">Tidak</option>
-                    </select>`;
-                } else {
-                    html += `<input type="text" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Jawapan...">`;
-                }
+                html += `</tr></thead><tbody>`;
+                
+                amBranches.forEach(b => {
+                    html += `<tr class="border-b border-slate-700/50">
+                        <td class="p-2 border border-slate-700 font-bold">${b.code}</td>
+                        <td class="p-2 border border-slate-700 whitespace-nowrap">${b.name}</td>`;
+                    
+                    (s.questions || []).forEach(q => {
+                        html += `<td class="p-2 border border-slate-700">`;
+                        if(q.type === 'number') {
+                            html += `<input type="number" id="sq_${s.id}_${b.code}_${q.id}" class="w-full min-w-[80px] bg-slate-900 text-white rounded px-2 py-1 text-center border border-slate-700 outline-none focus:border-indigo-500" placeholder="0">`;
+                        } else if (q.type === 'yesno') {
+                            html += `<select id="sq_${s.id}_${b.code}_${q.id}" class="w-full min-w-[80px] bg-slate-900 text-white rounded px-2 py-1 border border-slate-700 outline-none focus:border-indigo-500">
+                                <option value="">-</option>
+                                <option value="Ya">Ya</option>
+                                <option value="Tidak">Tidak</option>
+                            </select>`;
+                        } else {
+                            html += `<input type="text" id="sq_${s.id}_${b.code}_${q.id}" class="w-full min-w-[120px] bg-slate-900 text-white rounded px-2 py-1 border border-slate-700 outline-none focus:border-indigo-500" placeholder="...">`;
+                        }
+                        html += `</td>`;
+                    });
+                    html += `</tr>`;
+                });
+                html += `</tbody></table></div>`;
+                html += `<button onclick="submitCustomSurveyResponseAM('${s.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"><i class="fa-solid fa-paper-plane mr-2"></i>Hantar Maklum Balas Semua Cawangan</button>`;
+            } else {
+                html += `<div class="space-y-4 mb-4">`;
+                (s.questions || []).forEach(q => {
+                    html += `<div><label class="text-xs font-bold text-slate-300 block mb-1">${q.label}</label>`;
+                    if(q.type === 'number') {
+                        html += `<input type="number" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Kuantiti (0)">`;
+                    } else if (q.type === 'yesno') {
+                        html += `<select id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">
+                            <option value="">-- Pilih --</option>
+                            <option value="Ya">Ya</option>
+                            <option value="Tidak">Tidak</option>
+                        </select>`;
+                    } else {
+                        html += `<input type="text" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Jawapan...">`;
+                    }
+                    html += `</div>`;
+                });
                 html += `</div>`;
-            });
-            html += `</div>`;
-            html += `<button onclick="submitCustomSurveyResponse('${s.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"><i class="fa-solid fa-paper-plane mr-2"></i>Hantar Maklum Balas</button>`;
+                html += `<button onclick="submitCustomSurveyResponse('${s.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"><i class="fa-solid fa-paper-plane mr-2"></i>Hantar Maklum Balas</button>`;
+            }
             html += `</div>`;
             return html;
         }
@@ -3679,21 +3715,46 @@ function saveGlobalGSUrl() {
                 let amName = (currentUser.name || '').trim().toUpperCase();
                 let pendingSurveys = allSurveys.filter(s => {
                     if (s.status !== 'active') return false;
-                    if (s.targetAudience && s.targetAudience !== 'am') return false;
-                    if (s.type === 'custom') {
-                        let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
-                        let myBranches = masterBranches.filter(b => b.am === amName);
-                        return myBranches.some(b => !respondedBranches.includes(String(b.code)));
+                    if (!s.targetAudience || s.targetAudience === 'am') {
+                        if (s.type === 'custom') {
+                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
+                            let myBranches = masterBranches.filter(b => b.am === amName);
+                            return myBranches.some(b => !respondedBranches.includes(String(b.code)));
+                        }
+                        return !allResponses.some(r => r.surveyId === s.id && r.amName === amName);
                     }
-                    return !allResponses.some(r => r.surveyId === s.id && r.amName === amName);
+                    if (s.targetAudience === 'branch') {
+                        return true;
+                    }
+                    return false;
                 });
                 
                 let html = '';
                 if (pendingSurveys.length === 0) {
-                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>Anda telah menyelesaikan semua survey yang aktif!</div>';
+                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>Tiada survey yang aktif!</div>';
                 } else {
                     pendingSurveys.forEach(s => {
-                        if (s.type === 'custom') {
+                        if (s.targetAudience === 'branch') {
+                            let myBranches = masterBranches.filter(b => b.am === amName);
+                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
+                            
+                            html += `<div class="bg-slate-800 rounded-lg p-4 border border-blue-500/50 mb-4 shadow-lg shadow-blue-900/20">
+                                <h3 class="text-md font-bold text-blue-400 mb-2"><i class="fa-solid fa-eye mr-2"></i>Pantauan: ${s.title}</h3>
+                                <p class="text-xs text-slate-400 mb-3">Ini adalah survey untuk diisi oleh cawangan. Di bawah adalah status cawangan anda:</p>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">`;
+                                
+                            myBranches.forEach(b => {
+                                let hasResponded = respondedBranches.includes(String(b.code));
+                                let color = hasResponded ? 'text-emerald-400' : 'text-rose-400';
+                                let icon = hasResponded ? 'fa-check-circle' : 'fa-times-circle';
+                                html += `<div class="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between">
+                                    <span class="text-slate-300 font-bold">${b.code}</span>
+                                    <span class="${color}"><i class="fa-solid ${icon}"></i></span>
+                                </div>`;
+                            });
+                            
+                            html += `</div></div>`;
+                        } else if (s.type === 'custom') {
                             let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
                             let remainingBranches = masterBranches.filter(b => b.am === amName && !respondedBranches.includes(String(b.code)));
                             html += generateCustomSurveyHTML(s, remainingBranches);
@@ -3967,6 +4028,68 @@ function saveGlobalGSUrl() {
             }
         }
 
+        async function submitCustomSurveyResponseAM(id) {
+            let s = allSurveys.find(x => x.id === id);
+            if(!s) return;
+            
+            let amName = (currentUser.name || '').trim().toUpperCase();
+            let myBranches = masterBranches.filter(b => b.am === amName);
+            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
+            let remainingBranches = myBranches.filter(b => !respondedBranches.includes(String(b.code)));
+            
+            let allPayloads = [];
+            
+            for (let b of remainingBranches) {
+                let answers = {};
+                for (let q of (s.questions || [])) {
+                    let inputEl = document.getElementById(`sq_${s.id}_${b.code}_${q.id}`);
+                    if (!inputEl) continue;
+                    let val = inputEl.value.trim();
+                    if(val === '') {
+                        return showToast('error', `Sila isi semua petak untuk cawangan ${b.code}. Letak 0 jika tiada.`);
+                    }
+                    answers[q.id] = { label: q.label, type: q.type, value: val };
+                }
+                
+                allPayloads.push({
+                    surveyId: id,
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    answers: answers,
+                    type: 'custom',
+                    surveyType: 'custom',
+                    amName: amName,
+                    branchCode: String(b.code),
+                    branchName: b.name
+                });
+            }
+            
+            if (allPayloads.length === 0) return;
+            
+            let btn = document.querySelector(`#survey-box-${id} button`);
+            let oldHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Menghantar...';
+                btn.disabled = true;
+            }
+            
+            try {
+                let batch = db.batch();
+                allPayloads.forEach(p => {
+                    let docRef = db.collection('survey_responses').doc();
+                    batch.set(docRef, p);
+                });
+                await batch.commit();
+                showToast('success', 'Maklum balas semua cawangan direkodkan!');
+            } catch (e) {
+                console.error(e);
+                showToast('error', 'Gagal menyimpan maklum balas.');
+                if (btn) {
+                    btn.innerHTML = oldHtml;
+                    btn.disabled = false;
+                }
+            }
+        }
+
         async function submitSurveyResponse(id) {
             let count = parseInt(document.getElementById(`survey-exc-${id}`).value) || 0;
             let exceptions = [];
@@ -4028,6 +4151,7 @@ function saveGlobalGSUrl() {
                     theads += `<th class="p-2 border border-slate-700">${q.label}</th>`;
                 });
                 theads += `<th class="p-2 border border-slate-700">Masa</th>`;
+                theads += `<th class="p-2 border border-slate-700 text-center">Tindakan</th>`;
                 
                 let tbodys = '';
                 sResp.forEach(r => {
@@ -4038,11 +4162,12 @@ function saveGlobalGSUrl() {
                         let ans = (r.answers && r.answers[q.id]) ? r.answers[q.id].value : '-';
                         tbodys += `<td class="p-2 border border-slate-700 text-center">${ans}</td>`;
                     });
-                    tbodys += `<td class="p-2 border border-slate-700 text-xs">${dateStr}</td></tr>`;
+                    tbodys += `<td class="p-2 border border-slate-700 text-xs">${dateStr}</td>`;
+                    tbodys += `<td class="p-2 border border-slate-700 text-center"><button onclick="deleteSurveyResponse('${r.id}', '${id}')" class="text-rose-400 hover:text-rose-300" title="Reset/Padam"><i class="fa-solid fa-trash"></i></button></td></tr>`;
                 });
                 
                 if(sResp.length === 0) {
-                    tbodys = `<tr><td colspan="${(s.questions||[]).length + 2}" class="p-4 text-center text-slate-400">Belum ada maklum balas.</td></tr>`;
+                    tbodys = `<tr><td colspan="${(s.questions||[]).length + 3}" class="p-4 text-center text-slate-400">Belum ada maklum balas.</td></tr>`;
                 }
 
                 Swal.fire({
@@ -4130,23 +4255,53 @@ function saveGlobalGSUrl() {
             });
         }
 
+        async function deleteSurveyResponse(responseId, surveyId) {
+            Swal.fire({
+                title: 'Padam Data Cawangan?',
+                text: 'Data cawangan ini akan dibuang dan cawangan (atau AM) perlu isi semula.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Padam',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if(result.isConfirmed) {
+                    try {
+                        await db.collection('survey_responses').doc(responseId).delete();
+                        showToast('success', 'Data dipadam.');
+                        setTimeout(() => viewSurveyReport(surveyId), 300);
+                    } catch(e) {
+                        showToast('error', 'Gagal memadam data.');
+                    }
+                }
+            });
+        }
+
         function downloadSurveyExcel(id) {
             let s = allSurveys.find(x => x.id === id);
             let sResp = allResponses.filter(x => x.surveyId === id);
             let csv = '';
             
             if (s.type === 'custom') {
-                let headers = ['Soalan Survey', 'Responden', 'Tarikh Hantar'];
+                let headers = ['CODE', 'BRANCH NAME', 'AREA MANAGER'];
                 (s.questions || []).forEach(q => headers.push(q.label));
                 csv += headers.map(h => '"' + h.replace(/"/g, '""') + '"').join(',') + '\n';
                 
                 sResp.forEach(r => {
-                    let title = '"' + s.title.replace(/"/g, '""') + '"';
-                    let name = '"' + (r.amName || `${r.branchCode} - ${r.branchName}`).replace(/"/g, '""') + '"';
-                    let dateStr = r.submittedAt ? new Date(r.submittedAt.toMillis()).toLocaleString() : '';
-                    let dateEsc = '"' + dateStr + '"';
+                    let code = r.branchCode || '';
+                    let bName = r.branchName || '';
+                    let am = r.amName || '';
+                    if (!am && code) {
+                        let bInfo = masterBranches.find(b => String(b.code) === String(code));
+                        if(bInfo) am = bInfo.am;
+                    }
+                    if (!bName && code) {
+                        let bInfo = masterBranches.find(b => String(b.code) === String(code));
+                        if(bInfo) bName = bInfo.name;
+                    }
                     
-                    let row = [title, name, dateEsc];
+                    let row = ['"'+code+'"', '"'+bName.replace(/"/g, '""')+'"', '"'+am.replace(/"/g, '""')+'"'];
                     (s.questions || []).forEach(q => {
                         let ans = (r.answers && r.answers[q.id]) ? r.answers[q.id].value : '-';
                         row.push('"' + String(ans).replace(/"/g, '""') + '"');
