@@ -1344,6 +1344,7 @@ function saveGlobalGSUrl() {
                     document.getElementById('nav-buttons').classList.add('hidden');
                     document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
                     document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
+                    listenToSurveyBadge();
                     if(role === 'branch') syncBranchFromCloud(); else setupManagerView();
                 } catch(e) { localStorage.removeItem('pbi_user'); }
             }
@@ -2031,11 +2032,12 @@ function saveGlobalGSUrl() {
                     currentUser.name = "Unknown Branch"; currentUser.am = "";
                 }
                 localStorage.setItem('pbi_user', JSON.stringify(currentUser));
+                listenToSurveyBadge();
                 syncBranchFromCloud(); // Trigger sync before showing branch view
             } else if (role === 'am') {
-                currentUser.name = selId; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); setupManagerView();
+                currentUser.name = selId; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); listenToSurveyBadge(); setupManagerView();
             } else {
-                currentUser.name = "System Administrator"; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); setupManagerView();
+                currentUser.name = "System Administrator"; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); listenToSurveyBadge(); setupManagerView();
             }
 
             document.getElementById('nav-buttons').classList.add('hidden');
@@ -2046,6 +2048,8 @@ function saveGlobalGSUrl() {
         function logout() {
             currentUser = null; localStorage.removeItem('pbi_user');
             if(typeof hasAlertedSurvey !== 'undefined') hasAlertedSurvey = false;
+            if(typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe) surveyUnsubscribe();
+            if(typeof responsesUnsubscribe !== 'undefined' && responsesUnsubscribe) responsesUnsubscribe();
             document.getElementById('header-subtitle').classList.remove('hidden');
             document.getElementById('logged-in-controls').classList.add('hidden'); document.getElementById('logged-in-controls').classList.remove('flex');
             document.getElementById('nav-buttons').classList.remove('hidden'); document.getElementById('section-branch').classList.add('hidden');
@@ -2235,7 +2239,7 @@ function saveGlobalGSUrl() {
             populateFilters();
             switchTab('dashboard');
             updateMasterLockUI();
-            listenToSurveyBadge();
+            // listenToSurveyBadge() is now called globally upon login
             
             if (currentUser.role === 'admin') {
                 let btnPatch = document.getElementById('btn-patch-db');
