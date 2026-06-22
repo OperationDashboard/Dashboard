@@ -3711,14 +3711,6 @@ function saveGlobalGSUrl() {
                     pendingSurveys.forEach(s => {
                         html += generateCustomSurveyHTML(s);
                     });
-                } else {
-                    html = `<div class="bg-red-900/50 text-white p-4 rounded text-xs mb-4">
-                        <b>DEBUG INFO (Tolong screenshot ini untuk bos):</b><br>
-                        allSurveys count: ${allSurveys.length}<br>
-                        allResponses count: ${allResponses.length}<br>
-                        surveys: ${allSurveys.map(x => x.title + " (target:" + x.targetAudience + ", status:" + x.status + ")").join(' | ')}<br>
-                        branchCode: ${branchCode}
-                    </div>`;
                 }
                 let container = document.getElementById('branch-survey-container');
                 if (container) container.innerHTML = html;
