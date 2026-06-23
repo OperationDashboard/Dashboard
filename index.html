@@ -1351,6 +1351,10 @@ function saveGlobalGSUrl() {
         });
 
         function renderAnalytics() {
+            if (typeof Chart === 'undefined') {
+                console.warn("Chart.js is not loaded. Skipping renderAnalytics.");
+                return;
+            }
             let monthStr = todayStr.substring(0, 7);
             let fs = document.getElementById('filter-state').value;
             let fa = document.getElementById('filter-am').value;
@@ -2434,6 +2438,10 @@ function saveGlobalGSUrl() {
         }
 
         function renderCharts(dateStr, branchCodes, tKPI) {
+            if (typeof Chart === 'undefined') {
+                console.warn("Chart.js is not loaded. Skipping renderCharts.");
+                return;
+            }
             Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = "'Inter', sans-serif";
             
             // Generate some pseudo-trend data for local chart rendering if not full database
@@ -2523,7 +2531,7 @@ function saveGlobalGSUrl() {
             
             if(window.monthlyTrendChartObj) window.monthlyTrendChartObj.destroy();
             let trendCtx = document.getElementById('chart-monthly-trend');
-            if(trendCtx) {
+            if(trendCtx && typeof Chart !== 'undefined') {
                 window.monthlyTrendChartObj = new Chart(trendCtx.getContext('2d'), {
                     type: 'line',
                     data: { labels: labels, datasets: [{ label: 'Total Sales (RM)', data: salesData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', tension: 0.3, fill: true, pointBackgroundColor: '#f59e0b', pointRadius: 3 }] },
