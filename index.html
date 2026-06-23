@@ -3761,7 +3761,8 @@ function saveGlobalGSUrl() {
                                     <table class="w-full text-left text-sm text-slate-300">
                                         <thead class="text-xs text-slate-400 bg-slate-900">
                                             <tr>
-                                                <th class="p-2 border border-slate-700 whitespace-nowrap">CAWANGAN</th>
+                                                <th class="p-2 border border-slate-700 whitespace-nowrap">KOD</th>
+                                                <th class="p-2 border border-slate-700 whitespace-nowrap">NAMA CAWANGAN</th>
                                                 <th class="p-2 border border-slate-700 whitespace-nowrap text-center">STATUS</th>`;
                                 (s.questions || []).forEach(q => {
                                     html += `<th class="p-2 border border-slate-700 text-center">${q.label}</th>`;
@@ -3774,12 +3775,14 @@ function saveGlobalGSUrl() {
                                     
                                     html += `<tr class="border-b border-slate-700/50 hover:bg-slate-700/30">
                                         <td class="p-2 border border-slate-700 font-bold">${b.code}</td>
+                                        <td class="p-2 border border-slate-700 whitespace-nowrap">${b.name}</td>
                                         <td class="p-2 border border-slate-700 text-center">${statusHtml}</td>`;
                                     
                                     (s.questions || []).forEach(q => {
                                         let ans = "-";
                                         if (resp && resp.answers && resp.answers[q.id] !== undefined) {
-                                            ans = resp.answers[q.id];
+                                            let ansObj = resp.answers[q.id];
+                                            ans = (typeof ansObj === 'object' && ansObj !== null) ? ansObj.value : ansObj;
                                             if (ans === true) ans = "Ya";
                                             if (ans === false) ans = "Tidak";
                                         }
@@ -3796,7 +3799,7 @@ function saveGlobalGSUrl() {
                                     let color = hasResponded ? 'text-emerald-400' : 'text-rose-400';
                                     let icon = hasResponded ? 'fa-check-circle' : 'fa-times-circle';
                                     html += `<div class="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between">
-                                        <span class="text-slate-300 font-bold">${b.code}</span>
+                                        <span class="text-slate-300 font-bold">${b.code} - ${b.name}</span>
                                         <span class="${color}"><i class="fa-solid ${icon}"></i></span>
                                     </div>`;
                                 });
