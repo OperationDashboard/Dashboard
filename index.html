@@ -3636,14 +3636,18 @@ function saveGlobalGSUrl() {
                 }
                 if (!hasAlertedSurvey) {
                     hasAlertedSurvey = true;
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Peringatan Survey!',
-                        text: `Anda ada ${pendingSurveys.length} survey yang belum dijawab. Sila semak${currentUser.role === 'am' ? ' tab Survey & Tracking' : ' borang di bawah'}.`,
-                        confirmButtonColor: '#8b5cf6',
-                        background: '#1e293b',
-                        color: '#fff'
-                    });
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Peringatan Survey!',
+                            text: `Anda ada ${pendingSurveys.length} survey yang belum dijawab. Sila semak${currentUser.role === 'am' ? ' tab Survey & Tracking' : ' borang di bawah'}.`,
+                            confirmButtonColor: '#8b5cf6',
+                            background: '#1e293b',
+                            color: '#fff'
+                        });
+                    } else {
+                        console.warn("SweetAlert2 not loaded, fallback to UI badge only for survey alert.");
+                    }
                 }
             } else {
                 if (badge) badge.classList.add('hidden');
