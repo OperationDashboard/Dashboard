@@ -3750,24 +3750,58 @@ function saveGlobalGSUrl() {
                     pendingSurveys.forEach(s => {
                         if (s.targetAudience === 'branch') {
                             let myBranches = masterBranches.filter(b => b.am === amName);
-                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
+                            let responsesForSurvey = allResponses.filter(r => r.surveyId === s.id);
                             
                             html += `<div class="bg-slate-800 rounded-lg p-4 border border-blue-500/50 mb-4 shadow-lg shadow-blue-900/20">
                                 <h3 class="text-md font-bold text-blue-400 mb-2"><i class="fa-solid fa-eye mr-2"></i>Pantauan: ${s.title}</h3>
-                                <p class="text-xs text-slate-400 mb-3">Ini adalah survey untuk diisi oleh cawangan. Di bawah adalah status cawangan anda:</p>
-                                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">`;
+                                <p class="text-xs text-slate-400 mb-3">Ini adalah survey untuk diisi oleh cawangan. Di bawah adalah status dan maklum balas cawangan anda:</p>`;
                                 
-                            myBranches.forEach(b => {
-                                let hasResponded = respondedBranches.includes(String(b.code));
-                                let color = hasResponded ? 'text-emerald-400' : 'text-rose-400';
-                                let icon = hasResponded ? 'fa-check-circle' : 'fa-times-circle';
-                                html += `<div class="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between">
-                                    <span class="text-slate-300 font-bold">${b.code}</span>
-                                    <span class="${color}"><i class="fa-solid ${icon}"></i></span>
-                                </div>`;
-                            });
-                            
-                            html += `</div></div>`;
+                            if (s.questions && s.questions.length > 0) {
+                                html += `<div class="overflow-x-auto mb-2 custom-scrollbar">
+                                    <table class="w-full text-left text-sm text-slate-300">
+                                        <thead class="text-xs text-slate-400 bg-slate-900">
+                                            <tr>
+                                                <th class="p-2 border border-slate-700 whitespace-nowrap">CAWANGAN</th>
+                                                <th class="p-2 border border-slate-700 whitespace-nowrap text-center">STATUS</th>`;
+                                (s.questions || []).forEach(q => {
+                                    html += `<th class="p-2 border border-slate-700 text-center">${q.label}</th>`;
+                                });
+                                html += `</tr></thead><tbody>`;
+                                
+                                myBranches.forEach(b => {
+                                    let resp = responsesForSurvey.find(r => String(r.branchCode) === String(b.code));
+                                    let statusHtml = resp ? `<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>HANTAR</span>` : `<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-times mr-1"></i>BELUM</span>`;
+                                    
+                                    html += `<tr class="border-b border-slate-700/50 hover:bg-slate-700/30">
+                                        <td class="p-2 border border-slate-700 font-bold">${b.code}</td>
+                                        <td class="p-2 border border-slate-700 text-center">${statusHtml}</td>`;
+                                    
+                                    (s.questions || []).forEach(q => {
+                                        let ans = "-";
+                                        if (resp && resp.answers && resp.answers[q.id] !== undefined) {
+                                            ans = resp.answers[q.id];
+                                            if (ans === true) ans = "Ya";
+                                            if (ans === false) ans = "Tidak";
+                                        }
+                                        let colorClass = resp ? "text-white font-medium" : "text-slate-500";
+                                        html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${ans}</td>`;
+                                    });
+                                    html += `</tr>`;
+                                });
+                                html += `</tbody></table></div></div>`;
+                            } else {
+                                html += `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">`;
+                                myBranches.forEach(b => {
+                                    let hasResponded = responsesForSurvey.some(r => String(r.branchCode) === String(b.code));
+                                    let color = hasResponded ? 'text-emerald-400' : 'text-rose-400';
+                                    let icon = hasResponded ? 'fa-check-circle' : 'fa-times-circle';
+                                    html += `<div class="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between">
+                                        <span class="text-slate-300 font-bold">${b.code}</span>
+                                        <span class="${color}"><i class="fa-solid ${icon}"></i></span>
+                                    </div>`;
+                                });
+                                html += `</div></div>`;
+                            }
                         } else if (s.type === 'custom') {
                             let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
                             let remainingBranches = masterBranches.filter(b => b.am === amName && !respondedBranches.includes(String(b.code)));
