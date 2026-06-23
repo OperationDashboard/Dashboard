@@ -3580,7 +3580,15 @@ function saveGlobalGSUrl() {
                 if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
             });
             
-            responsesUnsubscribe = db.collection('survey_responses').onSnapshot(snap => {
+            let responsesQuery = db.collection('survey_responses');
+            if (currentUser && currentUser.role === 'branch') {
+                responsesQuery = responsesQuery.where('branchCode', '==', String(currentUser.id));
+            } else if (currentUser && currentUser.role === 'am') {
+                let amName = (currentUser.name || '').trim().toUpperCase();
+                responsesQuery = responsesQuery.where('amName', '==', amName);
+            }
+            
+            responsesUnsubscribe = responsesQuery.onSnapshot(snap => {
                 allResponses = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 responsesLoaded = true;
                 updateSurveyUI();
@@ -4084,6 +4092,10 @@ function saveGlobalGSUrl() {
                 } else if (currentUser.role === 'branch') {
                     payload.branchCode = currentUser.id;
                     payload.branchName = currentUser.name;
+                    let bInfo = masterBranches.find(b => String(b.code) === String(currentUser.id));
+                    if (bInfo && bInfo.am) {
+                        payload.amName = bInfo.am.trim().toUpperCase();
+                    }
                 }
                 
                 await db.collection('survey_responses').add(payload);
