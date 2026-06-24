@@ -741,6 +741,32 @@
                         <button onclick="repairAMNames()" class="w-full bg-rose-600 text-white py-3 rounded-lg font-bold text-xs hover:bg-rose-500 shadow-lg shadow-rose-600/20 transition-all flex justify-center items-center gap-2"><i class="fa-solid fa-wrench text-lg"></i> Repair Data</button>
                     </div>
 
+                    <!-- Admin Audit Logs -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl admin-only md:col-span-2">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-4">
+                            <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-list-check text-indigo-400 mr-1.5"></i> AM / Admin Activity Audit Logs</h3>
+                            <button onclick="renderAuditLogs()" class="bg-slate-800 text-slate-300 hover:text-white px-3 py-1 rounded text-[10px] font-bold transition-all border border-slate-700 shadow"><i class="fa-solid fa-rotate mr-1"></i> Refresh Logs</button>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mb-4">Logs of data reset and unlock actions by Area Managers and Admins. Only visible to Admins.</p>
+                        <div class="overflow-x-auto border border-slate-800 rounded-lg max-h-64 overflow-y-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-900/50 sticky top-0">
+                                    <tr>
+                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Timestamp</th>
+                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">User (AM/Admin)</th>
+                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Action Type</th>
+                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Branch Code</th>
+                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-log-tbody">
+                                    <tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">Click Refresh to load logs...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+
                     <!-- Google Sheets Apps Script Info -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl md:col-span-2 relative overflow-hidden super-admin">
                         <div class="absolute right-0 top-0 opacity-5"><i class="fa-brands fa-google text-9xl"></i></div>
@@ -1958,9 +1984,32 @@ function saveGlobalGSUrl() {
             }
         }
 
+        function logAuditAction(actionType, payloadData) {
+            let docId = Date.now().toString() + "_" + Math.random().toString(36).substring(7);
+            let bAm = "";
+            if (payloadData && payloadData.code) {
+                let b = masterBranches.find(x => x.code == payloadData.code);
+                if (b && b.am) bAm = b.am;
+            }
+            db.collection('audit_logs').doc(docId).set({
+                timestamp: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' }),
+                timestamp_ms: Date.now(),
+                user: currentUser ? currentUser.name : "Unknown",
+                role: currentUser ? currentUser.role : "Unknown",
+                action: actionType,
+                target_code: (payloadData && payloadData.code) ? String(payloadData.code) : "-",
+                target_date: (payloadData && payloadData.date) ? payloadData.date : "-",
+                target_am: bAm
+            }).catch(e => console.error("Audit log error", e));
+        }
+
         function syncToCloud(action, payloadData, callback) {
             setSyncing(true);
             sessionStorage.clear(); // Clear cache to ensure fresh data after mutation
+            
+            if(['reset_night', 'reset_bank', 'unlock_night', 'unlock_bank2', 'master_reset'].includes(action)) {
+                logAuditAction(action, payloadData);
+            }
             
             let bAm = "";
             if (payloadData && payloadData.code) {
@@ -2132,9 +2181,41 @@ function saveGlobalGSUrl() {
             
             if (tab === 'survey') {
                 renderSurveys();
+            } else if (tab === 'control') {
+                renderAuditLogs();
             } else {
                 if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') triggerDataSync();
             }
+        }
+
+        function renderAuditLogs() {
+            let tbody = document.getElementById('audit-log-tbody');
+            if(!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">Loading logs...</td></tr>';
+            db.collection('audit_logs').orderBy('timestamp_ms', 'desc').limit(100).get().then(snap => {
+                let html = '';
+                if(snap.empty) {
+                    html = '<tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">No audit logs found.</td></tr>';
+                } else {
+                    snap.docs.forEach(doc => {
+                        let d = doc.data();
+                        let actionColor = 'text-white';
+                        if(d.action === 'reset_night' || d.action === 'reset_bank') actionColor = 'text-rose-400';
+                        if(d.action === 'unlock_night' || d.action === 'unlock_bank2') actionColor = 'text-indigo-400';
+                        html += `<tr class="border-b border-slate-800 hover:bg-slate-800/50">
+                            <td class="p-3 text-[10px] text-slate-400 whitespace-nowrap">${d.timestamp || new Date(d.timestamp_ms).toLocaleString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'})}</td>
+                            <td class="p-3 text-[11px] font-bold text-cyan-400">${d.user}</td>
+                            <td class="p-3 text-[11px] font-bold uppercase ${actionColor}">${d.action.replace(/_/g, ' ')}</td>
+                            <td class="p-3 text-[11px] text-white">${d.target_code}</td>
+                            <td class="p-3 text-[11px] text-slate-300">${d.target_date}</td>
+                        </tr>`;
+                    });
+                }
+                tbody.innerHTML = html;
+            }).catch(e => {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-rose-500 text-xs">Failed to load logs. You may need to create a Firestore Index.</td></tr>';
+            });
         }
 
         // --- 4. Branch Logic ---
