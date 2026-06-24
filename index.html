@@ -11,10 +11,10 @@
     <meta http-equiv="Expires" content="0">
     <title>Sistem Operasi Harian & Dashboard Power BI Dark Style</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.8/sweetalert2.all.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1249,6 +1249,29 @@ window.onunhandledrejection = function(event) {
         const db = firebase.firestore();
         db.enablePersistence({synchronizeTabs:true}).catch(e => console.log('Persistence:', e));
 
+        window.addEventListener('load', function() {
+            // Polyfill for Swal if it fails to load due to poor network
+            if (typeof window.Swal === 'undefined') {
+                window.Swal = {
+                    fire: function(arg1, arg2, arg3) {
+                        if (typeof arg1 === 'object') {
+                            if (arg1.showCancelButton) {
+                                return Promise.resolve({ isConfirmed: confirm((arg1.title || '') + '\n\n' + (arg1.text || '')) });
+                            } else {
+                                alert((arg1.title || '') + '\n\n' + (arg1.text || ''));
+                                return Promise.resolve({ isConfirmed: true });
+                            }
+                        } else {
+                            alert(arg1 + (arg2 ? '\n\n' + arg2 : ''));
+                            return Promise.resolve({ isConfirmed: true });
+                        }
+                    }
+                };
+                console.warn('SweetAlert2 failed to load. Using native fallback.');
+            }
+        });
+
+
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
         const APP_VERSION = 9.52;
@@ -1262,7 +1285,7 @@ window.onunhandledrejection = function(event) {
         let isSyncing = false;
         
         const DICT = {
-            EN: { subtitle_login: "Please login to continue", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Refresh", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right to access operational data.", branch_form_title: "Daily Data Entry Form", branch_form_desc: "Complete daily sales and logistics. Data is auto-synced to HQ.", status_done: "SYNCED TO HQ", branch_locked_desc: "Data has been successfully submitted to the server. Contact AM to reset.", branch_section_night: "Primary Operations Data", branch_section_bank: "Bank-In Updates (Always Editable)", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Sync to HQ", btn_save_bank: "Sync Bank-In Data", branch_info: "Branch Information", tab_dashboard: "Analytics Dashboard", tab_tracking: "Tracking & Reset", tab_comparison: "Daily Comparison", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Lorry Cost", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Submit Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be permanently synced to HQ.", lbl_submission_ratio: "Submission Ratio:" },
+            EN: { subtitle_login: "Please login to continue", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Refresh", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right to access operational data.", branch_form_title: "Daily Data Entry Form", branch_form_desc: "Complete daily sales and logistics. Data is auto-synced to HQ.", status_done: "SYNCED TO HQ", branch_locked_desc: "Data has been successfully submitted to the server. Contact AM to reset.", branch_section_night: "Primary Operations Data", branch_section_bank: "Bank-In Updates (Always Editable)", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Sync to HQ", btn_save_bank: "Sync Bank-In Data", branch_info: "Branch Information", tab_dashboard: "Analytics Dashboard", tab_tracking: "Tracking & Reset", tab_comparison: "Daily Comparison", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori (RM)", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Submit Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be permanently synced to HQ.", lbl_submission_ratio: "Submission Ratio:" },
             BM: { subtitle_login: "Sila log masuk", btn_branch: "Cawangan", btn_am: "Pengurus Kawasan", btn_admin: "Pentadbir", btn_refresh: "Muat Semula", welcome_title: "Sistem Akses Selamat", welcome_desc: "Sila pilih peranan anda di penjuru kanan atas untuk akses data operasi.", branch_form_title: "Borang Kemasukan Harian", branch_form_desc: "Lengkapkan data harian. Data dihubungkan terus ke server HQ.", status_done: "DIHANTAR KE HQ", branch_locked_desc: "Data telah berjaya disimpan di pangkalan data HQ. Hubungi AM untuk set semula.", branch_section_night: "Data Operasi Utama", branch_section_bank: "Kemaskini Bank-In", field_sales: "Jualan Harian (RM)", field_trans: "Transaksi", field_mykasih: "MyKasih (RM)", field_lorry: "Kos Lori (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Hantar & Simpan ke HQ", btn_save_bank: "Simpan Bank-In", branch_info: "Maklumat Cawangan", tab_dashboard: "Dashboard Analitik", tab_tracking: "Semakan & Reset", tab_comparison: "Perbandingan Harian", tab_control: "Kawalan Sistem", kpi_sales: "Jumlah Jualan", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori", kpi_trans: "Transaksi", lbl_password: "Kata Laluan", btn_login_submit: "Sahkan Log Masuk", confirm_title: "Sahkan Penghantaran?", confirm_desc: "Data akan dihantar terus ke sistem pusat HQ.", lbl_submission_ratio: "Nisbah Hantaran:" }
         };
 
@@ -2994,6 +3017,13 @@ function saveGlobalGSUrl() {
             });
 
             if (type === 'excel') {
+                if (typeof XLSX === 'undefined') {
+                    alert("Sistem sedang memuat turun modul Excel kerana liputan internet lemah.\nSila tunggu sebentar dan tekan butang EXCEL sekali lagi.");
+                    let s = document.createElement('script');
+                    s.src = "https://unpkg.com/xlsx/dist/xlsx.full.min.js";
+                    document.head.appendChild(s);
+                    return;
+                }
                 showToast('info', `Generating EXCEL...`);
                 let exportArr = branches.map(b => {
                     let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0 };
@@ -3001,6 +3031,13 @@ function saveGlobalGSUrl() {
                 });
                 let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
               } else if (type === 'pdf' && currentUser.role === 'admin') {
+                  if (typeof html2pdf === 'undefined') {
+                      alert("Modul PDF gagal dimuat turun. Sila periksa internet dan cuba lagi.");
+                      let s = document.createElement('script');
+                      s.src = "https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
+                      document.head.appendChild(s);
+                      return;
+                  }
                   showToast('info', `Generating PDF... Please wait.`);
                   if(currentTab !== 'tracking') switchTab('tracking'); 
                   document.getElementById('pdf-table-title').innerText = `Operations Report (${date})`; document.getElementById('pdf-table-header').classList.remove('hidden'); document.querySelectorAll('.pdf-exclude').forEach(el => el.style.display = 'none');
@@ -3146,11 +3183,16 @@ function saveGlobalGSUrl() {
             window.currentLorryWeeks = weeks;
         }
 
-        function exportLorryExcel() {
-            if(!window.currentLorryData || window.currentLorryData.length === 0) {
-                Swal.fire('Info', 'Tiada data untuk dieksport', 'info');
+        function exportLorryData() {
+            if(!window.currentLorryData || window.currentLorryData.length === 0) return Swal.fire('Info', 'Tiada data lori untuk dieksport', 'info');
+            if (typeof XLSX === 'undefined') {
+                alert("Modul Excel gagal dimuat turun kerana liputan lemah.\nSistem sedang cuba lagi. Tekan EXCEL semula selepas 3 saat.");
+                let s = document.createElement('script');
+                s.src = "https://unpkg.com/xlsx/dist/xlsx.full.min.js";
+                document.head.appendChild(s);
                 return;
             }
+            showToast('info', 'Generating Excel...');
             let wb = XLSX.utils.book_new();
             let data = [];
             
@@ -3295,9 +3337,15 @@ function saveGlobalGSUrl() {
             }
         }
 
-        function exportDropAnalysisExcel() {
-            if (!window.currentDropResults || window.currentDropResults.length === 0) return;
-            
+        function exportDropData() {
+            if(!window.currentDropResults || window.currentDropResults.length === 0) return showToast('warning', 'No data to export');
+            if (typeof XLSX === 'undefined') {
+                alert("Modul Excel gagal dimuat turun kerana liputan lemah.\nSistem sedang cuba lagi. Tekan butang EXCEL semula selepas 3 saat.");
+                let s = document.createElement('script');
+                s.src = "https://unpkg.com/xlsx/dist/xlsx.full.min.js";
+                document.head.appendChild(s);
+                return;
+            }
             showToast('info', 'Generating EXCEL for Drop Analysis...');
             
             let allDates = new Set();
