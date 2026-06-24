@@ -2291,18 +2291,26 @@ function saveGlobalGSUrl() {
             };
 
             if(overLimit) {
+                let isEN = (currentLang === 'EN');
+                let tTitle = isEN ? 'Logical Limit Warning!' : 'Amaran Had Logik!';
+                let tDesc = isEN ? 'The value you entered is too high / abnormal:' : 'Nilai yang anda masukkan terlalu tinggi / luar biasa:';
+                let tInst = isEN ? 'Please type <strong class="text-lg">SAH</strong> below if this value is truly valid, or press Cancel to re-check.' : 'Sila taip <strong class="text-lg">SAH</strong> di bawah jika nilai ini betul-betul sah, atau tekan Batal untuk semak semula.';
+                let tConf = isEN ? 'Yes, Valid' : 'Ya, Sah';
+                let tCanc = isEN ? 'Cancel' : 'Batal';
+                let tVali = isEN ? 'You must type SAH to proceed!' : 'Anda mesti taip SAH untuk teruskan!';
+                
                 Swal.fire({
-                    title: 'Amaran Had Logik!',
-                    html: '<p class="text-rose-500 font-bold mb-4">Nilai yang anda masukkan terlalu tinggi / luar biasa:</p><p class="text-sm font-black text-rose-300 mb-4 text-left p-3 bg-rose-950/50 rounded">' + limitMsgs.join('<br>') + '</p><p class="text-xs">Sila taip <strong class="text-lg">SAH</strong> di bawah jika nilai ini betul-betul sah, atau tekan Batal untuk semak semula.</p>',
+                    title: tTitle,
+                    html: '<p class="text-rose-500 font-bold mb-4">' + tDesc + '</p><p class="text-sm font-black text-rose-300 mb-4 text-left p-3 bg-rose-950/50 rounded">' + limitMsgs.join('<br>') + '</p><p class="text-xs">' + tInst + '</p>',
                     input: 'text',
                     icon: 'warning',
                     showCancelButton: true,
-                    confirmButtonText: 'Ya, Sah',
-                    cancelButtonText: 'Batal',
+                    confirmButtonText: tConf,
+                    cancelButtonText: tCanc,
                     confirmButtonColor: '#ef4444',
                     inputValidator: (value) => {
                         if (value.trim().toUpperCase() !== 'SAH') {
-                            return 'Anda mesti taip SAH untuk teruskan!';
+                            return tVali;
                         }
                     }
                 }).then((result) => {
