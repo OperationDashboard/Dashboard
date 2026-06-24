@@ -35,7 +35,6 @@
         .spinner { border: 3px solid rgba(255,255,255,0.1); width: 20px; height: 20px; border-radius: 50%; border-left-color: #06b6d4; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="h-full font-sans antialiased selection:bg-cyan-500 selection:text-slate-900" id="app-root">
 
@@ -1249,28 +1248,25 @@ window.onunhandledrejection = function(event) {
         const db = firebase.firestore();
         db.enablePersistence({synchronizeTabs:true}).catch(e => console.log('Persistence:', e));
 
-        window.addEventListener('load', function() {
-            // Polyfill for Swal if it fails to load due to poor network
-            if (typeof window.Swal === 'undefined') {
-                window.Swal = {
-                    fire: function(arg1, arg2, arg3) {
-                        if (typeof arg1 === 'object') {
-                            if (arg1.showCancelButton) {
-                                return Promise.resolve({ isConfirmed: confirm((arg1.title || '') + '\n\n' + (arg1.text || '')) });
-                            } else {
-                                alert((arg1.title || '') + '\n\n' + (arg1.text || ''));
-                                return Promise.resolve({ isConfirmed: true });
-                            }
+        // Polyfill for Swal if it fails to load due to poor network
+        if (typeof window.Swal === 'undefined') {
+            window.Swal = {
+                fire: function(arg1, arg2, arg3) {
+                    if (typeof arg1 === 'object') {
+                        if (arg1.showCancelButton) {
+                            return Promise.resolve({ isConfirmed: confirm((arg1.title || '') + '\n\n' + (arg1.text || '')) });
                         } else {
-                            alert(arg1 + (arg2 ? '\n\n' + arg2 : ''));
+                            alert((arg1.title || '') + '\n\n' + (arg1.text || ''));
                             return Promise.resolve({ isConfirmed: true });
                         }
+                    } else {
+                        alert(arg1 + (arg2 ? '\n\n' + arg2 : ''));
+                        return Promise.resolve({ isConfirmed: true });
                     }
-                };
-                console.warn('SweetAlert2 failed to load. Using native fallback.');
-            }
-        });
-
+                }
+            };
+            console.warn('SweetAlert2 failed to load. Using native fallback.');
+        }
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
@@ -3183,7 +3179,7 @@ function saveGlobalGSUrl() {
             window.currentLorryWeeks = weeks;
         }
 
-        function exportLorryData() {
+        function exportLorryExcel() {
             if(!window.currentLorryData || window.currentLorryData.length === 0) return Swal.fire('Info', 'Tiada data lori untuk dieksport', 'info');
             if (typeof XLSX === 'undefined') {
                 alert("Modul Excel gagal dimuat turun kerana liputan lemah.\nSistem sedang cuba lagi. Tekan EXCEL semula selepas 3 saat.");
@@ -3337,7 +3333,7 @@ function saveGlobalGSUrl() {
             }
         }
 
-        function exportDropData() {
+        function exportDropAnalysisExcel() {
             if(!window.currentDropResults || window.currentDropResults.length === 0) return showToast('warning', 'No data to export');
             if (typeof XLSX === 'undefined') {
                 alert("Modul Excel gagal dimuat turun kerana liputan lemah.\nSistem sedang cuba lagi. Tekan butang EXCEL semula selepas 3 saat.");
