@@ -1662,10 +1662,21 @@ function saveGlobalGSUrl() {
             document.getElementById('bottom-branches-list').innerHTML = bottomHtml || '<div class="text-slate-500 text-xs italic">No data yet</div>';
         }
         
+        let syncTimeout;
         function setSyncing(status) {
             isSyncing = status;
             let el = document.getElementById('sync-status');
-            if(status) { el.classList.remove('hidden'); el.classList.add('flex'); } else { el.classList.add('hidden'); el.classList.remove('flex'); }
+            if(syncTimeout) clearTimeout(syncTimeout);
+            
+            if(status) { 
+                el.classList.remove('hidden'); el.classList.add('flex');
+                syncTimeout = setTimeout(() => {
+                    setSyncing(false);
+                    Swal.fire('Harap Maaf', 'Sistem mengambil masa terlalu lama untuk memuat turun data dari pelayan. Ini berkemungkinan besar kerana pangkalan data Firebase telah mencapai Had Kuota Percuma Harian (50,000 reads/hari). Sila semak pelan Firebase anda (Blaze Plan) atau tunggu sehingga kuota di-reset esok.', 'warning');
+                }, 15000);
+            } else { 
+                el.classList.add('hidden'); el.classList.remove('flex'); 
+            }
         }
 
         function triggerDataSync() {
