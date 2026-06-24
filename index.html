@@ -2059,11 +2059,11 @@ function saveGlobalGSUrl() {
             if (role === 'branch') {
                 let filtered = masterBranches;
                 if(term) filtered = masterBranches.filter(b => String(b.code).includes(term) || b.name.toLowerCase().includes(term));
-                html = filtered.slice(0, 50).map(b => `<div onclick="selectAuth('${b.code}', '${b.name.replace(/'/g, "'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
+                html = filtered.slice(0, 50).map(b => `<div onclick="selectAuth('${b.code}', '${b.name.replace(/'/g, "\\'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
             } else if (role === 'am') {
                 let filtered = [...new Set(masterBranches.map(b=>b.am).filter(Boolean))];
                 if(term) filtered = filtered.filter(a => a.toLowerCase().includes(term));
-                html = filtered.slice(0, 50).map(a => `<div onclick="selectAuth('${a.replace(/'/g, "'")}', '${a.replace(/'/g, "'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
+                html = filtered.slice(0, 50).map(a => `<div onclick="selectAuth('${a.replace(/'/g, "\\'")}', '${a.replace(/'/g, "\\'")}')" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
             }
             if(html) { pop.innerHTML = html; pop.classList.remove('hidden'); } else pop.classList.add('hidden');
         }
