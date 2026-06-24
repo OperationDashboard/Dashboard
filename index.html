@@ -167,10 +167,10 @@
                         </div>
                         <form id="branch-night-form" onsubmit="confirmNightSubmit(event)" class="space-y-4 relative z-0">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_sales">Daily Sales (RM)</label><input type="number" step="0.05" id="f-sales" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
-                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_trans">Transactions</label><input type="number" id="f-trans" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
-                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_mykasih">MyKasih (RM)</label><input type="number" step="0.05" id="f-mykasih" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
-                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_lorry">Lorry Cost (RM)</label><input type="number" step="0.01" id="f-lorry" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" min="0"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_sales">Daily Sales (RM)</label><input type="text" inputmode="decimal" oninput="formatDecimalInput(this)" id="f-sales" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" placeholder="0.00"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_trans">Transactions</label><input type="text" inputmode="numeric" oninput="formatIntInput(this)" id="f-trans" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" placeholder="0"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_mykasih">MyKasih (RM)</label><input type="text" inputmode="decimal" oninput="formatDecimalInput(this)" id="f-mykasih" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" placeholder="0.00"></div>
+                                <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_lorry">Lorry Cost (RM)</label><input type="text" inputmode="decimal" oninput="formatDecimalInput(this)" id="f-lorry" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" placeholder="0.00"></div>
                             </div>
                             <button type="submit" id="btn-submit-night" class="w-full mt-4 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> <span data-i18n="btn_submit_night">Submit & Sync to HQ</span></button>
                         </form>
@@ -706,6 +706,27 @@
                         </div>
                     </div>
 
+                    <!-- Logical Limits -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-shield-halved text-purple-400 mr-1.5"></i> Branch Logical Limits</h3>
+                        <p class="text-[11px] text-slate-400 mb-4">Set maximum limits to warn branches when inputting data.</p>
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-3">
+                                <span class="w-32 text-[11px] font-bold text-slate-400 uppercase">Max Sales (RM)</span>
+                                <input type="number" id="limit-sales" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-purple-500" placeholder="e.g. 50000">
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="w-32 text-[11px] font-bold text-slate-400 uppercase">Max MyKasih (RM)</span>
+                                <input type="number" id="limit-mykasih" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-purple-500" placeholder="e.g. 10000">
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="w-32 text-[11px] font-bold text-slate-400 uppercase">Max Lorry (RM)</span>
+                                <input type="number" id="limit-lorry" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-purple-500" placeholder="e.g. 500">
+                            </div>
+                            <button onclick="saveLogicalLimits()" class="w-full mt-2 bg-purple-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-purple-500 shadow border border-purple-500/50 transition-colors">Save Limits</button>
+                        </div>
+                    </div>
+
                     <!-- Google Sheets Manual Sync -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
                         <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-cloud-arrow-up text-emerald-400 mr-1.5"></i> Google Sheets Manual Sync</h3>
@@ -1125,10 +1146,10 @@ function doPost(e) {
             <h3 class="text-xl font-bold text-white mb-2" data-i18n="confirm_title">Confirm Submission?</h3>
             <p class="text-xs text-slate-300 mb-4" data-i18n="confirm_desc">Data will be permanently synced to HQ.</p>
             <div class="bg-slate-900/50 p-4 rounded-lg text-left mb-6 border border-slate-800">
-                <div class="flex justify-between mb-2"><span class="text-xs text-slate-400">Total Sales:</span><span id="confirm-sales-val" class="text-xs font-bold text-cyan-400"></span></div>
-                <div class="flex justify-between mb-2"><span class="text-xs text-slate-400">Transactions:</span><span id="confirm-trans-val" class="text-xs font-bold text-white"></span></div>
-                <div class="flex justify-between mb-2"><span class="text-xs text-slate-400">MyKasih:</span><span id="confirm-mykasih-val" class="text-xs font-bold text-emerald-400"></span></div>
-                <div class="flex justify-between"><span class="text-xs text-slate-400">Lorry Cost:</span><span id="confirm-lorry-val" class="text-xs font-bold text-purple-400"></span></div>
+                <div class="flex justify-between items-center mb-3"><span class="text-sm font-bold text-slate-400">Total Sales:</span><span id="confirm-sales-val" class="text-2xl font-black text-cyan-400"></span></div>
+                <div class="flex justify-between items-center mb-3"><span class="text-sm font-bold text-slate-400">Transactions:</span><span id="confirm-trans-val" class="text-xl font-bold text-white"></span></div>
+                <div class="flex justify-between items-center mb-3"><span class="text-sm font-bold text-slate-400">MyKasih:</span><span id="confirm-mykasih-val" class="text-xl font-bold text-emerald-400"></span></div>
+                <div class="flex justify-between items-center"><span class="text-sm font-bold text-slate-400">Lorry Cost:</span><span id="confirm-lorry-val" class="text-xl font-bold text-purple-400"></span></div>
             </div>
             <div class="flex gap-4">
                 <button onclick="closeModal('confirm-modal')" class="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700 border border-slate-700">Cancel</button>
@@ -1171,6 +1192,22 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
 window.onunhandledrejection = function(event) {
     alert('Promise Error: ' + event.reason);
 };
+
+        function formatDecimalInput(el) {
+            let val = el.value.replace(/[^\d.]/g, '');
+            let parts = val.split('.');
+            if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+            if(val !== '') {
+                let p = val.split('.');
+                p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                el.value = p.join('.');
+            } else { el.value = ''; }
+        }
+        function formatIntInput(el) {
+            let val = el.value.replace(/[^\d]/g, '');
+            if(val !== '') el.value = val.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            else el.value = '';
+        }
 
         // --- Firebase Config ---
         const firebaseConfig = {
@@ -1223,6 +1260,20 @@ function saveGlobalGSUrl() {
             localStorage.setItem('global_gs_url', url); 
             showToast('success', 'Global Webhook Saved!'); 
             fetchBranchesFromCloud(); // Try fetching branches if manually set
+        }
+
+        async function saveLogicalLimits() {
+            let s = parseFloat(document.getElementById('limit-sales').value) || 0;
+            let m = parseFloat(document.getElementById('limit-mykasih').value) || 0;
+            let l = parseFloat(document.getElementById('limit-lorry').value) || 0;
+            try {
+                await db.collection("config").doc("system").set({
+                    limit_sales: s, limit_mykasih: m, limit_lorry: l
+                }, {merge: true});
+                Swal.fire('Berjaya!', 'Logical Limits telah dikemaskini.', 'success');
+            } catch(e) {
+                Swal.fire('Ralat', 'Gagal kemaskini limit: ' + e.message, 'error');
+            }
         }
 
         const GLOBALS = { cacheKey: 'pbi_branches' };
@@ -1598,6 +1649,14 @@ function saveGlobalGSUrl() {
                     if(data.app_version && data.app_version > APP_VERSION) {
                         window.location.href = window.location.pathname + '?v=' + new Date().getTime();
                     }
+                    
+                    window.globalConfig = data;
+                    if (document.getElementById('limit-sales')) {
+                        document.getElementById('limit-sales').value = data.limit_sales || '';
+                        document.getElementById('limit-mykasih').value = data.limit_mykasih || '';
+                        document.getElementById('limit-lorry').value = data.limit_lorry || '';
+                    }
+
                     if (data.past_lock !== undefined) { 
                         pastLock = data.past_lock; 
                         if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
@@ -2165,8 +2224,10 @@ function saveGlobalGSUrl() {
         function confirmNightSubmit(e) {
             e.preventDefault();
 
-            let sVal = document.getElementById('f-sales').value;
-            let mVal = document.getElementById('f-mykasih').value;
+            let sVal = document.getElementById('f-sales').value.replace(/,/g, '');
+            let mVal = document.getElementById('f-mykasih').value.replace(/,/g, '');
+            let transVal = document.getElementById('f-trans').value.replace(/,/g, '');
+            let lVal = document.getElementById('f-lorry').value.replace(/,/g, '');
             
             let isValidCents = (v) => {
                 if(!v) return true;
@@ -2186,12 +2247,50 @@ function saveGlobalGSUrl() {
                 return;
             }
 
-            pendingNightData = { sales: parseFloat(sVal) || 0, transactions: parseInt(document.getElementById('f-trans').value) || 0, mykasih: parseFloat(mVal) || 0, lorry: parseFloat(document.getElementById('f-lorry').value) || 0 };
-            document.getElementById('confirm-sales-val').innerText = 'RM ' + formatRM(pendingNightData.sales);
-            document.getElementById('confirm-trans-val').innerText = formatNum(pendingNightData.transactions);
-            document.getElementById('confirm-mykasih-val').innerText = 'RM ' + formatRM(pendingNightData.mykasih);
-            document.getElementById('confirm-lorry-val').innerText = 'RM ' + formatRM(pendingNightData.lorry);
-            document.getElementById('confirm-modal').classList.remove('hidden'); document.getElementById('confirm-modal').classList.add('flex');
+            let pSales = parseFloat(sVal) || 0;
+            let pTrans = parseInt(transVal) || 0;
+            let pMyKasih = parseFloat(mVal) || 0;
+            let pLorry = parseFloat(lVal) || 0;
+
+            let overLimit = false;
+            let limitMsgs = [];
+            if(window.globalConfig && window.globalConfig.limit_sales > 0 && pSales > window.globalConfig.limit_sales) { overLimit = true; limitMsgs.push('Sales (' + formatRM(pSales) + ' melebihi had RM ' + formatRM(window.globalConfig.limit_sales) + ')'); }
+            if(window.globalConfig && window.globalConfig.limit_mykasih > 0 && pMyKasih > window.globalConfig.limit_mykasih) { overLimit = true; limitMsgs.push('MyKasih (' + formatRM(pMyKasih) + ' melebihi had RM ' + formatRM(window.globalConfig.limit_mykasih) + ')'); }
+            if(window.globalConfig && window.globalConfig.limit_lorry > 0 && pLorry > window.globalConfig.limit_lorry) { overLimit = true; limitMsgs.push('Lorry (' + formatRM(pLorry) + ' melebihi had RM ' + formatRM(window.globalConfig.limit_lorry) + ')'); }
+
+            let showConfirmModal = () => {
+                pendingNightData = { sales: pSales, transactions: pTrans, mykasih: pMyKasih, lorry: pLorry };
+                document.getElementById('confirm-sales-val').innerText = 'RM ' + formatRM(pendingNightData.sales);
+                document.getElementById('confirm-trans-val').innerText = formatNum(pendingNightData.transactions);
+                document.getElementById('confirm-mykasih-val').innerText = 'RM ' + formatRM(pendingNightData.mykasih);
+                document.getElementById('confirm-lorry-val').innerText = 'RM ' + formatRM(pendingNightData.lorry);
+                document.getElementById('confirm-modal').classList.remove('hidden'); document.getElementById('confirm-modal').classList.add('flex');
+            };
+
+            if(overLimit) {
+                Swal.fire({
+                    title: 'Amaran Had Logik!',
+                    html: '<p class="text-rose-500 font-bold mb-4">Nilai yang anda masukkan terlalu tinggi / luar biasa:</p><p class="text-sm font-black text-rose-300 mb-4 text-left p-3 bg-rose-950/50 rounded">' + limitMsgs.join('<br>') + '</p><p class="text-xs">Sila taip <strong class="text-lg">SAH</strong> di bawah jika nilai ini betul-betul sah, atau tekan Batal untuk semak semula.</p>',
+                    input: 'text',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Sah',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#ef4444',
+                    inputValidator: (value) => {
+                        if (value.trim().toUpperCase() !== 'SAH') {
+                            return 'Anda mesti taip SAH untuk teruskan!';
+                        }
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        showConfirmModal();
+                    }
+                });
+                return;
+            }
+
+            showConfirmModal();
         }
 
         function executeNightSubmit() {
