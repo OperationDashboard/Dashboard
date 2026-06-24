@@ -3096,10 +3096,18 @@ function saveGlobalGSUrl() {
             let fetchStart = formatFB(weeks[0].start);
             let fetchEnd = formatFB(weeks[weeks.length-1].end);
             
+            window.fetchedRangeQueries = window.fetchedRangeQueries || {};
+            let cacheKey = 'lorry_' + fetchStart + '_' + fetchEnd;
+            if (window.fetchedRangeQueries[cacheKey]) {
+                buildLorryTable(weeks, window.fetchedRangeQueries[cacheKey]);
+                return;
+            }
+            
             setSyncing(true);
             db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd).get().then(snapshot => {
                 let subData = [];
                 snapshot.forEach(doc => subData.push(doc.data()));
+                window.fetchedRangeQueries[cacheKey] = subData;
                 buildLorryTable(weeks, subData);
                 setSyncing(false);
             }).catch(e => {
@@ -3152,7 +3160,14 @@ function saveGlobalGSUrl() {
             thead.innerHTML = baseHeaders + weekHeaders;
             
             let tbody = document.getElementById('lorry-table-body');
-            let sorted = Object.values(grouped).filter(r => r.totalSales > 0 || r.totalLorry > 0).sort((a,b) => b.totalLorry - a.totalLorry);
+            let sorted = Object.values(grouped).filter(r => r.totalSales > 0 || r.weeksCount.some(c=>c>0)).sort((a,b) => {
+                let amCmp = (a.am||'').localeCompare(b.am||'');
+                if (amCmp !== 0) return amCmp;
+                let bTrips = b.weeksCount.reduce((s,c)=>s+c,0);
+                let aTrips = a.weeksCount.reduce((s,c)=>s+c,0);
+                if (bTrips !== aTrips) return bTrips - aTrips;
+                return b.totalLorry - a.totalLorry;
+            });
             
             let html = '';
             sorted.forEach(r => {
@@ -3235,14 +3250,25 @@ function saveGlobalGSUrl() {
                 let branches = getManagerFilteredBranches();
                 let bCodes = branches.map(b => String(b.code));
                 
-                let snap = await db.collection("submissions")
-                    .where("date", ">=", startDate)
-                    .where("date", "<=", endDate)
-                    .get();
+                window.fetchedRangeQueries = window.fetchedRangeQueries || {};
+                let cacheKey = 'drop_' + startDate + '_' + endDate;
+                let snapData = window.fetchedRangeQueries[cacheKey];
+                
+                if (!snapData) {
+                    let snap = await db.collection("submissions")
+                        .where("date", ">=", startDate)
+                        .where("date", "<=", endDate)
+                        .get();
 
+                    snapData = [];
+                    snap.forEach(doc => {
+                        snapData.push(doc.data());
+                    });
+                    window.fetchedRangeQueries[cacheKey] = snapData;
+                }
+                
                 let data = [];
-                snap.forEach(doc => {
-                    let d = doc.data();
+                snapData.forEach(d => {
                     if (d.night_locked && bCodes.includes(String(d.code))) {
                         data.push(d);
                     }
