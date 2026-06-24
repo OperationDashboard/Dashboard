@@ -2252,19 +2252,42 @@ function saveGlobalGSUrl() {
             let pMyKasih = parseFloat(mVal) || 0;
             let pLorry = parseFloat(lVal) || 0;
 
+            pendingNightData = { sales: pSales, transactions: pTrans, mykasih: pMyKasih, lorry: pLorry };
+            document.getElementById('confirm-sales-val').innerText = 'RM ' + formatRM(pendingNightData.sales);
+            document.getElementById('confirm-trans-val').innerText = formatNum(pendingNightData.transactions);
+            document.getElementById('confirm-mykasih-val').innerText = 'RM ' + formatRM(pendingNightData.mykasih);
+            document.getElementById('confirm-lorry-val').innerText = 'RM ' + formatRM(pendingNightData.lorry);
+            document.getElementById('confirm-modal').classList.remove('hidden'); document.getElementById('confirm-modal').classList.add('flex');
+        }
+
+        function executeNightSubmit() {
+            closeModal('confirm-modal');
+            
+            let pSales = pendingNightData.sales;
+            let pMyKasih = pendingNightData.mykasih;
+            let pLorry = pendingNightData.lorry;
+            
             let overLimit = false;
             let limitMsgs = [];
-            if(window.globalConfig && window.globalConfig.limit_sales > 0 && pSales > window.globalConfig.limit_sales) { overLimit = true; limitMsgs.push('Sales (' + formatRM(pSales) + ') adalah terlalu tinggi'); }
-            if(window.globalConfig && window.globalConfig.limit_mykasih > 0 && pMyKasih > window.globalConfig.limit_mykasih) { overLimit = true; limitMsgs.push('MyKasih (' + formatRM(pMyKasih) + ') adalah terlalu tinggi'); }
-            if(window.globalConfig && window.globalConfig.limit_lorry > 0 && pLorry > window.globalConfig.limit_lorry) { overLimit = true; limitMsgs.push('Lorry (' + formatRM(pLorry) + ') adalah terlalu tinggi'); }
+            if(window.globalConfig && window.globalConfig.limit_sales > 0 && pSales > window.globalConfig.limit_sales) { overLimit = true; limitMsgs.push('Sales (RM ' + formatRM(pSales) + ')'); }
+            if(window.globalConfig && window.globalConfig.limit_mykasih > 0 && pMyKasih > window.globalConfig.limit_mykasih) { overLimit = true; limitMsgs.push('MyKasih (RM ' + formatRM(pMyKasih) + ')'); }
+            if(window.globalConfig && window.globalConfig.limit_lorry > 0 && pLorry > window.globalConfig.limit_lorry) { overLimit = true; limitMsgs.push('Lorry (RM ' + formatRM(pLorry) + ')'); }
 
-            let showConfirmModal = () => {
-                pendingNightData = { sales: pSales, transactions: pTrans, mykasih: pMyKasih, lorry: pLorry };
-                document.getElementById('confirm-sales-val').innerText = 'RM ' + formatRM(pendingNightData.sales);
-                document.getElementById('confirm-trans-val').innerText = formatNum(pendingNightData.transactions);
-                document.getElementById('confirm-mykasih-val').innerText = 'RM ' + formatRM(pendingNightData.mykasih);
-                document.getElementById('confirm-lorry-val').innerText = 'RM ' + formatRM(pendingNightData.lorry);
-                document.getElementById('confirm-modal').classList.remove('hidden'); document.getElementById('confirm-modal').classList.add('flex');
+            let finalizeNightSubmit = () => {
+                let nightDate = document.getElementById('night-date').value;
+                let rec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
+                
+                let updatePayload = {
+                    date: nightDate, code: currentUser.id, name: currentUser.name,
+                    sales: pendingNightData.sales, transactions: pendingNightData.transactions,
+                    mykasih: pendingNightData.mykasih, lorry: pendingNightData.lorry,
+                    night_locked: true, night_unlocked: false, night_submit_time: getSafeTimeStr()
+                };
+                
+                if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
+                else { Object.assign(rec, updatePayload); }
+                
+                syncToCloud('submit_sales', updatePayload, setupBranchView);
             };
 
             if(overLimit) {
@@ -2284,31 +2307,12 @@ function saveGlobalGSUrl() {
                     }
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        showConfirmModal();
+                        finalizeNightSubmit();
                     }
                 });
-                return;
+            } else {
+                finalizeNightSubmit();
             }
-
-            showConfirmModal();
-        }
-
-        function executeNightSubmit() {
-            let nightDate = document.getElementById('night-date').value;
-            let rec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
-            
-            let updatePayload = {
-                date: nightDate, code: currentUser.id, name: currentUser.name,
-                sales: pendingNightData.sales, transactions: pendingNightData.transactions,
-                mykasih: pendingNightData.mykasih, lorry: pendingNightData.lorry,
-                night_locked: true, night_unlocked: false, night_submit_time: getSafeTimeStr()
-            };
-            
-            if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
-            else { Object.assign(rec, updatePayload); }
-            
-            closeModal('confirm-modal');
-            syncToCloud('submit_sales', updatePayload, setupBranchView);
         }
 
         function saveBankInData(e) {
