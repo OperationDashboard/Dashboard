@@ -1348,7 +1348,15 @@ function saveGlobalGSUrl() {
             if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") return;
             fetch(url + '?t=' + new Date().getTime() + '&action=get_branches').then(r=>r.json()).then(data => {
                 if(Array.isArray(data) && data.length > 0) {
-                    masterBranches = data;
+                    masterBranches = data.map(b => {
+                        if (!b.am || b.am === "") {
+                            if (b["AREA MANAGER"]) b.am = b["AREA MANAGER"];
+                            else if (b["AM"]) b.am = b["AM"];
+                            else if (b["AreaMgr"]) b.am = b["AreaMgr"];
+                            else if (b["AREA MGR"]) b.am = b["AREA MGR"];
+                        }
+                        return b;
+                    });
                     ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
                     localStorage.setItem('master_branches_cache', JSON.stringify(data));
                     if(document.getElementById('am-select') && ams.length > 0) {
@@ -1897,10 +1905,8 @@ function saveGlobalGSUrl() {
             } else {
                 let query = db.collection("submissions").where("date", "==", dateStr);
                 
-                if (currentUser.role === 'am' && mode === 'daily') {
-                    query = query.where("am", "==", currentUser.name);
-                }
-                
+                // Do not filter by 'am' in the Firebase query to avoid composite index crash.
+                // The data is filtered locally in JavaScript via getManagerFilteredBranches().
                 let processSnap = (snap) => {
                     let fbData = [];
                     snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
@@ -1922,7 +1928,13 @@ function saveGlobalGSUrl() {
                         setSyncing(false);
                     });
                 } else {
-                    query.get({ source: 'cache' }).catch(e => query.get()).then(processSnap).catch(e => {
+                    query.get({ source: 'cache' }).catch(e => query.get()).then(snap => {
+                        if (snap.empty) {
+                            // If cache is empty, fetch live data
+                            return query.get({ source: 'default' });
+                        }
+                        return snap;
+                    }).then(processSnap).catch(e => {
                         console.error("Sync failed", e);
                         setSyncing(false);
                     });
@@ -2330,7 +2342,15 @@ function saveGlobalGSUrl() {
             } else if (tab === 'control') {
                 renderAuditLogs();
             } else {
-                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') triggerDataSync();
+                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') {
+                    if (tab === 'tracking' && document.getElementById('tracking-date').value) {
+                        syncManagerFromCloud(true);
+                    } else if (tab === 'dashboard' && document.getElementById('dashboard-date').value) {
+                        syncManagerFromCloud(true);
+                    } else {
+                        triggerDataSync();
+                    }
+                }
             }
         }
 
