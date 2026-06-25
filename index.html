@@ -436,10 +436,18 @@
                     </div>
                 </div>
                 
-                <div class="pbi-card rounded-xl p-4 shadow-xl mb-6">
-                    <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-chart-area mr-1.5 text-amber-500"></i> Monthly Sales Trend <span id="trend-title-suffix">(Total Company)</span></h3>
-                    <div class="relative w-full h-48">
-                        <canvas id="chart-monthly-trend"></canvas>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-chart-area mr-1.5 text-amber-500"></i> Monthly Sales Trend <span id="trend-title-suffix">(Total Company)</span></h3>
+                        <div class="relative w-full h-48">
+                            <canvas id="chart-monthly-trend"></canvas>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-xl p-4 shadow-xl">
+                        <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-truck-fast mr-1.5 text-orange-500"></i> Monthly Logistics Cost <span id="logistics-trend-title-suffix">(Total Company)</span></h3>
+                        <div class="relative w-full h-48">
+                            <canvas id="chart-monthly-logistics"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -2609,7 +2617,10 @@ function saveGlobalGSUrl() {
             }
             
             let trendTitle = document.getElementById('trend-title-suffix');
-            if(trendTitle) trendTitle.innerText = currentUser.role === 'admin' ? '(Total Company)' : `(Area: ${currentUser.id})`;
+            let logisticsTrendTitle = document.getElementById('logistics-trend-title-suffix');
+            let titleText = currentUser.role === 'admin' ? '(Total Company)' : `(Area: ${currentUser.id})`;
+            if(trendTitle) trendTitle.innerText = titleText;
+            if(logisticsTrendTitle) logisticsTrendTitle.innerText = titleText;
             
             if(window.monthlyTrendChartObj) window.monthlyTrendChartObj.destroy();
             let trendCtx = document.getElementById('chart-monthly-trend');
@@ -2617,6 +2628,16 @@ function saveGlobalGSUrl() {
                 window.monthlyTrendChartObj = new Chart(trendCtx.getContext('2d'), {
                     type: 'line',
                     data: { labels: labels, datasets: [{ label: 'Total Sales (RM)', data: salesData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', tension: 0.3, fill: true, pointBackgroundColor: '#f59e0b', pointRadius: 3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(51,65,85,0.3)' } }, x: { grid: { color: 'rgba(51,65,85,0.3)' } } } }
+                });
+            }
+            
+            if(window.monthlyLogisticsChartObj) window.monthlyLogisticsChartObj.destroy();
+            let logisticsCtx = document.getElementById('chart-monthly-logistics');
+            if(logisticsCtx && typeof Chart !== 'undefined') {
+                window.monthlyLogisticsChartObj = new Chart(logisticsCtx.getContext('2d'), {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: 'Logistics Cost (RM)', data: lorryData, borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.3, fill: true, pointBackgroundColor: '#f97316', pointRadius: 3 }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(51,65,85,0.3)' } }, x: { grid: { color: 'rgba(51,65,85,0.3)' } } } }
                 });
             }
