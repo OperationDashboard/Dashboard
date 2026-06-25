@@ -1042,7 +1042,7 @@ function doPost(e) {
                                 </tr>
                             </thead>
                             <tbody id="lorry-table-body" class="divide-y divide-slate-800/50 text-sm">
-                                <tr><td colspan="100%" class="py-8 text-center text-slate-500">Select a month and click Analyze</td></tr>
+                                <tr><td colspan="15" class="py-8 text-center text-slate-500">Select a month and click Analyze</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1891,14 +1891,12 @@ function saveGlobalGSUrl() {
                 if (currentUser.role === 'am') {
                     let safeAm = currentUser.name.replace(/[^a-zA-Z0-9_]/g, '_');
                     query = db.collection("monthly_summaries").doc(dateStr + "_" + safeAm);
-                    let cacheProm = needsLive ? query.get({source: 'default'}) : query.get({source: 'cache'}).catch(e => query.get());
-                    cacheProm.then(doc => {
+                    query.get().then(doc => {
                         let snap = { forEach: (cb) => { if(doc.exists) cb(doc); } };
                         processAggregatedSnap(snap);
                     }).catch(e => { console.error(e); setSyncing(false); });
                 } else {
-                    let cacheProm = needsLive ? query.get({source: 'default'}) : query.get({source: 'cache'}).catch(e => query.get());
-                    cacheProm.then(snap => {
+                    query.get().then(snap => {
                         processAggregatedSnap(snap);
                     }).catch(e => { console.error(e); setSyncing(false); });
                 }
@@ -1921,24 +1919,11 @@ function saveGlobalGSUrl() {
                     setSyncing(false);
                 };
                 
-                if (needsLive) {
-                    if (window.activeListeners[queryKey]) window.activeListeners[queryKey]();
-                    window.activeListeners[queryKey] = query.onSnapshot(processSnap, e => {
-                        console.error("Live sync failed", e);
-                        setSyncing(false);
-                    });
-                } else {
-                    query.get({ source: 'cache' }).catch(e => query.get()).then(snap => {
-                        if (snap.empty) {
-                            // If cache is empty, fetch live data
-                            return query.get({ source: 'default' });
-                        }
-                        return snap;
-                    }).then(processSnap).catch(e => {
-                        console.error("Sync failed", e);
-                        setSyncing(false);
-                    });
-                }
+                if (window.activeListeners[queryKey]) window.activeListeners[queryKey]();
+                window.activeListeners[queryKey] = query.onSnapshot(processSnap, e => {
+                    console.error("Live sync failed", e);
+                    setSyncing(false);
+                });
             }
         }
 
@@ -3326,7 +3311,7 @@ function saveGlobalGSUrl() {
                 </tr>`;
             });
             
-            if(sorted.length === 0) html = '<tr><td colspan="100%" class="py-8 text-center text-slate-500">No data found</td></tr>';
+            if(sorted.length === 0) html = '<tr><td colspan="15" class="py-8 text-center text-slate-500">No data found</td></tr>';
             tbody.innerHTML = html;
             
             window.currentLorryData = sorted;
