@@ -4942,7 +4942,7 @@ function saveGlobalGSUrl() {
 
                     let bAm = d.am || "UNASSIGNED";
                     let amKey = bAm.replace(/[^a-zA-Z0-9_]/g, '_'); 
-                    let docId = monthStr + "_" + amKey;
+                    let docId = (monthStr + "_" + amKey).replace(/\//g, '-');
                     
                     if(!summaries[docId]) {
                         summaries[docId] = { branches: {}, am: bAm, month: monthStr };
@@ -4974,9 +4974,9 @@ function saveGlobalGSUrl() {
                 
                 showToast('info', 'Saving aggregated data...');
                 let docIds = Object.keys(summaries);
-                for (let i = 0; i < docIds.length; i += 400) {
+                for (let i = 0; i < docIds.length; i += 20) {
                     let batch = db.batch();
-                    let chunk = docIds.slice(i, i + 400);
+                    let chunk = docIds.slice(i, i + 20);
                     chunk.forEach(id => {
                         let ref = db.collection("monthly_summaries").doc(id);
                         batch.set(ref, summaries[id], {merge: true});
@@ -4989,7 +4989,7 @@ function saveGlobalGSUrl() {
             } catch(e) {
                 console.error(e);
                 setSyncing(false);
-                alert("Error during aggregation!");
+                alert("Error during aggregation! " + e.message);
             }
         }
 </script>
