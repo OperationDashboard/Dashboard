@@ -28,7 +28,7 @@
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
-        .modal-backdrop { background-color: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); }
+        .modal-backdrop { background-color: rgba(15, 23, 42, 0.95); }
         .tab-active { border-bottom-width: 2px; border-color: #06b6d4; color: #06b6d4; }
         .tab-inactive { color: #64748b; }
         .tab-inactive:hover { color: #cbd5e1; }
@@ -149,7 +149,7 @@
                     <!-- Part 1: Night Data -->
                     <div class="pbi-card rounded-2xl p-5 shadow-xl relative overflow-hidden">
                         
-                        <div id="branch-night-locked" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-10 hidden flex-col items-center justify-center rounded-2xl border border-emerald-500/30">
+                        <div id="branch-night-locked" class="absolute inset-0 bg-slate-950/95 z-10 hidden flex-col items-center justify-center rounded-2xl border border-emerald-500/30">
                             <div class="h-16 w-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
                                 <i class="fa-solid fa-cloud-check text-3xl text-emerald-500"></i>
                             </div>
@@ -320,11 +320,11 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="pbi-card rounded-xl p-4 shadow-xl flex flex-col">
                         <h3 class="text-xs font-bold uppercase text-white mb-4 border-b border-slate-800 pb-2"><i class="fa-solid fa-chart-line mr-1 text-cyan-400"></i> Sales Trend (7 Days)</h3>
-                        <div class="relative flex-1 min-h-[200px]"><canvas id="chart-sales-trend"></canvas></div>
+                        <div class="relative w-full h-64"><canvas id="chart-sales-trend"></canvas></div>
                     </div>
                     <div class="pbi-card rounded-xl p-4 shadow-xl flex flex-col">
                         <h3 class="text-xs font-bold uppercase text-white mb-4 border-b border-slate-800 pb-2"><i class="fa-solid fa-chart-bar mr-1 text-purple-400"></i> Sales vs Bank-In vs Lorry (Today)</h3>
-                        <div class="relative flex-1 min-h-[200px]"><canvas id="chart-bar-compare"></canvas></div>
+                        <div class="relative w-full h-64"><canvas id="chart-bar-compare"></canvas></div>
                     </div>
                 </div>
 
