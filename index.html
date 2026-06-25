@@ -253,7 +253,7 @@
                             <input type="month" id="dash-month" onchange="updateDateDisplay('dash-month'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer hidden">
                         </div>
                         <button onclick="clearCacheAndRefresh()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg px-4 py-2.5 shadow-lg transition-colors border border-indigo-500 flex items-center gap-2">
-                            <i class="fa-solid fa-arrows-rotate"></i> Muat Semula Data
+                            <i class="fa-solid fa-arrows-rotate"></i> Reload Data
                         </button>
                     </div>
                     
@@ -485,12 +485,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Top 10 Branches -->
                     <div class="pbi-card rounded-xl p-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-emerald-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-trophy mr-1.5"></i> Top 10 Cawangan</h3>
+                        <h3 class="text-sm font-bold text-emerald-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-trophy mr-1.5"></i> Top 10 Branch</h3>
                         <div id="top-branches-list" class="space-y-2"></div>
                     </div>
                     <!-- Bottom 10 Branches -->
                     <div class="pbi-card rounded-xl p-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-rose-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-arrow-trend-down mr-1.5"></i> 10 Cawangan Tercorot</h3>
+                        <h3 class="text-sm font-bold text-rose-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-arrow-trend-down mr-1.5"></i> 10 Branch Tercorot</h3>
                         <div id="bottom-branches-list" class="space-y-2"></div>
                     </div>
                 </div>
@@ -724,6 +724,14 @@
                             </div>
                             <button onclick="saveLogicalLimits()" class="w-full mt-2 bg-purple-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-purple-500 shadow border border-purple-500/50 transition-colors">Save Limits</button>
                         </div>
+                    </div>
+                    </div>
+
+                    <!-- Data Aggregation Tool -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-database text-blue-400 mr-1.5"></i> Data Aggregation (Run Once)</h3>
+                        <p class="text-[11px] text-slate-400 mb-4">Calculate and build summaries for fast loading. Only run once to backfill historical data.</p>
+                        <button onclick="aggregateAllData()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-500 shadow border border-blue-500/50 transition-colors"><i class="fa-solid fa-gears mr-1"></i> Aggregate Past Data</button>
                     </div>
 
                     <!-- Google Sheets Manual Sync -->
@@ -962,7 +970,7 @@ function doPost(e) {
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1">Pilih Tarikh</label>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">Select Date</label>
                             <input type="date" id="audit-date" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-teal-500">
                         </div>
                         <div>
@@ -984,7 +992,7 @@ function doPost(e) {
                             <tr class="border-b border-slate-700">
                                 <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Tarikh</th>
                                 <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">AM</th>
-                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Cawangan</th>
+                                <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Branch</th>
                                 <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Jualan (RM)</th>
                                 <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Lori (RM)</th>
                                 <th class="py-3 px-4 text-xs font-bold text-slate-400 uppercase">Isu Jualan</th>
@@ -992,7 +1000,7 @@ function doPost(e) {
                             </tr>
                         </thead>
                         <tbody id="audit-table-body" class="text-sm">
-                            <tr><td colspan="7" class="text-center py-4 text-slate-500">Sila jalankan semakan.</td></tr>
+                            <tr><td colspan="7" class="text-center py-4 text-slate-500">Please run the check.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1069,7 +1077,7 @@ function doPost(e) {
                                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Target Audience</label>
                                     <select id="survey-new-target" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500">
                                         <option value="am">Area Manager (AM)</option>
-                                        <option value="branch">Cawangan (Branch)</option>
+                                        <option value="branch">Branch (Branch)</option>
                                     </select>
                                 </div>
                             </div>
@@ -1077,7 +1085,7 @@ function doPost(e) {
                                 <div>
                                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Survey Type</label>
                                     <select id="survey-new-type" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500" onchange="toggleSurveyTypeUI()">
-                                        <option value="exception">Klasik: Pengecualian Cawangan</option>
+                                        <option value="exception">Klasik: Pengecualian Branch</option>
                                         <option value="custom">Custom: Soalan Dinamik (Item, Ya/Tidak, Teks)</option>
                                     </select>
                                 </div>
@@ -1096,7 +1104,7 @@ function doPost(e) {
                                     <input type="text" id="survey-builder-qlabel" class="md:col-span-2 w-full bg-slate-950 text-white rounded-lg px-3 py-1.5 border border-slate-700 text-sm" placeholder="Question Label (e.g. Kuantiti Maggi)">
                                     <select id="survey-builder-qtype" class="w-full bg-slate-950 text-white rounded-lg px-3 py-1.5 border border-slate-700 text-sm">
                                         <option value="number">Kuantiti (Nombor)</option>
-                                        <option value="yesno">Pilihan (Ya/Tidak)</option>
+                                        <option value="yesno">Option (Yes/No)</option>
                                         <option value="text">Teks Pendek</option>
                                     </select>
                                     <button onclick="addCustomQuestion()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold py-1.5 px-3 rounded-lg"><i class="fa-solid fa-plus"></i> Add</button>
@@ -1281,8 +1289,8 @@ window.onunhandledrejection = function(event) {
         let isSyncing = false;
         
         const DICT = {
-            EN: { subtitle_login: "Please login to continue", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Refresh", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right to access operational data.", branch_form_title: "Daily Data Entry Form", branch_form_desc: "Complete daily sales and logistics. Data is auto-synced to HQ.", status_done: "SYNCED TO HQ", branch_locked_desc: "Data has been successfully submitted to the server. Contact AM to reset.", branch_section_night: "Primary Operations Data", branch_section_bank: "Bank-In Updates (Always Editable)", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Sync to HQ", btn_save_bank: "Sync Bank-In Data", branch_info: "Branch Information", tab_dashboard: "Analytics Dashboard", tab_tracking: "Tracking & Reset", tab_comparison: "Daily Comparison", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori (RM)", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Submit Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be permanently synced to HQ.", lbl_submission_ratio: "Submission Ratio:" },
-            BM: { subtitle_login: "Sila log masuk", btn_branch: "Cawangan", btn_am: "Pengurus Kawasan", btn_admin: "Pentadbir", btn_refresh: "Muat Semula", welcome_title: "Sistem Akses Selamat", welcome_desc: "Sila pilih peranan anda di penjuru kanan atas untuk akses data operasi.", branch_form_title: "Borang Kemasukan Harian", branch_form_desc: "Lengkapkan data harian. Data dihubungkan terus ke server HQ.", status_done: "DIHANTAR KE HQ", branch_locked_desc: "Data telah berjaya disimpan di pangkalan data HQ. Hubungi AM untuk set semula.", branch_section_night: "Data Operasi Utama", branch_section_bank: "Kemaskini Bank-In", field_sales: "Jualan Harian (RM)", field_trans: "Transaksi", field_mykasih: "MyKasih (RM)", field_lorry: "Kos Lori (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Hantar & Simpan ke HQ", btn_save_bank: "Simpan Bank-In", branch_info: "Maklumat Cawangan", tab_dashboard: "Dashboard Analitik", tab_tracking: "Semakan & Reset", tab_comparison: "Perbandingan Harian", tab_control: "Kawalan Sistem", kpi_sales: "Jumlah Jualan", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori", kpi_trans: "Transaksi", lbl_password: "Kata Laluan", btn_login_submit: "Sahkan Log Masuk", confirm_title: "Sahkan Penghantaran?", confirm_desc: "Data akan dihantar terus ke sistem pusat HQ.", lbl_submission_ratio: "Nisbah Hantaran:" }
+            EN: { subtitle_login: "Please login to continue", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Refresh", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right to access operational data.", branch_form_title: "Daily Data Entry Form", branch_form_desc: "Complete daily sales and logistics. Data is auto-synced to HQ.", status_done: "SYNCED TO HQ", branch_locked_desc: "Data has been successfully submitted to the server. Contact AM to reset.", branch_section_night: "Primary Operations Data", branch_section_bank: "Bank-In Updates (Always Editable)", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Sync to HQ", btn_save_bank: "Sync Bank-In Data", branch_info: "Branch Information", tab_dashboard: "Analytics Dashboard", tab_tracking: "Tracking & Reset", tab_comparison: "Daily Comparison", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Lorry Cost (RM)", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Submit Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be permanently synced to HQ.", lbl_submission_ratio: "Submission Ratio:" },
+            BM: { subtitle_login: "Please log in", btn_branch: "Branch", btn_am: "Area Manager", btn_admin: "Admin", btn_refresh: "Reload", welcome_title: "Secure Access System", welcome_desc: "Please select your role at the top right corner to access operational data.", branch_form_title: "Daily Entry Form", branch_form_desc: "Complete the daily data. Data is connected directly to HQ server.", status_done: "SUBMITTED TO HQ", branch_locked_desc: "Data has been successfully saved to HQ database. Contact AM to reset.", branch_section_night: "Main Operation Data", branch_section_bank: "Bank-In Update", field_sales: "Daily Sales (RM)", field_trans: "Transactions", field_mykasih: "MyKasih (RM)", field_lorry: "Lorry Cost (RM)", field_bank1: "1st Bank-In (RM)", field_bank2: "2nd Bank-In (RM)", btn_submit_night: "Submit & Save to HQ", btn_save_bank: "Save Bank-In", branch_info: "Maklumat Branch", tab_dashboard: "Analytics Dashboard", tab_tracking: "Check & Reset", tab_comparison: "Daily Comparison", tab_control: "System Control", kpi_sales: "Total Sales", kpi_mykasih: "MyKasih", kpi_lorry: "Kos Lori", kpi_trans: "Transactions", lbl_password: "Password", btn_login_submit: "Confirm Login", confirm_title: "Confirm Submission?", confirm_desc: "Data will be sent directly to HQ central system.", lbl_submission_ratio: "Submission Ratio:" }
         };
 
         function toggleLang() {
@@ -1315,9 +1323,9 @@ function saveGlobalGSUrl() {
                 await db.collection("config").doc("system").set({
                     limit_sales: s, limit_mykasih: m, limit_lorry: l
                 }, {merge: true});
-                Swal.fire('Berjaya!', 'Logical Limits telah dikemaskini.', 'success');
+                Swal.fire('Success!', 'Logical Limits updated.', 'success');
             } catch(e) {
-                Swal.fire('Ralat', 'Gagal kemaskini limit: ' + e.message, 'error');
+                Swal.fire('Error', 'Failed to update limit: ' + e.message, 'error');
             }
         }
 
@@ -1359,7 +1367,7 @@ function saveGlobalGSUrl() {
                     }
                 }
             }).catch(e => {
-                alert("Ralat memuat turun dari Google Sheet: " + e.message + "\nSila matikan ad-blocker atau semak capaian internet.");
+                alert("Error memuat turun dari Google Sheet: " + e.message + "\nPlease disable ad-blocker or check internet connection.");
                 console.error("Branch fetch error", e);
             });
         }
@@ -1835,32 +1843,59 @@ function saveGlobalGSUrl() {
             let isCurrentDay = dateStr === todayStr;
             let needsLive = (mode === 'monthly' && isCurrentMonth) || (mode === 'daily' && isCurrentDay);
             
-            if (mode === 'monthly' && currentUser.role === 'am') {
-                let days = [];
-                for(let d=1; d<=31; d++) days.push(dateStr + "-" + String(d).padStart(2,'0'));
-                let chunks = [];
-                for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                
-                let promises = chunks.map(chunk => {
-                    return db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get({ source: needsLive ? 'default' : 'cache' }).catch(e => db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get());
+            let processAggregatedSnap = (snap) => {
+                let fbData = [];
+                snap.forEach(doc => {
+                    let d = doc.data();
+                    if(d.branches) {
+                        for(let code in d.branches) {
+                            let bData = d.branches[code];
+                            if(bData.daily) {
+                                for(let day in bData.daily) {
+                                    let daily = bData.daily[day];
+                                    fbData.push({
+                                        date: d.month + "-" + day,
+                                        code: code,
+                                        name: bData.name || "",
+                                        am: bData.am || d.am || "",
+                                        sales: daily.s || 0,
+                                        lorry: daily.l || 0,
+                                        mykasih: daily.m || 0,
+                                        transactions: daily.t || 0
+                                    });
+                                }
+                            }
+                        }
+                    }
                 });
-                
-                Promise.all(promises).then(snaps => {
-                    let fbData = [];
-                    snaps.forEach(snap => snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); }));
-                    dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
-                    dbSubmissions.push(...fbData);
-                    window.fetchedQueries[queryKey] = true;
-                    if(currentTab==='dashboard') renderDashboard(); 
-                    else if(currentTab==='analytics') renderAnalytics();
-                    else if(currentTab==='comparison') renderComparisonTable();
-                    else renderTrackingTable();
-                    setSyncing(false);
-                }).catch(e => { console.error(e); setSyncing(false); });
+                dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
+                dbSubmissions.push(...fbData);
+                window.fetchedQueries[queryKey] = true;
+                if(currentTab==='dashboard') renderDashboard(); 
+                else if(currentTab==='analytics') renderAnalytics();
+                else if(currentTab==='comparison') renderComparisonTable();
+                else renderTrackingTable();
+                setSyncing(false);
+            };
+
+            if (mode === 'monthly') {
+                let query = db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", dateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", dateStr + "_\uf8ff");
+                if (currentUser.role === 'am') {
+                    let safeAm = currentUser.name.replace(/[^a-zA-Z0-9_]/g, '_');
+                    query = db.collection("monthly_summaries").doc(dateStr + "_" + safeAm);
+                    let cacheProm = needsLive ? query.get({source: 'default'}) : query.get({source: 'cache'}).catch(e => query.get());
+                    cacheProm.then(doc => {
+                        let snap = { forEach: (cb) => { if(doc.exists) cb(doc); } };
+                        processAggregatedSnap(snap);
+                    }).catch(e => { console.error(e); setSyncing(false); });
+                } else {
+                    let cacheProm = needsLive ? query.get({source: 'default'}) : query.get({source: 'cache'}).catch(e => query.get());
+                    cacheProm.then(snap => {
+                        processAggregatedSnap(snap);
+                    }).catch(e => { console.error(e); setSyncing(false); });
+                }
             } else {
-                let query = mode === 'daily' ? 
-                    db.collection("submissions").where("date", "==", dateStr) : 
-                    db.collection("submissions").where("date", ">=", dateStr + "-01").where("date", "<=", dateStr + "-31");
+                let query = db.collection("submissions").where("date", "==", dateStr);
                 
                 if (currentUser.role === 'am' && mode === 'daily') {
                     query = query.where("am", "==", currentUser.name);
@@ -1871,6 +1906,7 @@ function saveGlobalGSUrl() {
                     snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
                     dbSubmissions = dbSubmissions.filter(s => mode === 'daily' ? s.date !== dateStr : !s.date.startsWith(dateStr));
                     dbSubmissions.push(...fbData);
+                    window.fetchedQueries[queryKey] = true;
                     if(currentTab==='dashboard') renderDashboard(); 
                     else if(currentTab==='analytics') renderAnalytics();
                     else if(currentTab==='comparison') renderComparisonTable();
@@ -1878,21 +1914,17 @@ function saveGlobalGSUrl() {
                     if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                     setSyncing(false);
                 };
-
+                
                 if (needsLive) {
-                    window.activeListeners[queryKey] = query.onSnapshot(snap => {
-                        processSnap(snap);
-                    }, e => { console.error(e); setSyncing(false); });
+                    if (window.activeListeners[queryKey]) window.activeListeners[queryKey]();
+                    window.activeListeners[queryKey] = query.onSnapshot(processSnap, e => {
+                        console.error("Live sync failed", e);
+                        setSyncing(false);
+                    });
                 } else {
-                    query.get({ source: 'cache' }).then(snap => {
-                        if(snap.empty) throw new Error('empty_cache');
-                        window.fetchedQueries[queryKey] = true;
-                        processSnap(snap);
-                    }).catch(e => {
-                        query.get().then(snap => {
-                            window.fetchedQueries[queryKey] = true;
-                            processSnap(snap);
-                        }).catch(err => { console.error(err); setSyncing(false); });
+                    query.get({ source: 'cache' }).catch(e => query.get()).then(processSnap).catch(e => {
+                        console.error("Sync failed", e);
+                        setSyncing(false);
                     });
                 }
             }
@@ -1921,9 +1953,9 @@ function saveGlobalGSUrl() {
             }
 
             try {
-                if(alertBox.classList.contains('hidden') || !alertContent.innerHTML.includes('Senarai Cawangan')) {
+                if(alertBox.classList.contains('hidden') || !alertContent.innerHTML.includes('Senarai Branch')) {
                     alertBox.classList.remove('hidden');
-                    alertContent.innerHTML = `<div class="py-3 text-center text-rose-300 font-bold animate-pulse text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Menganalisis rekod jualan... Sila tunggu.</div>`;
+                    alertContent.innerHTML = `<div class="py-3 text-center text-rose-300 font-bold animate-pulse text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Analyzing sales records... Please wait.</div>`;
                 }
 
                 let datesToFetch = [dates[1], dates[2]].filter(d => !window.historicalDropCache[d]);
@@ -2000,7 +2032,7 @@ function saveGlobalGSUrl() {
                             </div>`;
                         }
 
-                        alertContent.innerHTML = `Senarai Cawangan (Berdasarkan tarikh ${currentDateStr}): <br><ul class="mt-2 mb-2 space-y-1 font-bold text-rose-300 text-[10px] leading-tight">${htmlList}</ul>${paginationHtml}<div class="mt-3 text-center"><span class="italic text-[10px]">Sila siasat dengan segera. Total: ${window.dropAlertList.length} Cawangan</span></div>`;
+                        alertContent.innerHTML = `Senarai Branch (Berdasarkan tarikh ${currentDateStr}): <br><ul class="mt-2 mb-2 space-y-1 font-bold text-rose-300 text-[10px] leading-tight">${htmlList}</ul>${paginationHtml}<div class="mt-3 text-center"><span class="italic text-[10px]">Please investigate immediately. Total: ${window.dropAlertList.length} Branch</span></div>`;
                     };
                     
                     window.renderDropAlertPage(1);
@@ -2032,6 +2064,84 @@ function saveGlobalGSUrl() {
             }).catch(e => console.error("Audit log error", e));
         }
 
+        async function updateMonthlySummary(payloadData, bAm) {
+            if (!payloadData || !payloadData.date || !payloadData.code) return;
+            let monthStr = payloadData.date.substring(0, 7);
+            let [sy, sm, sd] = payloadData.date.split('-').map(Number);
+            let dObj = new Date(sy, sm-1, sd, 12, 0, 0, 0);
+            let dayStr = sd < 10 ? '0'+sd : ''+sd;
+            
+            let weeks = [];
+            let firstDay = new Date(sy, sm-1, 1);
+            let lastDay = new Date(sy, sm, 0);
+            let curr = new Date(firstDay);
+            let wNum = 1;
+            while(curr <= lastDay) {
+                let wStart = new Date(curr);
+                let wEnd = new Date(curr); wEnd.setDate(wEnd.getDate() + 6);
+                if(wEnd > lastDay) wEnd = new Date(lastDay);
+                weeks.push({ start: wStart.getTime(), end: wEnd.getTime(), label: 'W'+wNum });
+                curr.setDate(curr.getDate() + 7);
+                wNum++;
+            }
+            let weekLabel = null;
+            for(let w of weeks) {
+                if(dObj.getTime() >= w.start && dObj.getTime() <= w.end) {
+                    weekLabel = w.label;
+                    break;
+                }
+            }
+
+            let oldRec = dbSubmissions.find(s => s.code == payloadData.code && s.date === payloadData.date);
+            let oldSales = oldRec ? (parseFloat(oldRec.sales) || 0) : 0;
+            let oldLorry = oldRec ? (parseFloat(oldRec.lorry) || 0) : 0;
+            let oldMyKasih = oldRec ? (parseFloat(oldRec.mykasih) || 0) : 0;
+            let oldTrans = oldRec ? (parseInt(oldRec.transactions) || 0) : 0;
+            
+            let newSales = payloadData.sales !== undefined ? parseFloat(payloadData.sales) || 0 : oldSales;
+            let newLorry = payloadData.lorry !== undefined ? parseFloat(payloadData.lorry) || 0 : oldLorry;
+            let newMyKasih = payloadData.mykasih !== undefined ? parseFloat(payloadData.mykasih) || 0 : oldMyKasih;
+            let newTrans = payloadData.transactions !== undefined ? parseInt(payloadData.transactions) || 0 : oldTrans;
+            
+            let diffSales = newSales - oldSales;
+            let diffLorry = newLorry - oldLorry;
+            let diffMyKasih = newMyKasih - oldMyKasih;
+            let diffTrans = newTrans - oldTrans;
+            
+            let oldTrips = (oldLorry > 0) ? 1 : 0;
+            let newTrips = (newLorry > 0) ? 1 : 0;
+            let diffTrips = newTrips - oldTrips;
+
+            if(diffSales === 0 && diffLorry === 0 && diffTrips === 0 && diffMyKasih === 0 && diffTrans === 0) return;
+
+            let amKey = bAm || "UNASSIGNED";
+            amKey = amKey.replace(/[^a-zA-Z0-9_]/g, '_'); 
+            let docId = monthStr + "_" + amKey;
+
+            let updateObj = {};
+            updateObj[`branches.${payloadData.code}.totalSales`] = firebase.firestore.FieldValue.increment(diffSales);
+            updateObj[`branches.${payloadData.code}.totalLorry`] = firebase.firestore.FieldValue.increment(diffLorry);
+            
+            updateObj[`branches.${payloadData.code}.daily.${dayStr}.s`] = firebase.firestore.FieldValue.increment(diffSales);
+            updateObj[`branches.${payloadData.code}.daily.${dayStr}.l`] = firebase.firestore.FieldValue.increment(diffLorry);
+            updateObj[`branches.${payloadData.code}.daily.${dayStr}.m`] = firebase.firestore.FieldValue.increment(diffMyKasih);
+            updateObj[`branches.${payloadData.code}.daily.${dayStr}.t`] = firebase.firestore.FieldValue.increment(diffTrans);
+            
+            if(weekLabel && diffTrips !== 0) {
+                updateObj[`branches.${payloadData.code}.weeksCount.${weekLabel}`] = firebase.firestore.FieldValue.increment(diffTrips);
+            }
+            updateObj[`branches.${payloadData.code}.am`] = bAm || "";
+            updateObj[`branches.${payloadData.code}.name`] = payloadData.name || (oldRec ? oldRec.name : "");
+            updateObj[`am`] = bAm || "UNASSIGNED";
+            updateObj[`month`] = monthStr;
+
+            try {
+                await db.collection("monthly_summaries").doc(docId).set(updateObj, {merge: true});
+            } catch(e) {
+                console.error("Failed to update summary", e);
+            }
+        }
+
         function syncToCloud(action, payloadData, callback) {
             setSyncing(true);
             sessionStorage.clear(); // Clear cache to ensure fresh data after mutation
@@ -2049,6 +2159,8 @@ function saveGlobalGSUrl() {
             let fbPromise = Promise.resolve();
             if (action === 'reset_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
+                let payload = { sales: 0, transactions: 0, mykasih: 0, lorry: 0, date: payloadData.date, code: payloadData.code };
+                updateMonthlySummary(payload, bAm);
                 fbPromise = db.collection("submissions").doc(docId).set({
                     date: payloadData.date, code: payloadData.code,
                       sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false, am: bAm
@@ -2072,12 +2184,17 @@ function saveGlobalGSUrl() {
                         let batch = db.batch();
                         let chunk = docs.slice(i, i + 400);
                         chunk.forEach(doc => {
+                              let payload = { sales: 0, transactions: 0, mykasih: 0, lorry: 0, date: payloadData.date, code: doc.data().code };
+                              updateMonthlySummary(payload, doc.data().am);
                               batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false });
                         });
                         await batch.commit();
                     }
                 });
             } else if (payloadData && payloadData.date && payloadData.code) {
+                if (typeof payloadData.sales !== 'undefined' || typeof payloadData.lorry !== 'undefined') {
+                    updateMonthlySummary(payloadData, bAm);
+                }
                 let docId = payloadData.date + "_" + payloadData.code;
                 payloadData.am = bAm;
                 fbPromise = db.collection("submissions").doc(docId).set(payloadData, {merge: true});
@@ -2124,7 +2241,7 @@ function saveGlobalGSUrl() {
             document.getElementById('auth-role').value = role;
             document.getElementById('auth-search-container').classList.add('hidden');
             document.getElementById('auth-search').value = ""; document.getElementById('auth-selected-id').value = ""; document.getElementById('auth-pwd').value = "";
-            document.getElementById('auth-title').innerText = role==='branch'?(currentLang==='EN'?"Branch Login":"Log Masuk Cawangan"):role==='am'?(currentLang==='EN'?"AM Login":"Log Masuk AM"):role==='operation'?(currentLang==='EN'?"Operation Login":"Log Masuk Operasi"):(currentLang==='EN'?"Admin Login":"Log Masuk Admin");
+            document.getElementById('auth-title').innerText = role==='branch'?(currentLang==='EN'?"Branch Login":"Log Masuk Branch"):role==='am'?(currentLang==='EN'?"AM Login":"Log Masuk AM"):role==='operation'?(currentLang==='EN'?"Operation Login":"Log Masuk Operasi"):(currentLang==='EN'?"Admin Login":"Log Masuk Admin");
             if (role === 'branch' || role === 'am') document.getElementById('auth-search-container').classList.remove('hidden');
             document.getElementById('auth-modal').classList.remove('hidden'); document.getElementById('auth-modal').classList.add('flex');
         }
@@ -2151,7 +2268,7 @@ function saveGlobalGSUrl() {
         function handleLogin(e) {
             e.preventDefault();
             let role = document.getElementById('auth-role').value, pwd = document.getElementById('auth-pwd').value, selId = document.getElementById('auth-selected-id').value;
-            if (pwd !== PASSWORDS[role]) { showToast('error', currentLang==='EN'?'Invalid Password!':'Kata Laluan Salah!'); return; }
+            if (pwd !== PASSWORDS[role]) { showToast('error', currentLang==='EN'?'Invalid Password!':'Password Salah!'); return; }
             if ((role === 'branch' || role === 'am') && !selId) { showToast('error', 'Please select from search!'); return; }
             
             closeModal('auth-modal');
@@ -2354,8 +2471,8 @@ function saveGlobalGSUrl() {
             if(!isValidCents(sVal) || !isValidCents(mVal)) {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Ralat Nilai Sen',
-                    text: 'Sila pastikan sen untuk Daily Sales dan MyKasih dalam gandaan 5 (contoh: .00, .05, .10, .50). Jangan masukkan nilai pelik seperti .02 atau .03'
+                    title: 'Error Nilai Sen',
+                    text: 'Please ensure cents for Daily Sales and MyKasih are in multiples of 5 (e.g. .00, .05, .10, .50). Do not enter odd values like .02 or .03'
                 });
                 return;
             }
@@ -2407,7 +2524,7 @@ function saveGlobalGSUrl() {
                 let isEN = (currentLang === 'EN');
                 let tTitle = isEN ? 'Logical Limit Warning!' : 'Amaran Had Logik!';
                 let tDesc = isEN ? 'The value you entered is too high / abnormal:' : 'Nilai yang anda masukkan terlalu tinggi / luar biasa:';
-                let tInst = isEN ? 'Please type <strong class="text-lg">SAH</strong> below if this value is truly valid, or press Cancel to re-check.' : 'Sila taip <strong class="text-lg">SAH</strong> di bawah jika nilai ini betul-betul sah, atau tekan Batal untuk semak semula.';
+                let tInst = isEN ? 'Please type <strong class="text-lg">SAH</strong> below if this value is truly valid, or press Cancel to re-check.' : 'Please type <strong class="text-lg">VALID</strong> below if this value is truly valid, or press Cancel to re-check.';
                 let tConf = isEN ? 'Yes, Valid' : 'Ya, Sah';
                 let tCanc = isEN ? 'Cancel' : 'Batal';
                 let tVali = isEN ? 'You must type SAH to proceed!' : 'Anda mesti taip SAH untuk teruskan!';
@@ -3041,7 +3158,7 @@ function saveGlobalGSUrl() {
                 let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
               } else if (type === 'pdf' && currentUser.role === 'admin') {
                   if (typeof html2pdf === 'undefined') {
-                      alert("Modul PDF gagal dimuat turun. Sila periksa internet dan cuba lagi.");
+                      alert("PDF Module failed to download. Please check internet and try again.");
                       let s = document.createElement('script');
                       s.src = "https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
                       document.head.appendChild(s);
@@ -3125,7 +3242,7 @@ function saveGlobalGSUrl() {
                 setSyncing(false);
             }).catch(e => {
                 console.error(e);
-                Swal.fire('Error', 'Gagal memuat turun rekod lori.', 'error');
+                Swal.fire('Error', 'Failed to download lorry records.', 'error');
                 setSyncing(false);
             });
         }
@@ -3208,7 +3325,7 @@ function saveGlobalGSUrl() {
         }
 
         function exportLorryExcel() {
-            if(!window.currentLorryData || window.currentLorryData.length === 0) return Swal.fire('Info', 'Tiada data lori untuk dieksport', 'info');
+            if(!window.currentLorryData || window.currentLorryData.length === 0) return Swal.fire('Info', 'No lorry data to export', 'info');
             if (typeof XLSX === 'undefined') {
                 alert("Modul Excel gagal dimuat turun kerana liputan lemah.\nSistem sedang cuba lagi. Tekan EXCEL semula selepas 3 saat.");
                 let s = document.createElement('script');
@@ -3451,7 +3568,7 @@ function saveGlobalGSUrl() {
             } catch(e) {
                 console.error(e);
                 setSyncing(false);
-                alert("Ralat semasa membaiki database!");
+                alert("Error semasa membaiki database!");
             }
         }
 
@@ -3470,8 +3587,8 @@ function saveGlobalGSUrl() {
             let fDate = document.getElementById('track-date').value;
             if (!fDate) {
                 Swal.fire({
-                    title: 'Pilih Tarikh Dahulu',
-                    text: 'Sila pilih Tarikh (Date) pada filter di atas sebelum menekan butang Push. Ini untuk mengelakkan sistem memproses data sebulan sekaligus yang boleh menyebabkan proses menjadi lambat dan data berulang (double).',
+                    title: 'Select Date Dahulu',
+                    text: "Please select a Date from the filter above before pressing the Push button. This prevents the system from processing a full month's data at once which causes slow loading and double data.",
                     icon: 'warning'
                 });
                 return;
@@ -3479,7 +3596,7 @@ function saveGlobalGSUrl() {
 
             let dataToPush = dbSubmissions.filter(d => d.date === fDate);
             if(dataToPush.length === 0) {
-                showToast('info', 'Tiada data untuk tarikh ' + fDate);
+                showToast('info', 'No data for date ' + fDate);
                 return;
             }
 
@@ -3619,7 +3736,7 @@ function saveGlobalGSUrl() {
         function fetchTBCBranches() {
             let url = GLOBAL_WEBHOOK_URL || localStorage.getItem('global_gs_url');
             if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") {
-                alert("Sila tetapkan Webhook URL dahulu di menu System Control.");
+                alert("Please set the Webhook URL first in System Control menu.");
                 return;
             }
             document.getElementById('hub-total-branches').innerText = "Syncing...";
@@ -3628,21 +3745,21 @@ function saveGlobalGSUrl() {
               .then(data => {
                   if(data && data.error) {
                       alert("RALAT GOOGLE SHEET: " + data.error);
-                      document.getElementById('hub-total-branches').innerText = "Ralat";
+                      document.getElementById('hub-total-branches').innerText = "Error";
                       return;
                   }
                 if(Array.isArray(data) && data.length > 0) {
                     tbcBranches = data;
                     document.getElementById('hub-total-branches').innerText = tbcBranches.length;
-                    showToast('success', 'Data Ops Branch Hub berjaya dimuat turun!');
+                    showToast('success', 'Ops Branch Hub data downloaded successfully!');
                 } else if (data.error) {
-                    showToast('error', "Ralat dari Google Sheet: " + data.error);
+                    showToast('error', "Error dari Google Sheet: " + data.error);
                 } else {
-                    showToast('info', "Tiada data ditemui atau format salah.");
+                    showToast('info', "No data found or invalid format.");
                 }
             }).catch(e => {
                 console.error(e);
-                showToast('error', "Ralat sambungan ketika muat turun data TBC.");
+                showToast('error', "Error sambungan ketika muat turun data TBC.");
             });
         }
         
@@ -3683,7 +3800,7 @@ function saveGlobalGSUrl() {
                 });
                 resBox.classList.remove('hidden');
             } else {
-                resBox.innerHTML = `<div class="p-3 text-slate-500 text-sm italic">Tiada padanan ditemui</div>`;
+                resBox.innerHTML = `<div class="p-3 text-slate-500 text-sm italic">No match found</div>`;
                 resBox.classList.remove('hidden');
             }
         });
@@ -3765,7 +3882,7 @@ function saveGlobalGSUrl() {
             let limitLorry = parseFloat(document.getElementById('audit-limit-lorry').value) || 90000;
             
             if(!dateStr) {
-                Swal.fire('Info', 'Sila pilih tarikh.', 'warning');
+                Swal.fire('Info', 'Please select a date.', 'warning');
                 return;
             }
             
@@ -3808,12 +3925,12 @@ function saveGlobalGSUrl() {
                 });
                 
                 if(found === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-teal-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Tiada Anomaly Ditemui</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-teal-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i> No Anomaly Found</td></tr>`;
                 }
                 setSyncing(false);
             } catch(e) {
                 console.error(e);
-                Swal.fire('Ralat', 'Gagal memuat turun data Audit.', 'error');
+                Swal.fire('Error', 'Failed to download Audit data.', 'error');
                 setSyncing(false);
             }
         }
@@ -3911,18 +4028,7 @@ function saveGlobalGSUrl() {
                 }
                 if (!hasAlertedSurvey) {
                     hasAlertedSurvey = true;
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Peringatan Survey!',
-                            text: `Anda ada ${pendingSurveys.length} survey yang belum dijawab. Sila semak${currentUser.role === 'am' ? ' tab Survey & Tracking' : ' borang di bawah'}.`,
-                            confirmButtonColor: '#8b5cf6',
-                            background: '#1e293b',
-                            color: '#fff'
-                        });
-                    } else {
-                        console.warn("SweetAlert2 not loaded, fallback to UI badge only for survey alert.");
-                    }
+                    // Popup removed as requested by user
                 }
             } else {
                 if (badge) badge.classList.add('hidden');
@@ -3973,7 +4079,7 @@ function saveGlobalGSUrl() {
                     html += `</tr>`;
                 });
                 html += `</tbody></table></div>`;
-                html += `<button onclick="submitCustomSurveyResponseAM('${s.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"><i class="fa-solid fa-paper-plane mr-2"></i>Hantar Maklum Balas Semua Cawangan</button>`;
+                html += `<button onclick="submitCustomSurveyResponseAM('${s.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"><i class="fa-solid fa-paper-plane mr-2"></i>Hantar Maklum Balas Semua Branch</button>`;
             } else {
                 html += `<div class="space-y-4 mb-4">`;
                 (s.questions || []).forEach(q => {
@@ -3982,7 +4088,7 @@ function saveGlobalGSUrl() {
                         html += `<input type="number" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Kuantiti (0)">`;
                     } else if (q.type === 'yesno') {
                         html += `<select id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">
-                            <option value="">-- Pilih --</option>
+                            <option value="">-- Select --</option>
                             <option value="Ya">Ya</option>
                             <option value="Tidak">Tidak</option>
                         </select>`;
@@ -4040,7 +4146,7 @@ function saveGlobalGSUrl() {
                 
                 let html = '';
                 if (pendingSurveys.length === 0) {
-                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>Tiada survey yang aktif!</div>';
+                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>No active surveys!</div>';
                 } else {
                     pendingSurveys.forEach(s => {
                         if (s.targetAudience === 'branch') {
@@ -4109,7 +4215,7 @@ function saveGlobalGSUrl() {
                             <div class="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-4" id="survey-box-${s.id}">
                                 <h3 class="text-md font-bold text-white mb-3">${s.title}</h3>
                                 <div class="flex items-center gap-2 mb-3">
-                                    <label class="text-xs text-slate-400">Jumlah Pengecualian (Cawangan Belum Siap):</label>
+                                    <label class="text-xs text-slate-400">Jumlah Pengecualian (Branch Belum Siap):</label>
                                     <select id="survey-exc-${s.id}" onchange="renderSurveyInputs('${s.id}')" class="bg-slate-900 text-white rounded px-2 py-1 outline-none border border-slate-600">
                                         ${[...Array(11).keys()].map(i => `<option value="${i}">${i}</option>`).join('')}
                                     </select>
@@ -4128,7 +4234,7 @@ function saveGlobalGSUrl() {
                 document.getElementById('survey-am-view').classList.add('hidden');
                 let html = '';
                 if (allSurveys.length === 0) {
-                    html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">Tiada survey ditemui.</td></tr>';
+                    html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">No surveys found.</td></tr>';
                 } else {
                     allSurveys.forEach(s => {
                         let sResp = allResponses.filter(r => r.surveyId === s.id);
@@ -4177,7 +4283,7 @@ function saveGlobalGSUrl() {
             let amName = (currentUser.name || '').trim().toUpperCase();
             let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName).sort((a,b) => String(a.code).localeCompare(String(b.code)));
             
-            let optionsHtml = '<option value="" disabled selected>-- Pilih Cawangan Pengecualian --</option>';
+            let optionsHtml = '<option value="" disabled selected>-- Pilih Branch Pengecualian --</option>';
             myBranches.forEach(b => {
                 let safeName = (b.name || '').replace(/"/g, '&quot;');
                 optionsHtml += `<option value="${b.code}" data-name="${safeName}">${b.code} - ${b.name}</option>`;
@@ -4230,7 +4336,7 @@ function saveGlobalGSUrl() {
         function addCustomQuestion() {
             let label = document.getElementById('survey-builder-qlabel').value.trim();
             let type = document.getElementById('survey-builder-qtype').value;
-            if (!label) return showToast('error', 'Sila masukkan label soalan.');
+            if (!label) return showToast('error', 'Please enter question label.');
             builderQuestions.push({ id: 'q_' + Date.now() + '_' + Math.floor(Math.random()*1000), label, type });
             document.getElementById('survey-builder-qlabel').value = '';
             renderBuilderQuestions();
@@ -4244,7 +4350,7 @@ function saveGlobalGSUrl() {
         function bulkAddQuestions() {
             let text = document.getElementById('survey-builder-bulk').value;
             let lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-            if (lines.length === 0) return showToast('error', 'Tiada senarai item dijumpai.');
+            if (lines.length === 0) return showToast('error', 'No item list found.');
             lines.forEach(l => {
                 builderQuestions.push({ id: 'q_' + Date.now() + '_' + Math.floor(Math.random()*1000), label: l, type: 'number' });
             });
@@ -4258,9 +4364,9 @@ function saveGlobalGSUrl() {
             let target = document.getElementById('survey-new-target').value;
             let type = document.getElementById('survey-new-type').value;
             
-            if(!title) return showToast('error', 'Sila masukkan soalan/tajuk survey.');
+            if(!title) return showToast('error', 'Please enter survey question/title.');
             if(type === 'custom' && builderQuestions.length === 0) {
-                return showToast('error', 'Sila tambah sekurang-kurangnya 1 soalan untuk Custom Survey.');
+                return showToast('error', 'Please add at least 1 question for Custom Survey.');
             }
             
             let surveyData = {
@@ -4286,9 +4392,9 @@ function saveGlobalGSUrl() {
                 toggleSurveyTypeUI();
                 renderBuilderQuestions();
                 
-                showToast('success', 'Survey Berjaya Diterbitkan!');
+                showToast('success', 'Survey Published Successfully!');
             } catch(e) {
-                showToast('error', 'Ralat: ' + e.message);
+                showToast('error', 'Error: ' + e.message);
             }
         }
 
@@ -4298,7 +4404,7 @@ function saveGlobalGSUrl() {
                 await db.collection('surveys').doc(id).update({ status: 'closed' });
                 showToast('success', 'Survey Ditutup!');
             } catch(e) {
-                showToast('error', 'Ralat: ' + e.message);
+                showToast('error', 'Error: ' + e.message);
             }
         }
 
@@ -4326,7 +4432,7 @@ function saveGlobalGSUrl() {
                         await batch.commit();
                         showToast('success', 'Survey berjaya dipadam.');
                     } catch(e) {
-                        showToast('error', 'Ralat memadam survey: ' + e.message);
+                        showToast('error', 'Error memadam survey: ' + e.message);
                     }
                 }
             });
@@ -4340,7 +4446,7 @@ function saveGlobalGSUrl() {
             for (let q of (s.questions || [])) {
                 let val = document.getElementById(`sq_${s.id}_${q.id}`).value.trim();
                 if(!val) {
-                    return showToast('error', `Sila isi jawapan untuk: ${q.label}`);
+                    return showToast('error', `Please provide an answer for: ${q.label}`);
                 }
                 answers[q.id] = { label: q.label, type: q.type, value: val };
             }
@@ -4385,7 +4491,7 @@ function saveGlobalGSUrl() {
                     setTimeout(() => { if(box) box.remove(); }, 2000);
                 }
             } catch(e) {
-                showToast('error', 'Ralat: ' + e.message);
+                showToast('error', 'Error: ' + e.message);
                 if (btn) {
                     btn.innerHTML = oldHtml;
                     btn.disabled = false;
@@ -4411,7 +4517,7 @@ function saveGlobalGSUrl() {
                     if (!inputEl) continue;
                     let val = inputEl.value.trim();
                     if(val === '') {
-                        return showToast('error', `Sila isi semua petak untuk cawangan ${b.code}. Letak 0 jika tiada.`);
+                        return showToast('error', `Please fill all boxes for branch ${b.code}. Put 0 if none.`);
                     }
                     answers[q.id] = { label: q.label, type: q.type, value: val };
                 }
@@ -4447,7 +4553,7 @@ function saveGlobalGSUrl() {
                 showToast('success', 'Maklum balas semua cawangan direkodkan!');
             } catch (e) {
                 console.error(e);
-                showToast('error', 'Gagal menyimpan maklum balas.');
+                showToast('error', 'Failed to save feedback.');
                 if (btn) {
                     btn.innerHTML = oldHtml;
                     btn.disabled = false;
@@ -4466,10 +4572,10 @@ function saveGlobalGSUrl() {
                     let opt = sel.options[sel.selectedIndex];
                     let bname = opt ? opt.getAttribute('data-name') : null;
                     if(!code || !bname) {
-                        return showToast('error', 'Sila pilih cawangan pengecualian yang sah dari senarai.');
+                        return showToast('error', 'Please select a valid excluded branch from the list.');
                     }
                     if(selectedCodes.has(code)) {
-                        return showToast('error', 'Cawangan pengecualian tidak boleh berulang.');
+                        return showToast('error', 'Branch pengecualian tidak boleh berulang.');
                     }
                     selectedCodes.add(code);
                     exceptions.push({ code: code, name: bname });
@@ -4497,7 +4603,7 @@ function saveGlobalGSUrl() {
                     box.innerHTML = '<div class="text-emerald-400 text-sm font-bold py-2"><i class="fa-solid fa-check-circle mr-2"></i>Maklum balas telah direkodkan.</div>';
                 }
             } catch(e) {
-                showToast('error', 'Ralat: ' + e.message);
+                showToast('error', 'Error: ' + e.message);
                 if (btn) {
                     btn.innerHTML = oldHtml;
                     btn.disabled = false;
@@ -4531,7 +4637,7 @@ function saveGlobalGSUrl() {
             
             if (s.type === 'custom') {
                 let theads = `<th class="p-2 border border-slate-700 whitespace-nowrap">Kod</th>`;
-                theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">Cawangan</th>`;
+                theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">Branch</th>`;
                 theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">AM</th>`;
                 (s.questions || []).forEach(q => {
                     theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">${q.label}</th>`;
@@ -4600,7 +4706,7 @@ function saveGlobalGSUrl() {
                 }
 
                 Swal.fire({
-                    title: '<span class="text-lg">Laporan Survey Custom</span>',
+                    title: '<span class="text-lg">Custom Survey Report</span>',
                     html: `
                         <div class="text-left space-y-4">
                             <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
@@ -4630,7 +4736,7 @@ function saveGlobalGSUrl() {
                             </div>
                             
                             <div id="tab-am-status" class="hidden">
-                                <div class="text-xs text-rose-400 uppercase font-bold tracking-wider mb-2"><i class="fa-solid fa-users mr-1"></i> Senarai AM (Ada Cawangan Belum Hantar)</div>
+                                <div class="text-xs text-rose-400 uppercase font-bold tracking-wider mb-2"><i class="fa-solid fa-users mr-1"></i> Senarai AM (Ada Branch Belum Hantar)</div>
                                 <div class="bg-slate-950 rounded-lg max-h-80 overflow-auto border border-slate-800 shadow-inner">
                                     <table class="w-full text-xs text-white text-left whitespace-nowrap">
                                         <thead class="bg-slate-800 sticky top-0">
@@ -4669,7 +4775,7 @@ function saveGlobalGSUrl() {
                 }
             });
             
-            if(exHtml === '') exHtml = '<div class="text-emerald-400 text-xs font-bold py-4 text-center">Tiada cawangan yang belum siap! Semua Ok.</div>';
+            if(exHtml === '') exHtml = '<div class="text-emerald-400 text-xs font-bold py-4 text-center">No pending branches! All Ok.</div>';
             
             let submittedHtml = submittedAMs.map(a => `<span class="bg-emerald-950 border border-emerald-900 text-emerald-400 px-2 py-0.5 rounded text-[10px] mr-1 mb-1 font-bold inline-block">${a}</span>`).join('');
             if(submittedHtml === '') submittedHtml = '<span class="text-slate-500 font-bold text-xs">Belum ada maklum balas.</span>';
@@ -4678,7 +4784,7 @@ function saveGlobalGSUrl() {
             if(missingHtml === '') missingHtml = '<span class="text-emerald-400 font-bold text-xs"><i class="fa-solid fa-check-double mr-1"></i> Semua AM telah hantar maklum balas!</span>';
             
             Swal.fire({
-                title: '<span class="text-lg">Laporan Survey</span>',
+                title: '<span class="text-lg">Survey Report</span>',
                 html: `
                     <div class="text-left space-y-5">
                         <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
@@ -4695,8 +4801,8 @@ function saveGlobalGSUrl() {
                         </div>
                         <div>
                             <div class="flex justify-between items-center mb-2">
-                                <div class="text-xs text-purple-400 uppercase font-bold tracking-wider"><i class="fa-solid fa-list-ul mr-1"></i> Senarai Cawangan Pengecualian (${totalExceptions})</div>
-                                <button onclick="downloadSurveyExcel('${id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Muat Turun CSV</button>
+                                <div class="text-xs text-purple-400 uppercase font-bold tracking-wider"><i class="fa-solid fa-list-ul mr-1"></i> Senarai Branch Pengecualian (${totalExceptions})</div>
+                                <button onclick="downloadSurveyExcel('${id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Download CSV</button>
                             </div>
                             <div class="bg-slate-950 p-3 rounded-lg max-h-60 overflow-y-auto border border-slate-800 shadow-inner">${exHtml}</div>
                         </div>
@@ -4712,7 +4818,7 @@ function saveGlobalGSUrl() {
 
         async function deleteSurveyResponse(responseId, surveyId) {
             Swal.fire({
-                title: 'Padam Data Cawangan?',
+                title: 'Padam Data Branch?',
                 text: 'Data cawangan ini akan dibuang dan cawangan (atau AM) perlu isi semula.',
                 icon: 'warning',
                 showCancelButton: true,
@@ -4727,7 +4833,7 @@ function saveGlobalGSUrl() {
                         showToast('success', 'Data dipadam.');
                         setTimeout(() => viewSurveyReport(surveyId), 300);
                     } catch(e) {
-                        showToast('error', 'Gagal memadam data.');
+                        showToast('error', 'Failed to delete data.');
                     }
                 }
             });
@@ -4764,7 +4870,7 @@ function saveGlobalGSUrl() {
                     csv += row.join(',') + '\n';
                 });
             } else {
-                csv = 'Soalan Survey,Nama AM,Tarikh Hantar,Kod Cawangan Pengecualian,Nama Cawangan Pengecualian\n';
+                csv = 'Soalan Survey,Nama AM,Tarikh Hantar,Kod Branch Pengecualian,Nama Branch Pengecualian\n';
                 sResp.forEach(r => {
                     let dateStr = r.submittedAt ? new Date(r.submittedAt.toMillis()).toLocaleString() : '';
                     let title = '"' + s.title.replace(/"/g, '""') + '"';
@@ -4787,11 +4893,104 @@ function saveGlobalGSUrl() {
             let link = document.createElement("a");
             let url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", "Laporan_Survey_" + id + ".csv");
+            link.setAttribute("download", "Survey_Report_" + id + ".csv");
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        async function aggregateAllData() {
+            if(!confirm("WARNING: This will calculate data aggregation from all historical data. This uses a large amount of database quota. Proceed?")) return;
+            setSyncing(true);
+            showToast('info', 'Loading past data...');
+            try {
+                let snap = await db.collection("submissions").get();
+                let docs = snap.docs;
+                showToast('info', `Found ${docs.length} records. Aggregating...`);
+                
+                let summaries = {}; // key: docId -> updateObj
+                
+                docs.forEach(doc => {
+                    let d = doc.data();
+                    if (!d.date || !d.code) return;
+                    let monthStr = d.date.substring(0, 7);
+                    let [sy, sm, sd] = d.date.split('-').map(Number);
+                    let dObj = new Date(sy, sm-1, sd, 12, 0, 0, 0);
+                    let dayStr = sd < 10 ? '0'+sd : ''+sd;
+                    
+                    let weeks = [];
+                    let firstDay = new Date(sy, sm-1, 1);
+                    let lastDay = new Date(sy, sm, 0);
+                    let curr = new Date(firstDay);
+                    let wNum = 1;
+                    while(curr <= lastDay) {
+                        let wStart = new Date(curr);
+                        let wEnd = new Date(curr); wEnd.setDate(wEnd.getDate() + 6);
+                        if(wEnd > lastDay) wEnd = new Date(lastDay);
+                        weeks.push({ start: wStart.getTime(), end: wEnd.getTime(), label: 'W'+wNum });
+                        curr.setDate(curr.getDate() + 7);
+                        wNum++;
+                    }
+                    let weekLabel = null;
+                    for(let w of weeks) {
+                        if(dObj.getTime() >= w.start && dObj.getTime() <= w.end) {
+                            weekLabel = w.label;
+                            break;
+                        }
+                    }
+
+                    let bAm = d.am || "UNASSIGNED";
+                    let amKey = bAm.replace(/[^a-zA-Z0-9_]/g, '_'); 
+                    let docId = monthStr + "_" + amKey;
+                    
+                    if(!summaries[docId]) {
+                        summaries[docId] = { branches: {}, am: bAm, month: monthStr };
+                    }
+                    if(!summaries[docId].branches[d.code]) {
+                        summaries[docId].branches[d.code] = { totalSales: 0, totalLorry: 0, weeksCount: {}, daily: {}, am: bAm, name: d.name || "" };
+                    }
+                    
+                    let s = parseFloat(d.sales) || 0;
+                    let l = parseFloat(d.lorry) || 0;
+                    let m = parseFloat(d.mykasih) || 0;
+                    let t = parseInt(d.transactions) || 0;
+                    
+                    summaries[docId].branches[d.code].totalSales += s;
+                    summaries[docId].branches[d.code].totalLorry += l;
+                    if(l > 0 && weekLabel) {
+                        if(!summaries[docId].branches[d.code].weeksCount[weekLabel]) summaries[docId].branches[d.code].weeksCount[weekLabel] = 0;
+                        summaries[docId].branches[d.code].weeksCount[weekLabel] += 1;
+                    }
+                    
+                    if(!summaries[docId].branches[d.code].daily[dayStr]) {
+                        summaries[docId].branches[d.code].daily[dayStr] = { s: 0, l: 0, m: 0, t: 0 };
+                    }
+                    summaries[docId].branches[d.code].daily[dayStr].s += s;
+                    summaries[docId].branches[d.code].daily[dayStr].l += l;
+                    summaries[docId].branches[d.code].daily[dayStr].m += m;
+                    summaries[docId].branches[d.code].daily[dayStr].t += t;
+                });
+                
+                showToast('info', 'Saving aggregated data...');
+                let docIds = Object.keys(summaries);
+                for (let i = 0; i < docIds.length; i += 400) {
+                    let batch = db.batch();
+                    let chunk = docIds.slice(i, i + 400);
+                    chunk.forEach(id => {
+                        let ref = db.collection("monthly_summaries").doc(id);
+                        batch.set(ref, summaries[id], {merge: true});
+                    });
+                    await batch.commit();
+                }
+                
+                setSyncing(false);
+                alert("Aggregated data saved successfully!");
+            } catch(e) {
+                console.error(e);
+                setSyncing(false);
+                alert("Error during aggregation!");
+            }
         }
 </script>
 
