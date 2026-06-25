@@ -2342,15 +2342,7 @@ function saveGlobalGSUrl() {
             } else if (tab === 'control') {
                 renderAuditLogs();
             } else {
-                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') {
-                    if (tab === 'tracking' && document.getElementById('tracking-date').value) {
-                        syncManagerFromCloud(true);
-                    } else if (tab === 'dashboard' && document.getElementById('dashboard-date').value) {
-                        syncManagerFromCloud(true);
-                    } else {
-                        triggerDataSync();
-                    }
-                }
+                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') triggerDataSync();
             }
         }
 
