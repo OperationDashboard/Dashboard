@@ -1308,7 +1308,7 @@ function saveGlobalGSUrl() {
             if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") return;
             fetch(url + '?t=' + new Date().getTime() + '&action=get_branches').then(r=>r.json()).then(data => {
                 if(Array.isArray(data) && data.length > 0) {
-                    masterBranches = data.map(b => {
+                    masterBranches = data.map(b => { if(b.code != null) b.code = String(b.code).trim();
                         if (!b.am || b.am === "") {
                             if (b["AREA MANAGER"]) b.am = b["AREA MANAGER"];
                             else if (b["AM"]) b.am = b["AM"];
