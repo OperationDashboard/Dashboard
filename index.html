@@ -204,9 +204,8 @@
             <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
                     <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Daily Summary</button>
-                    <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-line mr-1"></i> Management Analytic</button>
                     <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
-                    <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden" data-i18n="tab_comparison">Daily Comparison</button>
+                    <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-area mr-1"></i> Daily & Analytic Comparison</button>
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
                     <button onclick="switchTab('hub')" id="tab-btn-hub" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-store mr-1"></i> Ops Branch Hub</button>
                     <button onclick="switchTab('drop')" id="tab-btn-drop" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only hidden"><i class="fa-solid fa-arrow-trend-down mr-1 text-rose-500"></i> Drop Analysis</button>
@@ -415,7 +414,7 @@
                     <div>
                         <h2 class="text-xl font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-code-compare text-cyan-400"></i>
-                            <span data-i18n="tab_comparison">Daily Comparison</span>
+                            <span data-i18n="tab_comparison">Daily & Analytic Comparison</span>
                         </h2>
                     </div>
                       <div class="flex flex-wrap items-center gap-4">
@@ -453,45 +452,6 @@
                             </thead>
                             <tbody id="comparison-tbody" class="divide-y divide-slate-800/60"></tbody>
                         </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ANALYTICS TAB -->
-            <section id="tab-analytics" class="space-y-6 hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Line Chart: Sales Trend -->
-                    <div class="pbi-card rounded-xl p-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-chart-line text-cyan-400 mr-1.5"></i> Trend Jualan (Bulan Ini)</h3>
-                        <div class="relative w-full h-64">
-                            <canvas id="salesLineChart"></canvas>
-                        </div>
-                    </div>
-                    <!-- Pie Chart: AM Contribution -->
-                    <div class="pbi-card rounded-xl p-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-chart-column text-cyan-400 mr-1.5"></i> Top 15 Jualan Mengikut AM</h3>
-                        <div class="relative w-full h-64">
-                            <canvas id="amPieChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <!-- Dual Axis: Sales vs Lorry -->
-                <div class="pbi-card rounded-xl p-4 shadow-xl">
-                    <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-scale-balanced text-amber-500 mr-1.5"></i> Perbandingan Jualan vs Kos Logistik (Lori)</h3>
-                    <div class="relative w-full h-64">
-                        <canvas id="salesVsLorryChart"></canvas>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Top 10 Branches -->
-                    <div class="pbi-card rounded-xl p-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-emerald-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-trophy mr-1.5"></i> Top 10 Branch</h3>
-                        <div id="top-branches-list" class="space-y-2"></div>
-                    </div>
-                    <!-- Bottom 10 Branches -->
-                    <div class="pbi-card rounded-xl p-4 shadow-xl">
-                        <h3 class="text-sm font-bold text-rose-400 uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-arrow-trend-down mr-1.5"></i> 10 Branch Tercorot</h3>
-                        <div id="bottom-branches-list" class="space-y-2"></div>
                     </div>
                 </div>
             </section>
@@ -725,7 +685,7 @@
                             <button onclick="saveLogicalLimits()" class="w-full mt-2 bg-purple-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-purple-500 shadow border border-purple-500/50 transition-colors">Save Limits</button>
                         </div>
                     </div>
-                    </div>
+                    
 
                     <!-- Data Aggregation Tool -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
@@ -1367,7 +1327,7 @@ function saveGlobalGSUrl() {
                     if(typeof populateFilters === 'function' && currentUser && currentUser.role !== 'branch') populateFilters();
                     if (typeof currentUser !== 'undefined' && currentUser && typeof currentTab !== 'undefined') {
                         if (currentTab === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
-                        else if (currentTab === 'analytics' && typeof renderAnalytics === 'function') renderAnalytics();
+                        
                         else if (currentTab === 'comparison' && typeof renderComparisonTable === 'function') renderComparisonTable();
                         else if (currentTab === 'survey' && typeof renderSurveys === 'function') renderSurveys();
                         updateSurveyUI();
@@ -1461,224 +1421,7 @@ function saveGlobalGSUrl() {
                 } catch(e) { localStorage.removeItem('pbi_user'); }
             }
         });
-
-        function renderAnalytics() {
-            if (typeof Chart === 'undefined') {
-                console.warn("Chart.js is not loaded. Skipping renderAnalytics.");
-                return;
-            }
-            let monthStr = todayStr.substring(0, 7);
-            let fs = document.getElementById('filter-state').value;
-            let fa = document.getElementById('filter-am').value;
-            let fw = document.getElementById('filter-warehouse').value;
-            let fb = document.getElementById('filter-branch') ? document.getElementById('filter-branch').value : "";
-            
-            // 1. Max days logic
-            let currentMonthStr = new Date().toISOString().substring(0,7);
-            let daysInMonth = new Date(parseInt(monthStr.split('-')[0]), parseInt(monthStr.split('-')[1]), 0).getDate();
-            let maxDay = (monthStr === currentMonthStr) ? new Date().getDate() : daysInMonth;
-            
-            let labelsLine = [];
-            let dataLine = [];
-            let dataLorry = []; 
-            
-            let dailySales = {};
-            let dailyLorry = {};
-            for(let d=1; d<=daysInMonth; d++) {
-                dailySales[d] = 0;
-                dailyLorry[d] = 0;
-            }
-            
-            // 2. Prepare data for Bar Chart (Sales by AM)
-            let amSales = {};
-            if (currentUser && currentUser.role === 'am') fa = currentUser.name;
-            
-            // 3. Prepare data for Top/Bottom branches
-            let branchSales = {};
-            masterBranches.forEach(b => { 
-                if (fs && b.state !== fs) return;
-                if (fw && b.warehouse !== fw) return;
-                if (fa && b.am !== fa) return;
-                if (fb && String(b.code) !== String(fb)) return;
-                branchSales[b.code] = {name: b.name, am: b.am || 'N/A', wh: b.warehouse || 'N/A', sales: 0}; 
-            });
-
-            dbSubmissions.forEach(sub => {
-                if(!sub.date || !sub.date.startsWith(monthStr)) return;
-                
-                let b = masterBranches.find(x => x.code == sub.code);
-                if(fs && b && b.state !== fs) return;
-                if(fw && b && b.warehouse !== fw) return;
-                if(fa && sub.am !== fa) return;
-                if(fb && String(sub.code) !== String(fb)) return;
-                
-                let day = parseInt(sub.date.split('-')[2]);
-                let sales = parseFloat(sub.sales || 0);
-                let lorry = parseFloat(sub.lorry || 0);
-                
-                dailySales[day] += sales;
-                dailyLorry[day] += lorry;
-                
-                let am = sub.am || "Unknown";
-                if(!amSales[am]) amSales[am] = 0;
-                amSales[am] += sales;
-                
-                if(branchSales[sub.code]) branchSales[sub.code].sales += sales;
-            });
-            
-            for(let d=1; d<=maxDay; d++) {
-                labelsLine.push(d);
-                dataLine.push(dailySales[d]);
-                dataLorry.push(dailyLorry[d]);
-            }
-            
-            // Render Line Chart
-            let ctxLine = document.getElementById('salesLineChart').getContext('2d');
-            if(salesLineChartInstance) salesLineChartInstance.destroy();
-            salesLineChartInstance = new Chart(ctxLine, {
-                type: 'line',
-                data: {
-                    labels: labelsLine,
-                    datasets: [{
-                        label: 'Total Sales (RM)',
-                        data: dataLine,
-                        borderColor: '#22d3ee',
-                        backgroundColor: 'rgba(34, 211, 238, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        fill: true,
-                        pointBackgroundColor: '#0f172a',
-                        pointBorderColor: '#22d3ee'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-                    }
-                }
-            });
-            
-            // Render AM Bar Chart (Top 15)
-            let sortedAMs = Object.keys(amSales).sort((a,b) => amSales[b] - amSales[a]).slice(0, 15);
-            let labelsPie = sortedAMs;
-            let dataPie = sortedAMs.map(am => amSales[am]);
-            let ctxPie = document.getElementById('amPieChart').getContext('2d');
-            if(amPieChartInstance) amPieChartInstance.destroy();
-            amPieChartInstance = new Chart(ctxPie, {
-                type: 'bar', 
-                data: {
-                    labels: labelsPie,
-                    datasets: [{
-                        label: 'Jualan (RM)',
-                        data: dataPie,
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#cbd5e1' } },
-                        y: { grid: { display: false }, ticks: { color: '#cbd5e1' } }
-                    }
-                }
-            });
-            
-            // Render Sales vs Lorry Chart (Dual Axis)
-            let ctxDual = document.getElementById('salesVsLorryChart').getContext('2d');
-            if(salesVsLorryChartInstance) salesVsLorryChartInstance.destroy();
-            salesVsLorryChartInstance = new Chart(ctxDual, {
-                type: 'bar',
-                data: {
-                    labels: labelsLine,
-                    datasets: [
-                        {
-                            label: 'Total Sales (RM)',
-                            data: dataLine,
-                            backgroundColor: 'rgba(16, 185, 129, 0.8)', // Emerald
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Lorry Cost (RM)',
-                            data: dataLorry,
-                            type: 'line',
-                            borderColor: '#fbbf24', // Amber 400
-                            borderWidth: 3,
-                            backgroundColor: '#fbbf24',
-                            pointBackgroundColor: '#ffffff',
-                            pointBorderColor: '#fbbf24',
-                            pointRadius: 4,
-                            yAxisID: 'y1'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                      mode: 'index',
-                      intersect: false,
-                    },
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#10b981' }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            grid: { drawOnChartArea: false },
-                            ticks: { color: '#fbbf24' }
-                        },
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-                    }
-                }
-            });
-            
-            // Render Leaderboard (Top 10 / Bottom 10)
-            let sortedBranches = Object.values(branchSales).sort((a,b) => b.sales - a.sales);
-            
-            let topHtml = '';
-            for(let i=0; i<Math.min(10, sortedBranches.length); i++) {
-                let b = sortedBranches[i];
-                if(b.sales === 0 && i > 0) continue; 
-                topHtml += `<div class="flex justify-between items-center bg-slate-900/50 p-2 rounded border border-slate-800">
-                    <div class="flex flex-col pr-2 min-w-0">
-                        <span class="text-xs text-slate-300 font-bold truncate">${i+1}. ${b.name}</span>
-                        <span class="text-[9px] text-slate-500 font-semibold truncate"><i class="fa-solid fa-user-tie text-cyan-500/50 mr-1"></i>${b.am} <span class="mx-1 text-slate-600">|</span> <i class="fa-solid fa-warehouse text-amber-500/50 mr-1"></i>${b.wh}</span>
-                    </div>
-                    <span class="text-xs text-emerald-400 font-black whitespace-nowrap">RM ${b.sales.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-                </div>`;
-            }
-            document.getElementById('top-branches-list').innerHTML = topHtml || '<div class="text-slate-500 text-xs italic">No data yet</div>';
-            
-            let bottomHtml = '';
-            let bottomBranches = [...sortedBranches].reverse();
-            for(let i=0; i<Math.min(10, bottomBranches.length); i++) {
-                let b = bottomBranches[i];
-                bottomHtml += `<div class="flex justify-between items-center bg-slate-900/50 p-2 rounded border border-slate-800">
-                    <div class="flex flex-col pr-2 min-w-0">
-                        <span class="text-xs text-slate-300 font-bold truncate">${bottomBranches.length-i}. ${b.name}</span>
-                        <span class="text-[9px] text-slate-500 font-semibold truncate"><i class="fa-solid fa-user-tie text-cyan-500/50 mr-1"></i>${b.am} <span class="mx-1 text-slate-600">|</span> <i class="fa-solid fa-warehouse text-amber-500/50 mr-1"></i>${b.wh}</span>
-                    </div>
-                    <span class="text-xs text-rose-400 font-black whitespace-nowrap">RM ${b.sales.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-                </div>`;
-            }
-            document.getElementById('bottom-branches-list').innerHTML = bottomHtml || '<div class="text-slate-500 text-xs italic">No data yet</div>';
-        }
         
-        let syncTimeout;
         function setSyncing(status) {
             isSyncing = status;
             let el = document.getElementById('sync-status');
@@ -1838,7 +1581,7 @@ function saveGlobalGSUrl() {
 
             if (window.activeListeners[queryKey] || window.fetchedQueries[queryKey]) {
                 if(currentTab==='dashboard') renderDashboard(); 
-                else if(currentTab==='analytics') renderAnalytics();
+                
                 else if(currentTab==='comparison') renderComparisonTable();
                 else renderTrackingTable();
                 if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
@@ -1880,7 +1623,7 @@ function saveGlobalGSUrl() {
                 dbSubmissions.push(...fbData);
                 window.fetchedQueries[queryKey] = true;
                 if(currentTab==='dashboard') renderDashboard(); 
-                else if(currentTab==='analytics') renderAnalytics();
+                
                 else if(currentTab==='comparison') renderComparisonTable();
                 else renderTrackingTable();
                 setSyncing(false);
@@ -1912,7 +1655,7 @@ function saveGlobalGSUrl() {
                     dbSubmissions.push(...fbData);
                     window.fetchedQueries[queryKey] = true;
                     if(currentTab==='dashboard') renderDashboard(); 
-                    else if(currentTab==='analytics') renderAnalytics();
+                    
                     else if(currentTab==='comparison') renderComparisonTable();
                     else renderTrackingTable();
                     if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
@@ -2313,7 +2056,7 @@ function saveGlobalGSUrl() {
 
         function switchTab(tab) {
             currentTab = tab;
-            ['dashboard', 'analytics', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey'].forEach(t => {
+            ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey'].forEach(t => {
                 let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
@@ -2817,7 +2560,7 @@ function saveGlobalGSUrl() {
             
             let dataMap = {};
             let dailyTotals = {};
-            for(let d=1; d<=daysInMonth; d++) dailyTotals[d] = {sales:0, trans:0};
+            for(let d=1; d<=daysInMonth; d++) dailyTotals[d] = {sales:0, trans:0, lorry:0};
             
             let branchCodeMap = {};
             branches.forEach(b => branchCodeMap[b.code] = true);
@@ -2832,6 +2575,7 @@ function saveGlobalGSUrl() {
                         if(dailyTotals[dayNum]) {
                             dailyTotals[dayNum].sales += (sub.sales || 0);
                             dailyTotals[dayNum].trans += (sub.transactions || 0);
+                            dailyTotals[dayNum].lorry += (sub.lorry || 0);
                         }
                     }
                 }
@@ -2856,9 +2600,11 @@ function saveGlobalGSUrl() {
             
             let labels = [];
             let salesData = [];
+            let lorryData = [];
             for(let d=1; d<=daysInMonth; d++) {
                 labels.push(`${d}hb`);
                 salesData.push(dailyTotals[d].sales);
+                lorryData.push(dailyTotals[d].lorry);
             }
             
             let trendTitle = document.getElementById('trend-title-suffix');
