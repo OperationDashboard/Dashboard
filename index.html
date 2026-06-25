@@ -1672,6 +1672,7 @@ function saveGlobalGSUrl() {
 
         window.historicalDropCache = window.historicalDropCache || {};
         let checkDropAlertId = 0;
+        let syncTimeout;
 
         async function check3DaysDropAlert(currentDateStr) {
             let currentId = ++checkDropAlertId;
