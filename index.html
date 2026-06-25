@@ -2315,9 +2315,6 @@ function saveGlobalGSUrl() {
         }
 
         function switchTab(tab) {
-            if (['analytics', 'comparison', 'drop', 'lorry'].includes(tab)) {
-                tab = 'dashboard';
-            }
             currentTab = tab;
             ['dashboard', 'analytics', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey'].forEach(t => {
                 let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
