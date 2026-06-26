@@ -2167,7 +2167,7 @@ function saveGlobalGSUrl() {
         }
 
         // --- 4. Branch Logic ---
-        function setupBranchView() {
+        async function setupBranchView() {
             document.getElementById('section-welcome').classList.add('hidden');
             document.getElementById('section-branch').classList.remove('hidden');
             
@@ -2175,6 +2175,59 @@ function saveGlobalGSUrl() {
             document.getElementById('info-branch-name').innerText = currentUser.name;
             let b = masterBranches.find(x=>x.code==currentUser.id);
             document.getElementById('info-branch-am').innerText = b.am;
+
+            // Target Tracker Logic
+            try {
+                let today = new Date();
+                let mStr = today.getFullYear() + '-' + ((today.getMonth()+1)<10?'0':'')+(today.getMonth()+1);
+                
+                // Fetch target
+                let tSnap = await db.collection('targets').doc(`${mStr}_${currentUser.id}`).get();
+                
+                // Show the widget in Branch view
+                document.getElementById('branch-target-widget').classList.remove('hidden');
+                
+                let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
+                
+                // Live query branch's submissions
+                let monthQuery = await db.collection('submissions')
+                    .where('code', '==', String(currentUser.id))
+                    .where('date', '>=', mStr + '-01')
+                    .where('date', '<=', mStr + '-31')
+                    .get();
+                    
+                let curSales = 0;
+                monthQuery.docs.forEach(d => curSales += (d.data().sales || 0));
+                
+                document.getElementById('b-target-current').innerText = 'RM ' + formatRM(curSales);
+                
+                if (target > 0) {
+                    let daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+                    let remainingDays = daysInMonth - today.getDate() + 1; // including today
+                    
+                    let reqSales = target - curSales;
+                    let reqPerDay = (reqSales > 0 && remainingDays > 0) ? (reqSales / remainingDays) : 0;
+                    let pct = Math.min((curSales / target) * 100, 100);
+                    
+                    document.getElementById('b-target-total').innerText = 'RM ' + formatRM(target);
+                    document.getElementById('b-target-pct').innerText = pct.toFixed(1) + '%';
+                    
+                    let bar = document.getElementById('b-target-bar');
+                    bar.style.width = pct + '%';
+                    if(pct >= 100) {
+                        bar.classList.replace('from-pink-600', 'from-emerald-500');
+                        bar.classList.replace('to-pink-400', 'to-emerald-400');
+                        document.getElementById('b-target-req').innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i> Tercapai';
+                    } else {
+                        document.getElementById('b-target-req').innerText = 'RM ' + formatRM(reqPerDay);
+                    }
+                } else {
+                    document.getElementById('b-target-total').innerText = 'Belum ditetapkan';
+                    document.getElementById('b-target-pct').innerText = '0%';
+                    document.getElementById('b-target-bar').style.width = '0%';
+                    document.getElementById('b-target-req').innerText = '-';
+                }
+            } catch(e) { console.error('Error loading target:', e); }
             
             let nightDate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
             let nightRec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
@@ -4896,26 +4949,40 @@ function saveGlobalGSUrl() {
             let tbody = document.getElementById('target-table-body');
             if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading targets...</td></tr>';
             
-            let branches = masterBranches;
-            if (amFilter) branches = branches.filter(b => b.am === amFilter);
-            else if (currentUser.role !== 'admin') branches = branches.filter(b => b.am === currentUser.name);
+            try {
+                let branches = masterBranches;
+                if (amFilter) branches = branches.filter(b => b.am === amFilter);
+                else if (currentUser.role !== 'admin') branches = branches.filter(b => b.am === currentUser.name);
 
-            let q = db.collection('targets').where('month', '==', month);
-            if (amFilter) q = q.where('am', '==', amFilter);
-            let targetSnap = await q.get();
-            let targets = {};
-            targetSnap.docs.forEach(d => { targets[d.data().code] = d.data().target_sales; });
+                let q = db.collection('targets').where('month', '==', month);
+                if (amFilter) q = q.where('am', '==', amFilter);
+                let targetSnap = await q.get();
+                let targets = {};
+                targetSnap.docs.forEach(d => { targets[d.data().code] = d.data().target_sales; });
 
-            let summarySnap = await db.collection('monthly_summaries').where('month', '==', month).get();
-            let currentSales = {};
-            summarySnap.docs.forEach(d => {
-                let data = d.data();
-                if (data.branches) {
-                    Object.keys(data.branches).forEach(c => {
-                        currentSales[c] = (currentSales[c]||0) + (data.branches[c].sales||0);
-                    });
+                let currentSales = {};
+                let amsToFetch = amFilter ? [amFilter] : [...new Set(masterBranches.filter(b=>b.am).map(b=>b.am))];
+                
+                for(let a of amsToFetch) {
+                    let safeAm = a.replace(/[^a-zA-Z0-9]/g, '');
+                    let docId = month + '_' + safeAm;
+                    let d = await db.collection('monthly_summaries').doc(docId).get();
+                    if(d.exists) {
+                        let data = d.data();
+                        if(data.branches) {
+                            Object.keys(data.branches).forEach(c => {
+                                // Accumulate daily sales since totalSales might not exist
+                                let totalS = 0;
+                                if(data.branches[c].daily) {
+                                    Object.values(data.branches[c].daily).forEach(dayData => {
+                                        totalS += (dayData.s || 0);
+                                    });
+                                }
+                                currentSales[c] = totalS;
+                            });
+                        }
+                    }
                 }
-            });
 
             let today = new Date();
             let isCurrentMonth = (today.getFullYear() + '-' + ((today.getMonth()+1)<10?'0':'')+(today.getMonth()+1)) === month;
@@ -4975,6 +5042,10 @@ function saveGlobalGSUrl() {
                 if(eP) eP.innerText = `${tPct}% Achieved`;
                 let eM = document.getElementById('target-missing-kpi');
                 if(eM) eM.innerText = noTarget;
+            }
+            } catch (err) {
+                console.error("Error loading targets:", err);
+                if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-rose-500"><i class="fa-solid fa-circle-exclamation mr-2"></i>Ralat memuat turun data sasaran. Sila cuba sebentar lagi.</td></tr>';
             }
         }
 
