@@ -212,6 +212,7 @@
                     <button onclick="switchTab('audit')" id="tab-btn-audit" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-triangle-exclamation mr-1 text-yellow-500"></i> Audit & Anomaly</button>
                     <button onclick="switchTab('lorry')" id="tab-btn-lorry" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-truck-fast mr-1 text-orange-400"></i> Lorry Tracker</button>
                     <button onclick="switchTab('target')" id="tab-btn-target" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-bullseye mr-1 text-pink-400"></i> Target Tracker</button>
+                    <button onclick="switchTab('target')" id="tab-btn-target" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-bullseye mr-1 text-pink-400"></i> Target Tracker</button>
                     <button onclick="switchTab('survey')" id="tab-btn-survey" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap relative"><i class="fa-solid fa-clipboard-list mr-1 text-purple-400"></i> Survey & Tracking<span id="survey-badge" class="hidden absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">0</span></button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
@@ -1004,6 +1005,64 @@ function doPost(e) {
                             </thead>
                             <tbody id="lorry-table-body" class="divide-y divide-slate-800/50 text-sm">
                                 <tr><td colspan="15" class="py-8 text-center text-slate-500">Select a month and click Analyze</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- TARGET TRACKER TAB -->
+            <section id="tab-target" class="hidden space-y-6">
+                <!-- Admin Top Summary -->
+                <div class="admin-only hidden grid grid-cols-1 md:grid-cols-3 gap-4 mb-4" id="target-admin-summary">
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-pink-500 neon-glow-pink">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Company Target</p>
+                        <h3 id="target-total-kpi" class="text-2xl font-black text-white mt-1">RM 0</h3>
+                    </div>
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-emerald-500 neon-glow-emerald">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Sales (Targeted Branches)</p>
+                        <h3 id="target-sales-kpi" class="text-2xl font-black text-emerald-400 mt-1">RM 0</h3>
+                        <p id="target-percent-kpi" class="text-[10px] font-bold mt-1 text-slate-400">0% Achieved</p>
+                    </div>
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-rose-500 neon-glow-rose">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Branches w/o Target</p>
+                        <h3 id="target-missing-kpi" class="text-2xl font-black text-rose-400 mt-1">0</h3>
+                    </div>
+                </div>
+
+                <div class="pbi-card rounded-xl p-6 shadow-xl border-t-4 border-pink-500">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div>
+                            <h2 class="text-xl font-black text-white uppercase tracking-wider"><i class="fa-solid fa-bullseye text-pink-400 mr-2"></i> Branch Target Tracker</h2>
+                            <p class="text-[11px] text-slate-400 mt-1">Set monthly sales targets for branches and track their progress.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <select id="target-month-select" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-pink-500" onchange="loadTargetTracker()">
+                                <!-- Populated by JS -->
+                            </select>
+                            <select id="target-am-filter" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-pink-500 admin-only hidden" onchange="loadTargetTracker()">
+                                <option value="">All Area Managers</option>
+                            </select>
+                            <button onclick="loadTargetTracker()" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-sm font-bold border border-slate-600 transition-colors"><i class="fa-solid fa-rotate mr-1"></i> Refresh</button>
+                            <button onclick="saveTargets()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-[0_0_15px_rgba(219,39,119,0.4)] transition-all am-only hidden"><i class="fa-solid fa-floppy-disk mr-2"></i> Save Targets</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-slate-800 rounded-lg max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-900/80 sticky top-0 z-10 backdrop-blur-sm">
+                                <tr class="text-slate-300 text-[10px] uppercase tracking-wider font-bold border-b border-slate-700">
+                                    <th class="py-3 px-4 border-r border-slate-800">Code</th>
+                                    <th class="py-3 px-4 border-r border-slate-800">Outlet & AM</th>
+                                    <th class="py-3 px-4 bg-pink-950/30 text-pink-300 border-r border-pink-900/30 w-48">Target (RM)</th>
+                                    <th class="py-3 px-4 border-r border-slate-800 text-right">Current Sales</th>
+                                    <th class="py-3 px-4 border-r border-slate-800 text-center">Progress</th>
+                                    <th class="py-3 px-4 text-right">Required/Day</th>
+                                </tr>
+                            </thead>
+                            <tbody id="target-table-body" class="text-sm divide-y divide-slate-800">
+                                <tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading targets...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -2384,6 +2443,7 @@ function saveGlobalGSUrl() {
             updateMasterLockUI();
             // listenToSurveyBadge() is now called globally upon login
             
+            initTargetTracker();
             initTargetTracker();
             if (currentUser.role === 'admin') {
                 let btnPatch = document.getElementById('btn-patch-db');
@@ -4861,8 +4921,161 @@ function saveGlobalGSUrl() {
                 alert("Error during aggregation! " + e.message);
             }
         }
-</script>
 
+        // ================= TARGET TRACKER LOGIC =================
+        function initTargetTracker() {
+            let mSelect = document.getElementById('target-month-select');
+            if(!mSelect) return;
+            mSelect.innerHTML = '';
+            let date = new Date();
+            for(let i=0; i<6; i++) {
+                let d = new Date(date.getFullYear(), date.getMonth()-i, 1);
+                let mStr = d.getFullYear() + '-' + ((d.getMonth()+1)<10?'0':'')+(d.getMonth()+1);
+                let lbl = d.toLocaleString('en-US', {month: 'long', year: 'numeric'});
+                mSelect.innerHTML += `<option value="${mStr}">${lbl}</option>`;
+            }
+            if (currentUser && currentUser.role === 'admin') {
+                let amFilter = document.getElementById('target-am-filter');
+                if (amFilter) {
+                    amFilter.innerHTML = '<option value="">All Area Managers</option>';
+                    let ams = [...new Set(masterBranches.filter(b=>b.am).map(b=>b.am))].sort();
+                    ams.forEach(am => {
+                        amFilter.innerHTML += `<option value="${am}">${am}</option>`;
+                    });
+                }
+            }
+        }
+
+        async function loadTargetTracker() {
+            let mEl = document.getElementById('target-month-select');
+            if(!mEl) return;
+            let month = mEl.value;
+            let amEl = document.getElementById('target-am-filter');
+            let amFilter = currentUser.role === 'admin' && amEl ? amEl.value : currentUser.name;
+            let tbody = document.getElementById('target-table-body');
+            if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading targets...</td></tr>';
+            
+            let branches = masterBranches;
+            if (amFilter) branches = branches.filter(b => b.am === amFilter);
+            else if (currentUser.role !== 'admin') branches = branches.filter(b => b.am === currentUser.name);
+
+            let q = db.collection('targets').where('month', '==', month);
+            if (amFilter) q = q.where('am', '==', amFilter);
+            let targetSnap = await q.get();
+            let targets = {};
+            targetSnap.docs.forEach(d => { targets[d.data().code] = d.data().target_sales; });
+
+            let summarySnap = await db.collection('monthly_summaries').where('month', '==', month).get();
+            let currentSales = {};
+            summarySnap.docs.forEach(d => {
+                let data = d.data();
+                if (data.branches) {
+                    Object.keys(data.branches).forEach(c => {
+                        currentSales[c] = (currentSales[c]||0) + (data.branches[c].sales||0);
+                    });
+                }
+            });
+
+            let today = new Date();
+            let isCurrentMonth = (today.getFullYear() + '-' + ((today.getMonth()+1)<10?'0':'')+(today.getMonth()+1)) === month;
+            let daysInMonth = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).getDate();
+            let remainingDays = isCurrentMonth ? (daysInMonth - today.getDate() + 1) : 0;
+
+            let htmlStr = '';
+            let tTarget = 0, tSales = 0, noTarget = 0;
+
+            branches.sort((a,b)=>String(a.code).localeCompare(String(b.code))).forEach(b => {
+                let target = targets[b.code] || 0;
+                let sales = currentSales[b.code] || 0;
+                let pct = target > 0 ? ((sales/target)*100).toFixed(1) : 0;
+                let required = target - sales;
+                let reqPerDay = (required > 0 && remainingDays > 0) ? (required / remainingDays) : 0;
+                
+                tTarget += target;
+                if(target > 0) tSales += sales;
+                if(target == 0) noTarget++;
+
+                let targetInput = currentUser.role === 'admin' 
+                    ? `<span class="font-bold text-pink-400">RM ${formatNum(target)}</span>`
+                    : `<input type="number" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" value="${target||''}" placeholder="Target RM">`;
+
+                htmlStr += `
+                    <tr class="hover:bg-slate-800/50 transition-colors">
+                        <td class="py-3 px-4 text-xs font-bold text-slate-400">${b.code}</td>
+                        <td class="py-3 px-4">
+                            <div class="font-bold text-white">${b.name}</div>
+                            <div class="text-[10px] text-slate-500">${b.am}</div>
+                        </td>
+                        <td class="py-3 px-4 bg-pink-950/20">${targetInput}</td>
+                        <td class="py-3 px-4 text-right font-bold text-emerald-400">RM ${formatRM(sales)}</td>
+                        <td class="py-3 px-4">
+                            <div class="w-full bg-slate-800 rounded-full h-2.5 mt-1 relative overflow-hidden">
+                                <div class="bg-gradient-to-r ${pct >= 100 ? 'from-emerald-500 to-emerald-400' : 'from-pink-600 to-pink-400'} h-2.5 rounded-full" style="width: ${Math.min(pct, 100)}%"></div>
+                            </div>
+                            <div class="text-[10px] text-center mt-1 font-bold ${pct >= 100 ? 'text-emerald-400' : 'text-slate-400'}">${pct}%</div>
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <div class="font-bold text-rose-400">${reqPerDay > 0 ? 'RM '+formatRM(reqPerDay) : (pct>=100 ? '<i class="fa-solid fa-check text-emerald-500"></i>' : '-')}</div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if(branches.length === 0) htmlStr = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No branches found.</td></tr>';
+            if(tbody) tbody.innerHTML = htmlStr;
+
+            if(currentUser.role === 'admin') {
+                let eT = document.getElementById('target-total-kpi');
+                if(eT) eT.innerText = `RM ${formatRM(tTarget)}`;
+                let eS = document.getElementById('target-sales-kpi');
+                if(eS) eS.innerText = `RM ${formatRM(tSales)}`;
+                let tPct = tTarget > 0 ? ((tSales/tTarget)*100).toFixed(1) : 0;
+                let eP = document.getElementById('target-percent-kpi');
+                if(eP) eP.innerText = `${tPct}% Achieved`;
+                let eM = document.getElementById('target-missing-kpi');
+                if(eM) eM.innerText = noTarget;
+            }
+        }
+
+        async function saveTargets() {
+            let mEl = document.getElementById('target-month-select');
+            if(!mEl) return;
+            let month = mEl.value;
+            let inputs = document.querySelectorAll('.target-input');
+            let updates = [];
+            inputs.forEach(inp => {
+                let val = parseFloat(inp.value);
+                if (!isNaN(val) && val >= 0) {
+                    updates.push({ code: inp.getAttribute('data-code'), target: val });
+                }
+            });
+
+            if(updates.length === 0) return showToast('info', 'No targets to save.');
+            
+            setSyncing(true);
+            try {
+                let batch = db.batch();
+                updates.forEach(u => {
+                    let bInfo = masterBranches.find(b => String(b.code) === String(u.code));
+                    let ref = db.collection('targets').doc(`${month}_${u.code}`);
+                    batch.set(ref, {
+                        month: month,
+                        code: String(u.code),
+                        am: bInfo ? bInfo.am : currentUser.name,
+                        target_sales: u.target,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                await batch.commit();
+                showToast('success', 'Targets saved successfully!');
+                loadTargetTracker();
+            } catch(e) {
+                showToast('error', 'Error saving targets: ' + e.message);
+            }
+            setSyncing(false);
+        }
+
+</script>
 </body>
 
 
