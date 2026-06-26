@@ -130,7 +130,7 @@
                 <!-- Branch Info Card -->
                 <div class="lg:col-span-1 space-y-6">
                     <div class="pbi-card rounded-2xl p-5 shadow-xl">
-                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4" data-i18n="branch_info">Branch Information</h3>
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4" data-i18n="branch_info">Maklumat Cawangan</h3>
                         <div class="space-y-4">
                             <div class="bg-slate-900 rounded-xl p-3 border border-slate-800"><p class="text-[10px] text-slate-500 uppercase font-bold">Branch Code & Name</p>
                                 <p class="text-sm text-white font-semibold mt-0.5"><span id="info-branch-code" class="text-cyan-400 mr-1">-</span> <span id="info-branch-name">-</span></p>
@@ -138,7 +138,7 @@
                             <div class="bg-slate-900 rounded-xl p-3 border border-slate-800"><p class="text-[10px] text-slate-500 uppercase font-bold">Area Manager</p>
                                 <p class="text-sm text-white font-semibold mt-0.5" id="info-branch-am">-</p>
                             </div>
-                            <div class="bg-slate-900 rounded-xl p-3 border border-slate-800"><p class="text-[10px] text-slate-500 uppercase font-bold">Submission Time (Night)</p>
+                            <div class="bg-slate-900 rounded-xl p-3 border border-slate-800"><p class="text-[10px] text-slate-500 uppercase font-bold">Masa Hantar (Malam)</p>
                                 <p class="text-xs text-amber-400 font-semibold mt-0.5" id="info-branch-submit-time">Not submitted yet</p>
                             </div>
                         </div>
@@ -146,7 +146,7 @@
 
                     <!-- Branch Target Widget -->
                     <div class="pbi-card rounded-2xl p-5 shadow-xl border-t-4 border-pink-500 hidden" id="branch-target-widget">
-                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-bullseye text-pink-400 mr-2"></i> Monthly Target</h3>
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-bullseye text-pink-400 mr-2"></i> Target Bulanan</h3>
                         <div class="space-y-4">
                             <div class="flex justify-between items-end">
                                 <div>
@@ -154,7 +154,7 @@
                                     <p class="text-lg font-black text-white" id="b-target-total">-</p>
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-[10px] text-slate-500 uppercase font-bold">Current Sales</p>
+                                    <p class="text-[10px] text-slate-500 uppercase font-bold">Sales Semasa</p>
                                     <p class="text-lg font-black text-emerald-400" id="b-target-current">-</p>
                                 </div>
                             </div>
@@ -162,7 +162,7 @@
                             <!-- Progress Bar -->
                             <div>
                                 <div class="flex justify-between text-[10px] font-bold mb-1">
-                                    <span class="text-slate-400">Progress</span>
+                                    <span class="text-slate-400">Progres</span>
                                     <span class="text-pink-400" id="b-target-pct">0%</span>
                                 </div>
                                 <div class="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden">
@@ -1089,8 +1089,8 @@ function doPost(e) {
                                     <th class="py-3 px-4 border-r border-slate-800">Code</th>
                                     <th class="py-3 px-4 border-r border-slate-800">Outlet & AM</th>
                                     <th class="py-3 px-4 bg-pink-950/30 text-pink-300 border-r border-pink-900/30 w-48">Target (RM)</th>
-                                    <th class="py-3 px-4 border-r border-slate-800 text-right">Current Sales</th>
-                                    <th class="py-3 px-4 border-r border-slate-800 text-center">Progress</th>
+                                    <th class="py-3 px-4 border-r border-slate-800 text-right">Sales Semasa</th>
+                                    <th class="py-3 px-4 border-r border-slate-800 text-center">Progres</th>
                                     <th class="py-3 px-4 text-right">Required/Day</th>
                                 </tr>
                             </thead>
@@ -1277,7 +1277,7 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
     return false;
 };
 window.onunhandledrejection = function(event) {
-    alert('Promise Error: ' + event.reason);
+    let reason = event.reason; let msg = reason ? (reason.stack || reason.message || reason) : 'Unknown'; alert('Promise Error: ' + msg);
 };
 
         function formatDecimalInput(el) {
@@ -2260,7 +2260,7 @@ function saveGlobalGSUrl() {
                         document.getElementById('b-target-req').innerText = 'RM ' + formatRM(reqPerDay);
                     }
                 }
-            } catch(e) { console.error('Error loading target:', e); }
+            } catch(e) { console.error('Error loading target:', e); document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; }
             
             let nightDate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
             let nightRec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
