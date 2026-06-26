@@ -2162,6 +2162,8 @@ function saveGlobalGSUrl() {
             if(typeof unsubToday !== 'undefined' && unsubToday) { unsubToday(); unsubToday = null; }
             if(typeof unsubBank !== 'undefined' && unsubBank) { unsubBank(); unsubBank = null; }
             if(typeof unsubNight !== 'undefined' && unsubNight) { unsubNight(); unsubNight = null; }
+            if(typeof window.unsubTarget !== 'undefined' && window.unsubTarget) { window.unsubTarget(); window.unsubTarget = null; }
+            window.currentBranchTarget = 0;
             if(typeof unsubToday !== 'undefined' && unsubToday) { unsubToday(); unsubToday = null; }
             if(typeof unsubBank !== 'undefined' && unsubBank) { unsubBank(); unsubBank = null; }
             if(typeof unsubNight !== 'undefined' && unsubNight) { unsubNight(); unsubNight = null; }
@@ -2224,7 +2226,39 @@ function saveGlobalGSUrl() {
         }
 
         // --- 4. Branch Logic ---
+                window.currentBranchTarget = 0;
+        function renderBranchTargetWidget(curSales) {
+            let target = window.currentBranchTarget;
+            if(target > 0) {
+                let today = new Date();
+                let daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+                let remainingDays = daysInMonth - today.getDate() + 1;
+                let reqSales = target - curSales;
+                let reqPerDay = (reqSales > 0 && remainingDays > 0) ? (reqSales / remainingDays) : 0;
+                let pct = Math.min((curSales / target) * 100, 100);
+                
+                document.getElementById('b-target-total').innerText = 'RM ' + formatRM(target);
+                document.getElementById('b-target-pct').innerText = pct.toFixed(1) + '%';
+                document.getElementById('b-target-bar').style.width = pct + '%';
+                if(reqSales <= 0) {
+                    document.getElementById('b-target-req').classList.remove('text-pink-500');
+                    document.getElementById('b-target-req').classList.add('text-emerald-400');
+                    document.getElementById('b-target-req').innerHTML = '<i class="fa-solid fa-check mr-1"></i>Tercapai';
+                } else {
+                    document.getElementById('b-target-req').innerText = 'RM ' + formatRM(reqPerDay);
+                    document.getElementById('b-target-req').classList.add('text-pink-500');
+                    document.getElementById('b-target-req').classList.remove('text-emerald-400');
+                }
+            } else {
+                document.getElementById('b-target-total').innerText = 'Belum ditetapkan';
+                document.getElementById('b-target-pct').innerText = '0%';
+                document.getElementById('b-target-bar').style.width = '0%';
+                document.getElementById('b-target-req').innerText = '-';
+            }
+        }
+        
         async function setupBranchView() {
+            if(!currentUser) return;
             document.getElementById('section-welcome').classList.add('hidden');
             document.getElementById('section-branch').classList.remove('hidden');
             
@@ -2262,30 +2296,24 @@ function saveGlobalGSUrl() {
                 }
                 document.getElementById('b-target-current').innerText = 'RM ' + formatRM(curSales);
                 
-                // Fetch target later (could fail if no permission)
-                let tSnap = await db.collection('targets').doc(`${mStr}_${currentUser.id}`).get();
-                let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
+                // Live listener for targets
+                if(typeof window.unsubTarget !== 'undefined' && window.unsubTarget) {
+                    // listener already attached
+                } else {
+                    window.unsubTarget = db.collection('targets').doc(`${mStr}_${currentUser.id}`).onSnapshot(tSnap => {
+                        if (!currentUser) return; // safeguard
+                        let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
+                        window.currentBranchTarget = target;
+                        renderBranchTargetWidget(curSales);
+                    }, e => {
+                        console.error('Error loading target:', e); 
+                        document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; 
+                    });
+                }
                 
-                if (target > 0) {
-                    let daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-                    let remainingDays = daysInMonth - today.getDate() + 1; // including today
-                    
-                    let reqSales = target - curSales;
-                    let reqPerDay = (reqSales > 0 && remainingDays > 0) ? (reqSales / remainingDays) : 0;
-                    let pct = Math.min((curSales / target) * 100, 100);
-                    
-                    document.getElementById('b-target-total').innerText = 'RM ' + formatRM(target);
-                    document.getElementById('b-target-pct').innerText = pct.toFixed(1) + '%';
-                    
-                    let bar = document.getElementById('b-target-bar');
-                    bar.style.width = pct + '%';
-                    if(pct >= 100) {
-                        bar.classList.replace('from-pink-600', 'from-emerald-500');
-                        bar.classList.replace('to-pink-400', 'to-emerald-400');
-                        document.getElementById('b-target-req').innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i> Tercapai';
-                    } else {
-                        document.getElementById('b-target-req').innerText = 'RM ' + formatRM(reqPerDay);
-                    }
+                // initial render using whatever we have so far
+                if (typeof window.currentBranchTarget !== 'undefined') {
+                    renderBranchTargetWidget(curSales);
                 }
             } catch(e) { console.error('Error loading target:', e); document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; }
             
