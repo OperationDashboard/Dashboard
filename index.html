@@ -1392,7 +1392,15 @@ function saveGlobalGSUrl() {
         function loadBranchesCache() {
             let cached = localStorage.getItem('master_branches_cache');
             if(cached) {
-                masterBranches = JSON.parse(cached);
+                let parsed = JSON.parse(cached);
+                let seen = new Set();
+                masterBranches = parsed.filter(b => {
+                    if(!b.code) return false;
+                    let c = String(b.code).trim();
+                    if(seen.has(c)) return false;
+                    seen.add(c);
+                    return true;
+                });
                 ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
             }
         }
@@ -1402,7 +1410,14 @@ function saveGlobalGSUrl() {
             if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") return;
             fetch(url + '?t=' + new Date().getTime() + '&action=get_branches').then(r=>r.json()).then(data => {
                 if(Array.isArray(data) && data.length > 0) {
-                    masterBranches = data.map(b => { if(b.code != null) b.code = String(b.code).trim();
+                    let seen = new Set();
+                    masterBranches = data.filter(b => {
+                        if(!b.code) return false;
+                        let c = String(b.code).trim();
+                        if(seen.has(c)) return false;
+                        seen.add(c);
+                        return true;
+                    }).map(b => { if(b.code != null) b.code = String(b.code).trim();
                         if (!b.am || b.am === "") {
                             if (b["AREA MANAGER"]) b.am = b["AREA MANAGER"];
                             else if (b["AM"]) b.am = b["AM"];
@@ -2144,6 +2159,12 @@ function saveGlobalGSUrl() {
             if(typeof hasAlertedSurvey !== 'undefined') hasAlertedSurvey = false;
             if(typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe) surveyUnsubscribe();
             if(typeof responsesUnsubscribe !== 'undefined' && responsesUnsubscribe) responsesUnsubscribe();
+            if(typeof unsubToday !== 'undefined' && unsubToday) { unsubToday(); unsubToday = null; }
+            if(typeof unsubBank !== 'undefined' && unsubBank) { unsubBank(); unsubBank = null; }
+            if(typeof unsubNight !== 'undefined' && unsubNight) { unsubNight(); unsubNight = null; }
+            if(typeof unsubToday !== 'undefined' && unsubToday) { unsubToday(); unsubToday = null; }
+            if(typeof unsubBank !== 'undefined' && unsubBank) { unsubBank(); unsubBank = null; }
+            if(typeof unsubNight !== 'undefined' && unsubNight) { unsubNight(); unsubNight = null; }
             document.getElementById('header-subtitle').classList.remove('hidden');
             document.getElementById('logged-in-controls').classList.add('hidden'); document.getElementById('logged-in-controls').classList.remove('flex');
             document.getElementById('nav-buttons').classList.remove('hidden'); document.getElementById('section-branch').classList.add('hidden');
@@ -2225,11 +2246,7 @@ function saveGlobalGSUrl() {
                 document.getElementById('b-target-req').innerText = '-';
                 
                 // Live query branch's submissions first
-                let monthQuery = await db.collection('submissions')
-                    .where('code', '==', String(currentUser.id))
-                    .where('date', '>=', mStr + '-01')
-                    .where('date', '<=', mStr + '-31')
-                    .get();
+                let monthQuery = await db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "-01_" + currentUser.id).where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "-31_" + currentUser.id).get();
                     
                 let curSales = 0;
                 monthQuery.docs.forEach(d => curSales += (d.data().sales || 0));
@@ -3655,7 +3672,14 @@ function saveGlobalGSUrl() {
                     const workbook = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     if(json.length > 0) {
-                        masterBranches = json.map(row => {
+                        let seen = new Set();
+                        masterBranches = json.filter(b => {
+                            if(!b.CODE) return false;
+                            let c = String(b.CODE).trim();
+                            if(seen.has(c)) return false;
+                            seen.add(c);
+                            return true;
+                        }).map(row => {
                             let getVal = (possible) => { let k = Object.keys(row).find(x => possible.includes(x.trim().toLowerCase())); return k ? row[k] : ""; };
                             return { code: parseInt(getVal(['code', 'kod'])) || Math.floor(Math.random()*9000)+1000, name: getVal(['outlet', 'name', 'nama']) || "UNKNOWN", am: getVal(['am', 'area manager', 'pengurus']) || "NO AM", state: getVal(['state', 'negeri']) || "N/A", warehouse: getVal(['warehouse', 'wh', 'gudang']) || "N/A" };
                         });
