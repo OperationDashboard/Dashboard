@@ -5085,7 +5085,7 @@ function saveGlobalGSUrl() {
 
                     let targetInput = currentUser.role === 'admin' 
                         ? `<span class="font-bold text-pink-400">RM ${formatNum(target)}</span>`
-                        : `<input type="number" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" value="${target||''}" placeholder="Target RM">`;
+                        : `<input type="text" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" value="${target ? Number(target).toLocaleString('en-US') : ''}" placeholder="Target RM" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');">`;
 
                     htmlStr += `
                         <tr class="hover:bg-slate-800/50 transition-colors">
