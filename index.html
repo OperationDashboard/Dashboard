@@ -2247,11 +2247,17 @@ function saveGlobalGSUrl() {
                 
                 // Live query branch's submissions first
                 let curSales = 0;
-                let summaryDoc = await db.collection("monthly_summaries").doc(mStr).get();
+                let safeAm = '';
+                let cb = masterBranches.find(x=>x.code==currentUser.id);
+                if(cb && cb.am) safeAm = String(cb.am).replace(/[^a-zA-Z0-9]/g, '');
+                let docId = mStr + '_' + safeAm;
+                let summaryDoc = await db.collection("monthly_summaries").doc(docId).get();
                 if(summaryDoc.exists) {
                     let sData = summaryDoc.data();
-                    if(sData[currentUser.id] && typeof sData[currentUser.id] === "object") {
-                        curSales = sData[currentUser.id].sales || 0;
+                    if(sData.branches && sData.branches[currentUser.id] && sData.branches[currentUser.id].daily) {
+                        Object.values(sData.branches[currentUser.id].daily).forEach(dayData => {
+                            curSales += (dayData.s || 0);
+                        });
                     }
                 }
                 document.getElementById('b-target-current').innerText = 'RM ' + formatRM(curSales);
