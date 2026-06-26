@@ -211,6 +211,7 @@
                     <button onclick="switchTab('drop')" id="tab-btn-drop" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only hidden"><i class="fa-solid fa-arrow-trend-down mr-1 text-rose-500"></i> Drop Analysis</button>
                     <button onclick="switchTab('audit')" id="tab-btn-audit" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only"><i class="fa-solid fa-triangle-exclamation mr-1 text-yellow-500"></i> Audit & Anomaly</button>
                     <button onclick="switchTab('lorry')" id="tab-btn-lorry" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-truck-fast mr-1 text-orange-400"></i> Lorry Tracker</button>
+                    <button onclick="switchTab('target')" id="tab-btn-target" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-bullseye mr-1 text-pink-400"></i> Target Tracker</button>
                     <button onclick="switchTab('survey')" id="tab-btn-survey" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap relative"><i class="fa-solid fa-clipboard-list mr-1 text-purple-400"></i> Survey & Tracking<span id="survey-badge" class="hidden absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">0</span></button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
@@ -266,7 +267,7 @@
                 </div>
 
                 <!-- KPI Cards -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="pdf-kpi-area">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="pdf-kpi-area">
                     <div class="pbi-card rounded-xl p-5 border-l-4 border-l-cyan-500 neon-glow-cyan relative overflow-hidden">
                         <div class="absolute top-0 right-0 p-3 opacity-10"><i class="fa-solid fa-wallet text-5xl"></i></div>
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider" data-i18n="kpi_sales">Total Sales</p>
@@ -1003,6 +1004,64 @@ function doPost(e) {
                             </thead>
                             <tbody id="lorry-table-body" class="divide-y divide-slate-800/50 text-sm">
                                 <tr><td colspan="15" class="py-8 text-center text-slate-500">Select a month and click Analyze</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- TARGET TRACKER TAB -->
+            <section id="tab-target" class="hidden space-y-6">
+                <!-- Admin Top Summary -->
+                <div class="admin-only hidden grid grid-cols-1 md:grid-cols-3 gap-4 mb-4" id="target-admin-summary">
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-pink-500 neon-glow-pink">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Company Target</p>
+                        <h3 id="target-total-kpi" class="text-2xl font-black text-white mt-1">RM 0</h3>
+                    </div>
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-emerald-500 neon-glow-emerald">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Sales (Targeted Branches)</p>
+                        <h3 id="target-sales-kpi" class="text-2xl font-black text-emerald-400 mt-1">RM 0</h3>
+                        <p id="target-percent-kpi" class="text-[10px] font-bold mt-1 text-slate-400">0% Achieved</p>
+                    </div>
+                    <div class="pbi-card rounded-xl p-5 border-l-4 border-l-rose-500 neon-glow-rose">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Branches w/o Target</p>
+                        <h3 id="target-missing-kpi" class="text-2xl font-black text-rose-400 mt-1">0</h3>
+                    </div>
+                </div>
+
+                <div class="pbi-card rounded-xl p-6 shadow-xl border-t-4 border-pink-500">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div>
+                            <h2 class="text-xl font-black text-white uppercase tracking-wider"><i class="fa-solid fa-bullseye text-pink-400 mr-2"></i> Branch Target Tracker</h2>
+                            <p class="text-[11px] text-slate-400 mt-1">Set monthly sales targets for branches and track their progress.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <select id="target-month-select" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-pink-500" onchange="loadTargetTracker()">
+                                <!-- Populated by JS -->
+                            </select>
+                            <select id="target-am-filter" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-pink-500 admin-only hidden" onchange="loadTargetTracker()">
+                                <option value="">All Area Managers</option>
+                            </select>
+                            <button onclick="loadTargetTracker()" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-sm font-bold border border-slate-600 transition-colors"><i class="fa-solid fa-rotate mr-1"></i> Refresh</button>
+                            <button onclick="saveTargets()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-[0_0_15px_rgba(219,39,119,0.4)] transition-all am-only hidden"><i class="fa-solid fa-floppy-disk mr-2"></i> Save Targets</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-slate-800 rounded-lg max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-900/80 sticky top-0 z-10 backdrop-blur-sm">
+                                <tr class="text-slate-300 text-[10px] uppercase tracking-wider font-bold border-b border-slate-700">
+                                    <th class="py-3 px-4 border-r border-slate-800">Code</th>
+                                    <th class="py-3 px-4 border-r border-slate-800">Outlet & AM</th>
+                                    <th class="py-3 px-4 bg-pink-950/30 text-pink-300 border-r border-pink-900/30 w-48">Target (RM)</th>
+                                    <th class="py-3 px-4 border-r border-slate-800 text-right">Current Sales</th>
+                                    <th class="py-3 px-4 border-r border-slate-800 text-center">Progress</th>
+                                    <th class="py-3 px-4 text-right">Required/Day</th>
+                                </tr>
+                            </thead>
+                            <tbody id="target-table-body" class="text-sm divide-y divide-slate-800">
+                                <tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading targets...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -2325,6 +2384,7 @@ function saveGlobalGSUrl() {
             updateMasterLockUI();
             // listenToSurveyBadge() is now called globally upon login
             
+            initTargetTracker();
             if (currentUser.role === 'admin') {
                 let btnPatch = document.getElementById('btn-patch-db');
                 if(btnPatch) btnPatch.classList.remove('hidden');
