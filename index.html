@@ -2118,7 +2118,7 @@ function saveGlobalGSUrl() {
 
         function switchTab(tab) {
             currentTab = tab;
-            ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey'].forEach(t => {
+            ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target'].forEach(t => {
                 let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
