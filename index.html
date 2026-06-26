@@ -2150,19 +2150,21 @@ function saveGlobalGSUrl() {
             document.getElementById('section-manager').classList.add('hidden'); document.getElementById('section-welcome').classList.remove('hidden');
         }
 
-        function switchTab(tab) {
+                function switchTab(tab) {
             currentTab = tab;
             ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target'].forEach(t => {
-                let s = document.getElementById(`tab-${t}`), b = document.getElementById(`tab-btn-${t}`);
+                let s = document.getElementById('tab-' + t), b = document.getElementById('tab-btn-' + t);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
             });
-            let aSec = document.getElementById(`tab-${tab}`), aBtn = document.getElementById(`tab-btn-${tab}`);
+            let aSec = document.getElementById('tab-' + tab), aBtn = document.getElementById('tab-btn-' + tab);
             if(aSec) aSec.classList.remove('hidden');
             if(aBtn) { aBtn.classList.remove('tab-inactive'); aBtn.classList.add('tab-active'); }
             
             if (tab === 'survey') {
                 renderSurveys();
+            } else if (tab === 'target') {
+                loadTargetTracker();
             } else if (tab === 'control') {
                 renderAuditLogs();
             } else {
