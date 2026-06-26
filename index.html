@@ -2246,10 +2246,14 @@ function saveGlobalGSUrl() {
                 document.getElementById('b-target-req').innerText = '-';
                 
                 // Live query branch's submissions first
-                let monthQuery = await db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "-01_" + currentUser.id).where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "-31_" + currentUser.id).get();
-                    
                 let curSales = 0;
-                monthQuery.docs.forEach(d => curSales += (d.data().sales || 0));
+                let summaryDoc = await db.collection("monthly_summaries").doc(mStr).get();
+                if(summaryDoc.exists) {
+                    let sData = summaryDoc.data();
+                    if(sData[currentUser.id] && typeof sData[currentUser.id] === "object") {
+                        curSales = sData[currentUser.id].sales || 0;
+                    }
+                }
                 document.getElementById('b-target-current').innerText = 'RM ' + formatRM(curSales);
                 
                 // Fetch target later (could fail if no permission)
