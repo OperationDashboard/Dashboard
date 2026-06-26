@@ -2181,15 +2181,14 @@ function saveGlobalGSUrl() {
                 let today = new Date();
                 let mStr = today.getFullYear() + '-' + ((today.getMonth()+1)<10?'0':'')+(today.getMonth()+1);
                 
-                // Fetch target
-                let tSnap = await db.collection('targets').doc(`${mStr}_${currentUser.id}`).get();
-                
-                // Show the widget in Branch view
+                // Show the widget in Branch view first to avoid hidden if target fetch fails
                 document.getElementById('branch-target-widget').classList.remove('hidden');
+                document.getElementById('b-target-total').innerText = 'Belum ditetapkan';
+                document.getElementById('b-target-pct').innerText = '0%';
+                document.getElementById('b-target-bar').style.width = '0%';
+                document.getElementById('b-target-req').innerText = '-';
                 
-                let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
-                
-                // Live query branch's submissions
+                // Live query branch's submissions first
                 let monthQuery = await db.collection('submissions')
                     .where('code', '==', String(currentUser.id))
                     .where('date', '>=', mStr + '-01')
@@ -2198,8 +2197,11 @@ function saveGlobalGSUrl() {
                     
                 let curSales = 0;
                 monthQuery.docs.forEach(d => curSales += (d.data().sales || 0));
-                
                 document.getElementById('b-target-current').innerText = 'RM ' + formatRM(curSales);
+                
+                // Fetch target later (could fail if no permission)
+                let tSnap = await db.collection('targets').doc(`${mStr}_${currentUser.id}`).get();
+                let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
                 
                 if (target > 0) {
                     let daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
@@ -2221,11 +2223,6 @@ function saveGlobalGSUrl() {
                     } else {
                         document.getElementById('b-target-req').innerText = 'RM ' + formatRM(reqPerDay);
                     }
-                } else {
-                    document.getElementById('b-target-total').innerText = 'Belum ditetapkan';
-                    document.getElementById('b-target-pct').innerText = '0%';
-                    document.getElementById('b-target-bar').style.width = '0%';
-                    document.getElementById('b-target-req').innerText = '-';
                 }
             } catch(e) { console.error('Error loading target:', e); }
             
