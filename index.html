@@ -5091,7 +5091,7 @@ function saveGlobalGSUrl() {
 
                     let targetInput = currentUser.role === 'admin' 
                         ? `<span class="font-bold text-pink-400">RM ${formatNum(target)}</span>`
-                        : `<input type="text" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" value="${target ? Number(target).toLocaleString('en-US') : ''}" placeholder="Target RM" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');">`;
+                        : `<input type="text" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" data-original="${target ? Number(target).toString() : ''}" value="${target ? Number(target).toLocaleString('en-US') : ''}" placeholder="Target RM" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');">`;
 
                     htmlStr += `
                         <tr class="hover:bg-slate-800/50 transition-colors">
@@ -5135,36 +5135,55 @@ function saveGlobalGSUrl() {
             }
         }
 
-        async function saveTargets() {
+                async function saveTargets() {
             let mEl = document.getElementById('target-month-select');
             if(!mEl) return;
             let month = mEl.value;
             let inputs = document.querySelectorAll('.target-input');
             let updates = [];
+            
             inputs.forEach(inp => {
-                let val = parseFloat(inp.value);
-                if (!isNaN(val) && val >= 0) {
-                    updates.push({ code: inp.getAttribute('data-code'), target: val });
+                let rawVal = inp.value.replace(/,/g, '').trim();
+                let origVal = inp.getAttribute('data-original') || '';
+                
+                if (rawVal !== origVal) {
+                    if (rawVal === '') {
+                        updates.push({ code: inp.getAttribute('data-code'), delete: true });
+                    } else {
+                        let val = parseFloat(rawVal);
+                        if (!isNaN(val) && val >= 0) {
+                            updates.push({ code: inp.getAttribute('data-code'), target: val });
+                        }
+                    }
                 }
             });
 
-            if(updates.length === 0) return showToast('info', 'No targets to save.');
+            if(updates.length === 0) return showToast('info', 'No changes detected.');
             
             setSyncing(true);
             try {
-                let batch = db.batch();
-                updates.forEach(u => {
-                    let bInfo = masterBranches.find(b => String(b.code) === String(u.code));
-                    let ref = db.collection('targets').doc(`${month}_${u.code}`);
-                    batch.set(ref, {
-                        month: month,
-                        code: String(u.code),
-                        am: bInfo ? bInfo.am : currentUser.name,
-                        target_sales: u.target,
-                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                let chunks = [];
+                for(let i=0; i<updates.length; i+=400) chunks.push(updates.slice(i, i+400));
+                
+                for(let chunk of chunks) {
+                    let batch = db.batch();
+                    chunk.forEach(u => {
+                        let ref = db.collection('targets').doc(`${month}_${u.code}`);
+                        if(u.delete) {
+                            batch.delete(ref);
+                        } else {
+                            let bInfo = masterBranches.find(b => String(b.code) === String(u.code));
+                            batch.set(ref, {
+                                month: month,
+                                code: String(u.code),
+                                am: bInfo ? bInfo.am : currentUser.name,
+                                target_sales: u.target,
+                                updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        }
                     });
-                });
-                await batch.commit();
+                    await batch.commit();
+                }
                 showToast('success', 'Targets saved successfully!');
                 loadTargetTracker();
             } catch(e) {
