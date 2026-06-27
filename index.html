@@ -1811,15 +1811,14 @@ function saveGlobalGSUrl() {
 
                 let datesToFetch = [dates[1], dates[2]].filter(d => !window.historicalDropCache[d]);
                 if(datesToFetch.length > 0) {
-                    let promises = datesToFetch.map(dStr => db.collection("submissions").where("date", "==", dStr).get());
-                    let snaps = await Promise.all(promises);
+                    let minDate = datesToFetch.reduce((a, b) => a < b ? a : b);
+                    let maxDate = datesToFetch.reduce((a, b) => a > b ? a : b);
+                    let rangeData = await fetchRangeFromSummaries(minDate, maxDate);
                     if(currentId !== checkDropAlertId) return;
                     
-                    snaps.forEach((snap, idx) => {
-                        let dStr = datesToFetch[idx];
+                    datesToFetch.forEach(dStr => {
                         window.historicalDropCache[dStr] = {};
-                        snap.forEach(doc => {
-                            let data = doc.data();
+                        rangeData.filter(x => x.date === dStr).forEach(data => {
                             window.historicalDropCache[dStr][data.code] = parseFloat(data.sales) || 0;
                         });
                     });
