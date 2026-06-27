@@ -3284,9 +3284,7 @@ function saveGlobalGSUrl() {
             }
             
             setSyncing(true);
-            db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd).get().then(snapshot => {
-                let subData = [];
-                snapshot.forEach(doc => subData.push(doc.data()));
+            fetchRangeFromSummaries(fetchStart, fetchEnd).then(subData => {
                 window.fetchedRangeQueries[cacheKey] = subData;
                 buildLorryTable(weeks, subData);
                 setSyncing(false);
@@ -3441,15 +3439,7 @@ function saveGlobalGSUrl() {
                 let snapData = window.fetchedRangeQueries[cacheKey];
                 
                 if (!snapData) {
-                    let snap = await db.collection("submissions")
-                        .where("date", ">=", startDate)
-                        .where("date", "<=", endDate)
-                        .get();
-
-                    snapData = [];
-                    snap.forEach(doc => {
-                        snapData.push(doc.data());
-                    });
+                    snapData = await fetchRangeFromSummaries(startDate, endDate);
                     window.fetchedRangeQueries[cacheKey] = snapData;
                 }
                 
