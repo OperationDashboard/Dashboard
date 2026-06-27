@@ -5086,7 +5086,8 @@ function saveGlobalGSUrl() {
             if(!mEl) return;
             let month = mEl.value;
             let amEl = document.getElementById('target-am-filter');
-            let amFilter = currentUser.role === 'admin' && amEl ? amEl.value : currentUser.name;
+            let isAdminOrOp = currentUser.role === 'admin' || currentUser.role === 'operation';
+            let amFilter = isAdminOrOp && amEl ? amEl.value : currentUser.name;
             let tbody = document.getElementById('target-table-body');
             
             if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 1...</td></tr>';
@@ -5094,7 +5095,7 @@ function saveGlobalGSUrl() {
             try {
                 let branches = masterBranches || [];
                 if (amFilter) branches = branches.filter(b => b.am === amFilter);
-                else if (currentUser.role !== 'admin') branches = branches.filter(b => b.am === currentUser.name);
+                else if (!isAdminOrOp) branches = branches.filter(b => b.am === currentUser.name);
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 2 (targets)...</td></tr>';
                 let q = db.collection('targets').where('month', '==', month);
@@ -5163,9 +5164,9 @@ function saveGlobalGSUrl() {
                     if(target > 0) tSales += sales;
                     if(target == 0) noTarget++;
 
-                    let targetInput = currentUser.role === 'admin' 
-                        ? `<span class="font-bold text-pink-400">RM ${formatNum(target)}</span>`
-                        : `<input type="text" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" data-original="${target ? Number(target).toString() : ''}" value="${target ? Number(target).toLocaleString('en-US') : ''}" placeholder="Target RM" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');">`;
+                    let targetInput = (currentUser.role === 'admin' || currentUser.role === 'operation')
+                        ? `<span class="font-bold text-pink-400">RM ${formatRM(target)}</span>`
+                        : `<input type="text" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" data-original="${target ? Number(target).toString() : ''}" value="${target ? Number(target).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}" placeholder="Target RM" oninput="let p=this.value.replace(/[^0-9.]/g,'').split('.'); this.value=p[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g,',')+(p.length>1?'.'+p.slice(1).join(''):'');">`;
 
                     htmlStr += `
                         <tr class="hover:bg-slate-800/50 transition-colors">
@@ -5192,7 +5193,7 @@ function saveGlobalGSUrl() {
                 if(branches.length === 0) htmlStr = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No branches found.</td></tr>';
                 if(tbody) tbody.innerHTML = htmlStr;
 
-                if(currentUser.role === 'admin') {
+                if(isAdminOrOp) {
                     let eT = document.getElementById('target-total-kpi');
                     if(eT) eT.innerText = `RM ${formatRM(tTarget)}`;
                     let eS = document.getElementById('target-sales-kpi');
