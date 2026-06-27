@@ -4017,26 +4017,36 @@ function saveGlobalGSUrl() {
             responsesLoaded = false;
             hasAlertedSurvey = false;
             
-            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').onSnapshot(snap => {
+            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').limit(10).onSnapshot(snap => {
                 allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 surveysLoaded = true;
-                updateSurveyUI();
-                if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
-            });
-            
-            let responsesQuery = db.collection('survey_responses');
-            if (currentUser && currentUser.role === 'branch') {
-                responsesQuery = responsesQuery.where('branchCode', '==', String(currentUser.id));
-            } else if (currentUser && currentUser.role === 'am') {
-                let amName = (currentUser.name || '').trim().toUpperCase();
-                responsesQuery = responsesQuery.where('amName', '==', amName);
-            }
-            
-            responsesUnsubscribe = responsesQuery.onSnapshot(snap => {
-                allResponses = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                responsesLoaded = true;
-                updateSurveyUI();
-                if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+                
+                let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
+                if (sIds.length === 0) {
+                    if (responsesUnsubscribe) { responsesUnsubscribe(); responsesUnsubscribe = null; }
+                    allResponses = [];
+                    responsesLoaded = true;
+                    updateSurveyUI();
+                    if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+                    return;
+                }
+                
+                if (responsesUnsubscribe) responsesUnsubscribe();
+                responsesUnsubscribe = db.collection('survey_responses').where('surveyId', 'in', sIds).onSnapshot(rSnap => {
+                    let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    
+                    if (currentUser && currentUser.role === 'branch') {
+                        rData = rData.filter(r => String(r.branchCode) === String(currentUser.id));
+                    } else if (currentUser && currentUser.role === 'am') {
+                        let amName = (currentUser.name || '').trim().toUpperCase();
+                        rData = rData.filter(r => (r.amName || '').toUpperCase() === amName);
+                    }
+                    
+                    allResponses = rData;
+                    responsesLoaded = true;
+                    updateSurveyUI();
+                    if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+                });
             });
         }
         
@@ -4316,8 +4326,8 @@ function saveGlobalGSUrl() {
                             rCount = uniqueAMs.size;
                         }
                         
-                        let dateStr = s.createdAt ? new Date(s.createdAt.toMillis()).toLocaleString() : '';
                         let isClosed = s.status === 'closed';
+                        let dateStr = s.createdAt ? new Date(s.createdAt.toMillis()).toLocaleString() : '';
                         html += `
                         <tr class="hover:bg-slate-800/30 transition-colors">
                             <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50">${dateStr}</td>
@@ -4325,7 +4335,7 @@ function saveGlobalGSUrl() {
                             <td class="p-3 text-sm border-b border-slate-800/50 text-center">
                                 <span class="${isClosed ? 'text-red-400' : 'text-green-400'} font-bold text-xs uppercase bg-slate-900 px-2 py-1 rounded border ${isClosed ? 'border-red-500/30' : 'border-green-500/30'}">${s.status}</span>
                             </td>
-                            <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50 text-center font-bold">${rCount} / ${tCount}</td>
+                            <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50 text-center font-bold">${isClosed ? '<span class="text-[10px] text-slate-500">CLOSED</span>' : rCount + ' / ' + tCount}</td>
                             <td class="p-3 text-sm border-b border-slate-800/50 text-right">
                                 <button onclick="viewSurveyReport('${s.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-chart-pie mr-1"></i> Semak</button>
                                 ${isClosed ? '' : `<button onclick="closeSurvey('${s.id}')" class="bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1"><i class="fa-solid fa-lock mr-1"></i> Tutup</button>`}
@@ -4693,10 +4703,23 @@ function saveGlobalGSUrl() {
             });
         }
 
-        function viewSurveyReport(id) {
+        async function viewSurveyReport(id) {
             let s = allSurveys.find(x => x.id === id);
             if(!s) return;
-            let sResp = allResponses.filter(x => x.surveyId === id);
+            
+            let sResp = [];
+            if (s.status !== 'closed') {
+                sResp = allResponses.filter(x => x.surveyId === id);
+            } else {
+                Swal.fire({ title: 'Memuat...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                try {
+                    let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
+                    sResp = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    Swal.close();
+                } catch(e) {
+                    Swal.close(); console.error(e); alert("Ralat."); return;
+                }
+            }
             
             if (s.type === 'custom') {
                 let theads = `<th class="p-2 border border-slate-700 whitespace-nowrap">Kod</th>`;
@@ -4902,9 +4925,22 @@ function saveGlobalGSUrl() {
             });
         }
 
-        function downloadSurveyExcel(id) {
+        async function downloadSurveyExcel(id) {
             let s = allSurveys.find(x => x.id === id);
-            let sResp = allResponses.filter(x => x.surveyId === id);
+            
+            let sResp = [];
+            if (s.status !== 'closed') {
+                sResp = allResponses.filter(x => x.surveyId === id);
+            } else {
+                Swal.fire({ title: 'Memuat...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                try {
+                    let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
+                    sResp = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    Swal.close();
+                } catch(e) {
+                    Swal.close(); console.error(e); alert("Ralat."); return;
+                }
+            }
             let csv = '';
             
             if (s.type === 'custom') {
