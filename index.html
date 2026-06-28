@@ -2444,7 +2444,6 @@ function saveGlobalGSUrl() {
 
             let finalizeNightSubmit = () => {
                 let nightDate = document.getElementById('night-date').value;
-                let rec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
                 
                 let updatePayload = {
                     date: nightDate, code: currentUser.id, name: currentUser.name,
@@ -2453,10 +2452,12 @@ function saveGlobalGSUrl() {
                     night_locked: true, night_unlocked: false, night_submit_time: getSafeTimeStr()
                 };
                 
-                if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
-                else { Object.assign(rec, updatePayload); }
-                
-                syncToCloud('submit_sales', updatePayload, setupBranchView);
+                syncToCloud('submit_sales', updatePayload, () => {
+                    let rec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
+                    if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
+                    else { Object.assign(rec, updatePayload); }
+                    setupBranchView();
+                });
             };
 
             if(overLimit) {
@@ -2508,10 +2509,12 @@ function saveGlobalGSUrl() {
             if (nBank1 !== pBank1 || (nBank1 > 0 && !(rec && rec.bank1_time))) updatePayload.bank1_time = tStr;
             if (nBank2 !== pBank2 || (nBank2 > 0 && !(rec && rec.bank2_time))) updatePayload.bank2_time = tStr;
             
-            if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
-            else { Object.assign(rec, updatePayload); }
-            
-            syncToCloud('upsert', updatePayload, setupBranchView);
+            syncToCloud('upsert', updatePayload, () => {
+                let rec = dbSubmissions.find(s => s.code == currentUser.id && s.date === bDate);
+                if(!rec) { rec = { ...updatePayload }; dbSubmissions.push(rec); }
+                else { Object.assign(rec, updatePayload); }
+                setupBranchView();
+            });
         }
 
         // --- 5. Manager Dashboards & Tracking ---
