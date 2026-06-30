@@ -2317,7 +2317,7 @@ function saveGlobalGSUrl() {
             document.getElementById('info-branch-code').innerText = currentUser.id;
             document.getElementById('info-branch-name').innerText = currentUser.name;
             let b = masterBranches.find(x=>x.code==currentUser.id);
-            document.getElementById('info-branch-am').innerText = b.am;
+            document.getElementById('info-branch-am').innerText = b ? (b.am || "UNASSIGNED") : "UNASSIGNED";
 
             // Target Tracker Logic
             try {
@@ -5101,13 +5101,24 @@ function saveGlobalGSUrl() {
         }
 
         async function aggregateAllData() {
-            if(!confirm("WARNING: This will calculate data aggregation from all historical data. This uses a large amount of database quota. Proceed?")) return;
+            let confirmResult = await Swal.fire({
+                title: 'Amaran!',
+                text: 'Ini akan mengira semula data dari semua sejarah transaksi. Ia memakan masa dan data yang banyak. Teruskan?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, teruskan',
+                cancelButtonText: 'Batal'
+            });
+            if (!confirmResult.isConfirmed) return;
+            
             setSyncing(true);
-            showToast('info', 'Loading past data...');
+            Swal.fire({ title: 'Sedang Memproses...', text: 'Memuat turun data lepas...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             try {
                 let snap = await db.collection("submissions").get();
                 let docs = snap.docs;
-                showToast('info', `Found ${docs.length} records. Aggregating...`);
+                Swal.fire({ title: 'Menyusun Data', text: `Menjumpai ${docs.length} rekod. Sedang mengira rumusan...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
                 let summaries = {}; // key: docId -> updateObj
                 
@@ -5172,7 +5183,7 @@ function saveGlobalGSUrl() {
                     summaries[docId].branches[d.code].daily[dayStr].t += t;
                 });
                 
-                showToast('info', 'Saving aggregated data...');
+                Swal.fire({ title: 'Menyimpan', text: 'Menyimpan data yang telah dikira ke pangkalan data...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 let docIds = Object.keys(summaries);
                 for (let i = 0; i < docIds.length; i += 20) {
                     let batch = db.batch();
@@ -5185,11 +5196,11 @@ function saveGlobalGSUrl() {
                 }
                 
                 setSyncing(false);
-                alert("Aggregated data saved successfully!");
+                Swal.fire('Berjaya!', 'Semua data telah berjaya dikira dan disimpan!', 'success');
             } catch(e) {
                 console.error(e);
                 setSyncing(false);
-                alert("Error during aggregation! " + e.message);
+                Swal.fire('Ralat', 'Proses gagal: ' + e.message, 'error');
             }
         }
 
