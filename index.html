@@ -1736,14 +1736,22 @@ function saveGlobalGSUrl() {
 
             setSyncing(true);
             
-            let isCurrentMonth = dateStr === todayStr.substring(0,7);
+            let isCurrentMonth = dateStr.startsWith(todayStr.substring(0,7));
             let isCurrentDay = dateStr === todayStr;
-            let needsLive = (mode === 'monthly' && isCurrentMonth) || (mode === 'daily' && isCurrentDay);
+            let needsLive = isCurrentMonth || (currentTab === 'tracking') || (mode === 'daily' && isCurrentDay);
             
+            let fetchMode = mode;
+            let fetchDateStr = dateStr;
+            if (currentTab !== 'tracking' && mode === 'daily' && dateStr !== todayStr) {
+                fetchMode = 'monthly';
+                fetchDateStr = dateStr.substring(0, 7);
+            }
+
             let processAggregatedSnap = (snap) => {
                 let fbData = [];
                 snap.forEach(doc => {
                     let d = doc.data();
+                    let docMonth = doc.id.split('_')[0];
                     if(d.branches) {
                         for(let code in d.branches) {
                             let bData = d.branches[code];
@@ -1751,7 +1759,7 @@ function saveGlobalGSUrl() {
                                 for(let day in bData.daily) {
                                     let daily = bData.daily[day];
                                     fbData.push({
-                                        date: d.month + "-" + day,
+                                        date: docMonth + "-" + day,
                                         code: code,
                                         name: bData.name || "",
                                         am: bData.am || d.am || "",
@@ -1766,40 +1774,42 @@ function saveGlobalGSUrl() {
                         }
                     }
                 });
-                dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(dateStr));
-                dbSubmissions.push(...fbData);
+                dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(fetchDateStr));
+                dbSubmissions = dbSubmissions.concat(fbData);
                 window.fetchedQueries[queryKey] = true;
                 if(currentTab==='dashboard') renderDashboard(); 
                 
                 else if(currentTab==='comparison') renderComparisonTable();
                 else renderTrackingTable();
+                if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                 setSyncing(false);
             };
 
-            if (mode === 'monthly') {
-                let query = db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", dateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", dateStr + "_\uf8ff");
+            if (fetchMode === 'monthly') {
+                let query = db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", fetchDateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchDateStr + "_\uf8ff");
+                let getOptions = needsLive ? { source: 'server' } : undefined;
                 if (currentUser.role === 'am') {
                     let safeAm = currentUser.name.replace(/[^a-zA-Z0-9_]/g, '_');
-                    query = db.collection("monthly_summaries").doc(dateStr + "_" + safeAm);
-                    query.get().then(doc => {
+                    query = db.collection("monthly_summaries").doc(fetchDateStr + "_" + safeAm);
+                    query.get(getOptions).then(doc => {
                         let snap = { forEach: (cb) => { if(doc.exists) cb(doc); } };
                         processAggregatedSnap(snap);
                     }).catch(e => { console.error(e); setSyncing(false); });
                 } else {
-                    query.get().then(snap => {
+                    query.get(getOptions).then(snap => {
                         processAggregatedSnap(snap);
                     }).catch(e => { console.error(e); setSyncing(false); });
                 }
             } else {
-                let query = db.collection("submissions").where("date", "==", dateStr);
+                let query = db.collection("submissions").where("date", "==", fetchDateStr);
                 
                 // Do not filter by 'am' in the Firebase query to avoid composite index crash.
                 // The data is filtered locally in JavaScript via getManagerFilteredBranches().
                 let processSnap = (snap) => {
                     let fbData = [];
                     snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
-                    dbSubmissions = dbSubmissions.filter(s => mode === 'daily' ? s.date !== dateStr : !s.date.startsWith(dateStr));
-                    dbSubmissions.push(...fbData);
+                    dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
+                    dbSubmissions = dbSubmissions.concat(fbData);
                     window.fetchedQueries[queryKey] = true;
                     if(currentTab==='dashboard') renderDashboard(); 
                     
@@ -2749,8 +2759,9 @@ function saveGlobalGSUrl() {
                 let s = grouped[b.code] || { sales: 0, lorry: 0 };
                 return { code: b.code, name: b.name, am: b.am, sales: s.sales, lorry: s.lorry, diff: s.lorry - s.sales };
             }).sort((a,b) => b.diff - a.diff);
+            let slicedBranchesData = allBranchesData.slice(0, 150);
             
-            allBranchesData.forEach(b => {
+            slicedBranchesData.forEach(b => {
                 let diffColor = b.diff > 0 ? 'text-emerald-400' : (b.diff < 0 ? 'text-rose-500' : 'text-slate-400');
                 compHtml += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
                     <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div><div class="text-[8px] text-cyan-500 font-semibold mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>${b.am}</div></td>
@@ -2759,6 +2770,11 @@ function saveGlobalGSUrl() {
                     <td class="p-3 text-right font-bold ${diffColor}">${b.diff < 0 ? '-' : ''}RM ${formatRM(Math.abs(b.diff))}</td>
                 </tr>`;
             });
+            
+            if (allBranchesData.length > 150) {
+                compHtml += `<tr><td colspan="4" class="p-3 text-center text-amber-500 font-bold bg-amber-500/10 text-xs">Memaparkan 150 cawangan teratas sahaja untuk kelancaran sistem.</td></tr>`;
+            }
+
             document.getElementById('dashboard-compare-tbody').innerHTML = compHtml || '<tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No data</td></tr>';
 
             renderCharts(targetDate, bCodes, tKPI);
@@ -2919,7 +2935,10 @@ function saveGlobalGSUrl() {
                 });
             }
             
+            let rendered = 0;
             branches.forEach(b => {
+                if (rendered >= 100) return;
+                rendered++;
                 let rowHtml = `<td class="p-3 font-bold text-cyan-400 sticky left-0 z-20 bg-slate-950 outline outline-1 outline-slate-800">${b.code}</td>
                                <td class="p-3 font-bold text-white sticky left-[60px] z-20 bg-slate-950 outline outline-1 outline-slate-800 truncate overflow-hidden whitespace-nowrap max-w-[200px]" title="${b.name}">${b.name}<div class="text-[8px] text-cyan-500 font-semibold mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>${b.am}</div></td>`;
                 
@@ -2953,6 +2972,10 @@ function saveGlobalGSUrl() {
                 tbody += `<tr class="hover:bg-slate-900/50">${rowHtml}</tr>`;
             });
             
+            if (branches.length > 100) {
+                tbody += `<tr><td colspan="${daysInMonth * 2 + 2}" class="p-4 text-center text-amber-500 font-bold bg-amber-500/10 border-b border-amber-500/30">Showing top 100 branches only to maintain performance. Please use the filters above (Area, State, etc.) to view other branches.</td></tr>`;
+            }
+            
             document.getElementById('comparison-tbody').innerHTML = tbody;
         }
 
@@ -2965,11 +2988,18 @@ function saveGlobalGSUrl() {
             
             updateSubmissionRatio();
 
+            let subMap = {};
+            for (let i = 0; i < dbSubmissions.length; i++) {
+                if (dbSubmissions[i].date === date) {
+                    subMap[dbSubmissions[i].code] = dbSubmissions[i];
+                }
+            }
+
             branches.forEach(b => {
                 if(term && !(b.code.toString().includes(term) || b.name.toLowerCase().includes(term))) return;
-                if(rendered > 300) return; rendered++;
+                if(rendered >= 150) return; rendered++;
 
-                let sub = dbSubmissions.find(s => s.code == b.code && s.date === date);
+                let sub = subMap[b.code];
                 let isNightLocked = !!(sub && sub.night_locked);
                 let hasBankIn = sub && ((sub.bank1||0)>0 || (sub.bank2||0)>0);
                 
