@@ -1478,8 +1478,20 @@ function saveGlobalGSUrl() {
             let yd = new Date(); yd.setDate(yd.getDate() - 1);
             yesterdayStr = getYYYYMMDD(yd);
         }, 60000);
+        let PASSWORDS = { 
+            'branch': '826f17bdafceecbf58a5cf484347b0d5b65f6c3a46103bd4f825a6798024f1fd', 
+            'am': '7b51a13e03685026f78e3538156ef52a1978cb5ddf715921095de708bd00dca5', 
+            'admin': '04445e6487736590d1ef50186b414e737e0164683cbbec64e00e73c000fd3bef', 
+            'operation': '7262a53f2a8a12d14ae9a03d528660c052ae6702a6f959a0272880fd6a7f7e24' 
+        };
         
-        let PASSWORDS = { 'branch': 'OutletGlobal2026!', 'am': 'ManagerHQ_Secure2026', 'admin': 'Admin2026!', 'operation': 'Operation2026!' };
+        async function hashPassword(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
         function getSafeTimeStr() {
             let d = new Date();
             let hh = d.getHours().toString().padStart(2, '0');
@@ -1520,7 +1532,6 @@ function saveGlobalGSUrl() {
             if(document.getElementById('bank-in-date')) document.getElementById('bank-in-date').value = todayStr;
             if(document.getElementById('night-date')) document.getElementById('night-date').value = todayStr;
             updateDateDisplay('dash-date'); updateDateDisplay('track-date');
-            document.getElementById('pwd-admin').value = PASSWORDS['admin'];
             let savedUrl = localStorage.getItem('global_gs_url');
             if(savedUrl) document.getElementById('global-gs-url').value = savedUrl;
             
@@ -2146,10 +2157,11 @@ function saveGlobalGSUrl() {
 
         function selectAuth(id, display) { document.getElementById('auth-selected-id').value = id; document.getElementById('auth-search').value = display; document.getElementById('auth-popup').classList.add('hidden'); }
 
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
             let role = document.getElementById('auth-role').value, pwd = document.getElementById('auth-pwd').value, selId = document.getElementById('auth-selected-id').value;
-            if (pwd !== PASSWORDS[role]) { showToast('error', currentLang==='EN'?'Invalid Password!':'Password Salah!'); return; }
+            let hashedPwd = await hashPassword(pwd);
+            if (hashedPwd !== PASSWORDS[role]) { showToast('error', currentLang==='EN'?'Invalid Password!':'Password Salah!'); return; }
             if ((role === 'branch' || role === 'am') && !selId) { showToast('error', 'Please select from search!'); return; }
             
             closeModal('auth-modal');
@@ -3141,9 +3153,10 @@ function saveGlobalGSUrl() {
                     if (!pwd) Swal.showValidationMessage('Password is required');
                     return pwd;
                 }
-            }).then((result) => {
+            }).then(async (result) => {
                 if (result.isConfirmed) {
-                    if (result.value === PASSWORDS['admin']) {
+                    let hashedPwd = await hashPassword(result.value);
+                    if (hashedPwd === PASSWORDS['admin']) {
                         dbSubmissions.forEach(s => { if(s.date === date) { s.sales = 0; s.transactions = 0; s.mykasih = 0; s.lorry = 0; s.night_locked = false; s.night_submit_time = ""; } });
                         renderTrackingTable();
                         syncToCloud('master_reset', { date: date, amName: currentUser.name });
