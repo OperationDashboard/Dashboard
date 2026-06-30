@@ -5381,7 +5381,7 @@ function saveGlobalGSUrl() {
             idleTimeout = setTimeout(() => {
                 if (typeof currentUser !== 'undefined' && currentUser) {
                     if (typeof logout === 'function') logout();
-                    Swal.fire('Sesi Tamat', 'Sistem ditutup secara automatik kerana tiada sebarang aktiviti selama 15 minit bagi menjimatkan kos server.', 'info').then(() => {
+                    Swal.fire('Sesi Tamat', 'Sistem ditutup secara automatik atas faktor keselamatan kerana tiada sebarang aktiviti selama 15 minit.', 'info').then(() => {
                         window.location.reload();
                     });
                 }
