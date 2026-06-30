@@ -721,6 +721,20 @@
                         </div>
                     </div>
                     
+                    <!-- Feature Toggles -->
+                    <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
+                        <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-toggle-on text-emerald-400 mr-1.5"></i> Feature Toggles</h3>
+                        <p class="text-[11px] text-slate-400 mb-4">Enable or disable heavy features to save server costs.</p>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between bg-slate-950 border border-slate-700 p-3 rounded-lg">
+                                <div class="flex flex-col">
+                                    <span class="text-xs font-bold text-slate-200 uppercase">3-Days Drop Alert</span>
+                                    <span class="text-[10px] text-slate-500">Very heavy on database reads. Turn ON only when needed.</span>
+                                </div>
+                                <button id="btn-toggle-3days" onclick="toggle3DaysAlert()" class="bg-rose-900 text-rose-200 px-4 py-1.5 rounded-full text-[10px] font-bold transition-colors shadow border border-rose-700">LOCKED (OFF)</button>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Data Aggregation Tool -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
@@ -1574,6 +1588,18 @@ function saveGlobalGSUrl() {
                     }
                     
                     window.globalConfig = data;
+
+                    if(document.getElementById('btn-toggle-3days')) {
+                        let isEnabled = data.enable_3days_alert === true;
+                        let btn = document.getElementById('btn-toggle-3days');
+                        if(isEnabled) {
+                            btn.className = "bg-emerald-600 text-white px-4 py-1.5 rounded-full text-[10px] font-bold transition-colors shadow border border-emerald-500";
+                            btn.innerText = "UNLOCKED (ON)";
+                        } else {
+                            btn.className = "bg-rose-900 text-rose-200 px-4 py-1.5 rounded-full text-[10px] font-bold transition-colors shadow border border-rose-700";
+                            btn.innerText = "LOCKED (OFF)";
+                        }
+                    }
                     if (document.getElementById('limit-sales')) {
                         document.getElementById('limit-sales').value = data.limit_sales || '';
                         document.getElementById('limit-mykasih').value = data.limit_mykasih || '';
@@ -1789,6 +1815,11 @@ function saveGlobalGSUrl() {
             let alertBox = document.getElementById('alert-3days-drop');
             let alertContent = document.getElementById('alert-3days-content');
             if(!alertBox) return;
+
+            if(!window.globalConfig || window.globalConfig.enable_3days_alert !== true) {
+                alertBox.classList.add('hidden');
+                return;
+            }
             
             if(document.getElementById('dash-mode').value !== 'daily') {
                 alertBox.classList.add('hidden');
@@ -3617,6 +3648,30 @@ function saveGlobalGSUrl() {
                 console.error(e);
                 setSyncing(false);
                 alert("Error semasa membaiki database!");
+            }
+        }
+
+        async function toggle3DaysAlert() {
+            if(!db) return;
+            let current = window.globalConfig && window.globalConfig.enable_3days_alert === true;
+            let newVal = !current;
+            
+            let confirmMsg = newVal ? "Are you sure you want to UNLOCK the 3-Days Drop Alert? This will consume high database reads." : "Are you sure you want to LOCK this feature to save costs?";
+            let { value: confirm } = await Swal.fire({
+                title: 'Confirm Toggle',
+                text: confirmMsg,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Proceed',
+                confirmButtonColor: newVal ? '#059669' : '#e11d48'
+            });
+            if(!confirm) return;
+
+            try {
+                await db.collection("config").doc("system").set({enable_3days_alert: newVal}, {merge: true});
+                Swal.fire('Success', 'Feature toggle updated.', 'success');
+            } catch(e) {
+                Swal.fire('Error', 'Failed to update toggle: ' + e.message, 'error');
             }
         }
 
