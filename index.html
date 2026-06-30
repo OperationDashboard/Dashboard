@@ -1332,7 +1332,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.53;
+        const APP_VERSION = 9.54;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -5304,6 +5304,28 @@ function saveGlobalGSUrl() {
             }
             setSyncing(false);
         }
+
+        // --- AUTO LOGOUT ON IDLE ---
+        let idleTimeout;
+        function resetIdleTimer() {
+            clearTimeout(idleTimeout);
+            // Set for 15 minutes (15 * 60 * 1000 = 900000 ms)
+            idleTimeout = setTimeout(() => {
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    if (typeof logout === 'function') logout();
+                    Swal.fire('Sesi Tamat', 'Sistem ditutup secara automatik kerana tiada sebarang aktiviti selama 15 minit bagi menjimatkan kos server.', 'info').then(() => {
+                        window.location.reload();
+                    });
+                }
+            }, 900000);
+        }
+
+        // Detect user activity to reset the timer
+        ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => 
+            document.addEventListener(evt, resetIdleTimer, true)
+        );
+        // Start the timer when the script loads
+        resetIdleTimer();
 
 </script>
 </body>
