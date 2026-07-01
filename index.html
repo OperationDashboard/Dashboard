@@ -1767,6 +1767,8 @@ function saveGlobalGSUrl() {
                                         lorry: daily.l || 0,
                                         mykasih: daily.m || 0,
                                         transactions: daily.t || 0,
+                                        bank1: daily.b1 || 0,
+                                        bank2: daily.b2 || 0,
                                         night_locked: true
                                     });
                                 }
@@ -1995,39 +1997,53 @@ function saveGlobalGSUrl() {
             }
 
             let oldRec = dbSubmissions.find(s => s.code == payloadData.code && s.date === payloadData.date);
+            if (!oldRec) {
+                try {
+                    let oldRecDoc = await db.collection("submissions").doc(payloadData.date + "_" + payloadData.code).get();
+                    if (oldRecDoc.exists) oldRec = oldRecDoc.data();
+                } catch(e) { console.error(e); }
+            }
             let oldSales = oldRec ? (parseFloat(oldRec.sales) || 0) : 0;
             let oldLorry = oldRec ? (parseFloat(oldRec.lorry) || 0) : 0;
             let oldMyKasih = oldRec ? (parseFloat(oldRec.mykasih) || 0) : 0;
             let oldTrans = oldRec ? (parseInt(oldRec.transactions) || 0) : 0;
+            let oldBank1 = oldRec ? (parseFloat(oldRec.bank1) || 0) : 0;
+            let oldBank2 = oldRec ? (parseFloat(oldRec.bank2) || 0) : 0;
             
             let newSales = payloadData.sales !== undefined ? parseFloat(payloadData.sales) || 0 : oldSales;
             let newLorry = payloadData.lorry !== undefined ? parseFloat(payloadData.lorry) || 0 : oldLorry;
             let newMyKasih = payloadData.mykasih !== undefined ? parseFloat(payloadData.mykasih) || 0 : oldMyKasih;
             let newTrans = payloadData.transactions !== undefined ? parseInt(payloadData.transactions) || 0 : oldTrans;
+            let newBank1 = payloadData.bank1 !== undefined ? parseFloat(payloadData.bank1) || 0 : oldBank1;
+            let newBank2 = payloadData.bank2 !== undefined ? parseFloat(payloadData.bank2) || 0 : oldBank2;
             
             let diffSales = newSales - oldSales;
             let diffLorry = newLorry - oldLorry;
             let diffMyKasih = newMyKasih - oldMyKasih;
             let diffTrans = newTrans - oldTrans;
+            let diffBank1 = newBank1 - oldBank1;
+            let diffBank2 = newBank2 - oldBank2;
             
             let oldTrips = (oldLorry > 0) ? 1 : 0;
             let newTrips = (newLorry > 0) ? 1 : 0;
             let diffTrips = newTrips - oldTrips;
 
-            if(diffSales === 0 && diffLorry === 0 && diffTrips === 0 && diffMyKasih === 0 && diffTrans === 0) return;
+            if(diffSales === 0 && diffLorry === 0 && diffTrips === 0 && diffMyKasih === 0 && diffTrans === 0 && diffBank1 === 0 && diffBank2 === 0) return;
 
             let amKey = bAm || "UNASSIGNED";
             amKey = amKey.replace(/[^a-zA-Z0-9_]/g, '_'); 
             let docId = monthStr + "_" + amKey;
 
             let updateObj = {};
-            updateObj[`branches.${payloadData.code}.totalSales`] = firebase.firestore.FieldValue.increment(diffSales);
-            updateObj[`branches.${payloadData.code}.totalLorry`] = firebase.firestore.FieldValue.increment(diffLorry);
+            if(diffSales !== 0) updateObj[`branches.${payloadData.code}.totalSales`] = firebase.firestore.FieldValue.increment(diffSales);
+            if(diffLorry !== 0) updateObj[`branches.${payloadData.code}.totalLorry`] = firebase.firestore.FieldValue.increment(diffLorry);
             
-            updateObj[`branches.${payloadData.code}.daily.${dayStr}.s`] = firebase.firestore.FieldValue.increment(diffSales);
-            updateObj[`branches.${payloadData.code}.daily.${dayStr}.l`] = firebase.firestore.FieldValue.increment(diffLorry);
-            updateObj[`branches.${payloadData.code}.daily.${dayStr}.m`] = firebase.firestore.FieldValue.increment(diffMyKasih);
-            updateObj[`branches.${payloadData.code}.daily.${dayStr}.t`] = firebase.firestore.FieldValue.increment(diffTrans);
+            if(diffSales !== 0) updateObj[`branches.${payloadData.code}.daily.${dayStr}.s`] = firebase.firestore.FieldValue.increment(diffSales);
+            if(diffLorry !== 0) updateObj[`branches.${payloadData.code}.daily.${dayStr}.l`] = firebase.firestore.FieldValue.increment(diffLorry);
+            if(diffMyKasih !== 0) updateObj[`branches.${payloadData.code}.daily.${dayStr}.m`] = firebase.firestore.FieldValue.increment(diffMyKasih);
+            if(diffTrans !== 0) updateObj[`branches.${payloadData.code}.daily.${dayStr}.t`] = firebase.firestore.FieldValue.increment(diffTrans);
+            if(diffBank1 !== 0) updateObj[`branches.${payloadData.code}.daily.${dayStr}.b1`] = firebase.firestore.FieldValue.increment(diffBank1);
+            if(diffBank2 !== 0) updateObj[`branches.${payloadData.code}.daily.${dayStr}.b2`] = firebase.firestore.FieldValue.increment(diffBank2);
             
             if(weekLabel && diffTrips !== 0) {
                 updateObj[`branches.${payloadData.code}.weeksCount.${weekLabel}`] = firebase.firestore.FieldValue.increment(diffTrips);
@@ -2094,7 +2110,7 @@ function saveGlobalGSUrl() {
                     }
                 });
             } else if (payloadData && payloadData.date && payloadData.code) {
-                if (typeof payloadData.sales !== 'undefined' || typeof payloadData.lorry !== 'undefined') {
+                if (typeof payloadData.sales !== 'undefined' || typeof payloadData.lorry !== 'undefined' || typeof payloadData.bank1 !== 'undefined' || typeof payloadData.bank2 !== 'undefined') {
                     updateMonthlySummary(payloadData, bAm);
                 }
                 let docId = payloadData.date + "_" + payloadData.code;
@@ -5166,6 +5182,8 @@ function saveGlobalGSUrl() {
                     let l = parseFloat(d.lorry) || 0;
                     let m = parseFloat(d.mykasih) || 0;
                     let t = parseInt(d.transactions) || 0;
+                    let b1 = parseFloat(d.bank1) || 0;
+                    let b2 = parseFloat(d.bank2) || 0;
                     
                     summaries[docId].branches[d.code].totalSales += s;
                     summaries[docId].branches[d.code].totalLorry += l;
@@ -5175,12 +5193,14 @@ function saveGlobalGSUrl() {
                     }
                     
                     if(!summaries[docId].branches[d.code].daily[dayStr]) {
-                        summaries[docId].branches[d.code].daily[dayStr] = { s: 0, l: 0, m: 0, t: 0 };
+                        summaries[docId].branches[d.code].daily[dayStr] = { s: 0, l: 0, m: 0, t: 0, b1: 0, b2: 0 };
                     }
                     summaries[docId].branches[d.code].daily[dayStr].s += s;
                     summaries[docId].branches[d.code].daily[dayStr].l += l;
                     summaries[docId].branches[d.code].daily[dayStr].m += m;
                     summaries[docId].branches[d.code].daily[dayStr].t += t;
+                    summaries[docId].branches[d.code].daily[dayStr].b1 += b1;
+                    summaries[docId].branches[d.code].daily[dayStr].b2 += b2;
                 });
                 
                 Swal.fire({ title: 'Menyimpan', text: 'Menyimpan data yang telah dikira ke pangkalan data...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
