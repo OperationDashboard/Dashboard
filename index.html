@@ -1349,7 +1349,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.54;
+        const APP_VERSION = 9.55;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1554,7 +1554,12 @@ function saveGlobalGSUrl() {
                     document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
                     document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
                     listenToSurveyBadge();
-                    if(role === 'branch') syncBranchFromCloud(); else setupManagerView();
+                    if(role === 'branch') {
+                        if(typeof setupBranchView === 'function') setupBranchView();
+                        syncBranchFromCloud();
+                    } else {
+                        setupManagerView();
+                    }
                 } catch(e) { localStorage.removeItem('pbi_user'); }
             }
         });
@@ -1641,6 +1646,7 @@ function saveGlobalGSUrl() {
         }
         let unsubNight = null;
         function syncBranchNightData() {
+            if(typeof setupBranchView === 'function') setupBranchView();
             let ndate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
             setSyncing(true);
             let docId = ndate + "_" + currentUser.id;
@@ -1655,6 +1661,7 @@ function saveGlobalGSUrl() {
 
         let unsubToday = null;
         function syncBranchFromCloud() {
+            if(typeof setupBranchView === 'function') setupBranchView();
             setSyncing(true);
             let docId = todayStr + "_" + currentUser.id;
             if(unsubToday) unsubToday();
@@ -1668,6 +1675,7 @@ function saveGlobalGSUrl() {
 
         let unsubBank = null;
         function syncBranchBankData() {
+            if(typeof setupBranchView === 'function') setupBranchView();
             let bDate = document.getElementById('bank-in-date').value;
             setSyncing(true);
             let docId = bDate + "_" + currentUser.id;
@@ -2197,7 +2205,8 @@ function saveGlobalGSUrl() {
                 }
                 localStorage.setItem('pbi_user', JSON.stringify(currentUser));
                 listenToSurveyBadge();
-                syncBranchFromCloud(); // Trigger sync before showing branch view
+                if(typeof setupBranchView === 'function') setupBranchView();
+                syncBranchFromCloud(); // Trigger sync after showing branch view immediately
             } else if (role === 'am') {
                 currentUser.name = selId; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); listenToSurveyBadge(); setupManagerView();
             } else {
