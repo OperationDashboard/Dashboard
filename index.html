@@ -1760,10 +1760,6 @@ function saveGlobalGSUrl() {
             
             let fetchMode = mode;
             let fetchDateStr = dateStr;
-            if (currentTab !== 'tracking' && mode === 'daily' && dateStr !== todayStr) {
-                fetchMode = 'monthly';
-                fetchDateStr = dateStr.substring(0, 7);
-            }
 
             let processAggregatedSnap = (snap) => {
                 let fbData = [];
@@ -1806,7 +1802,7 @@ function saveGlobalGSUrl() {
                 let query = db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", fetchDateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchDateStr + "_\uf8ff");
                 let getOptions = needsLive ? { source: 'server' } : undefined;
                 if (currentUser.role === 'am') {
-                    let safeAm = currentUser.name.replace(/[^a-zA-Z0-9_]/g, '_');
+                    let safeAm = currentUser.name.replace(/\//g, '-');
                     query = db.collection("monthly_summaries").doc(fetchDateStr + "_" + safeAm);
                     query.get(getOptions).then(doc => {
                         let snap = { forEach: (cb) => { if(doc.exists) cb(doc); } };
@@ -2034,7 +2030,7 @@ function saveGlobalGSUrl() {
             if(diffSales === 0 && diffLorry === 0 && diffTrips === 0 && diffMyKasih === 0 && diffTrans === 0 && diffBank1 === 0 && diffBank2 === 0) return;
 
             let amKey = bAm || "UNASSIGNED";
-            amKey = amKey.replace(/[^a-zA-Z0-9_]/g, '_'); 
+            amKey = amKey.replace(/\//g, '-'); 
             let docId = monthStr + "_" + amKey;
 
             let updateObj = {};
@@ -2363,7 +2359,7 @@ function saveGlobalGSUrl() {
                 let curSales = 0;
                 let safeAm = '';
                 let cb = masterBranches.find(x=>x.code==currentUser.id);
-                if(cb && cb.am) safeAm = String(cb.am).replace(/[^a-zA-Z0-9_]/g, '_');
+                if(cb && cb.am) safeAm = String(cb.am).replace(/\//g, '-');
                 let docId = mStr + '_' + safeAm;
                 let summaryDoc = await db.collection("monthly_summaries").doc(docId).get();
                 if(summaryDoc.exists) {
@@ -2412,7 +2408,13 @@ function saveGlobalGSUrl() {
             let parseD = (str) => { if(!str) return 0; let p=str.split('-'); return new Date(p[0], p[1]-1, p[2]).getTime(); };
 
             let nightDiff = Math.round((parseD(todayStr) - parseD(nightDate)) / 86400000);
-            let nightUnlocked = (!masterLock && nightDiff === 0) || (!pastLock && nightDiff !== 0) || (nightRec && nightRec.night_unlocked);
+            let isToday = (nightDiff === 0);
+            let nightUnlocked = false;
+            if (isToday) {
+                nightUnlocked = !masterLock && (!nightRec || !nightRec.night_locked || nightRec.night_unlocked);
+            } else {
+                nightUnlocked = !pastLock || (nightRec && nightRec.night_unlocked);
+            }
             
             let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
             let btnNight = document.getElementById('btn-submit-night');
@@ -5381,8 +5383,8 @@ function saveGlobalGSUrl() {
                     }
 
                     let bAm = d.am || "UNASSIGNED";
-                    let amKey = bAm.replace(/[^a-zA-Z0-9_]/g, '_'); 
-                    let docId = (monthStr + "_" + amKey).replace(/\//g, '-');
+                    let amKey = bAm.replace(/\//g, '-'); 
+                    let docId = monthStr + "_" + amKey;
                     
                     if(!summaries[docId]) {
                         summaries[docId] = { branches: {}, am: bAm, month: monthStr };
@@ -5419,7 +5421,7 @@ function saveGlobalGSUrl() {
                 Swal.fire({ title: 'Memadam & Menyimpan', text: 'Membersihkan rekod lama & menyimpan data baru...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
                 // Delete existing monthly_summaries for this month using Promise.all to bypass batch limits
-                let existingSummaries = await db.collection("monthly_summaries").where("month", "==", targetMonth).get();
+                let existingSummaries = await db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", targetMonth + "_").where(firebase.firestore.FieldPath.documentId(), "<=", targetMonth + "_\uf8ff").get();
                 let delPromises = [];
                 existingSummaries.docs.forEach(dDoc => {
                     delPromises.push(dDoc.ref.delete());
@@ -5515,7 +5517,7 @@ function saveGlobalGSUrl() {
                 
                 for(let a of amsToFetch) {
                     if (!a) continue;
-                    let safeAm = String(a).replace(/[^a-zA-Z0-9_]/g, '_');
+                    let safeAm = String(a).replace(/\//g, '-');
                     let docId = month + '_' + safeAm;
                     try {
                         let d = await db.collection('monthly_summaries').doc(docId).get();
