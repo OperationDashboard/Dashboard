@@ -5232,9 +5232,9 @@ function saveGlobalGSUrl() {
                 
                 // Write new summaries without merge to ensure total clean sweep
                 let docIds = Object.keys(summaries);
-                for (let i = 0; i < docIds.length; i += 20) {
+                for (let i = 0; i < docIds.length; i += 2) {
                     let batch = db.batch();
-                    let chunk = docIds.slice(i, i + 20);
+                    let chunk = docIds.slice(i, i + 2);
                     chunk.forEach(id => {
                         let ref = db.collection("monthly_summaries").doc(id);
                         batch.set(ref, summaries[id]);
