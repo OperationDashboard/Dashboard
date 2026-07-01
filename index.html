@@ -1704,6 +1704,24 @@ function saveGlobalGSUrl() {
             }
         }
 
+        function refreshCurrentTabView() {
+            if (currentTab === 'dashboard') renderDashboard();
+            else if (currentTab === 'comparison') renderComparisonTable();
+            else if (currentTab === 'tracking') renderTrackingTable();
+            else if (currentTab === 'lorry') renderLorryTracker();
+            else if (currentTab === 'target') loadTargetTracker();
+            else if (currentTab === 'drop') {
+                if (document.getElementById('drop-start') && document.getElementById('drop-start').value && document.getElementById('drop-end') && document.getElementById('drop-end').value) runDropAnalysis();
+            }
+            else if (currentTab === 'survey') {
+                if (typeof renderSurveys === 'function') renderSurveys();
+                if (typeof updateSurveyUI === 'function') updateSurveyUI();
+            }
+            else if (currentTab === 'control') {
+                if (typeof renderAuditLogs === 'function') renderAuditLogs();
+            }
+        }
+
         function syncManagerFromCloud() {
             let mode = 'daily';
             let dateStr = todayStr;
@@ -1729,10 +1747,7 @@ function saveGlobalGSUrl() {
             let queryKey = mode + "_" + dateStr + "_" + currentUser.role;
 
             if (window.activeListeners[queryKey] || window.fetchedQueries[queryKey]) {
-                if(currentTab==='dashboard') renderDashboard(); 
-                
-                else if(currentTab==='comparison') renderComparisonTable();
-                else renderTrackingTable();
+                refreshCurrentTabView();
                 if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                 return;
             }
@@ -1745,6 +1760,10 @@ function saveGlobalGSUrl() {
             
             let fetchMode = mode;
             let fetchDateStr = dateStr;
+            if (currentTab !== 'tracking' && mode === 'daily' && dateStr !== todayStr) {
+                fetchMode = 'monthly';
+                fetchDateStr = dateStr.substring(0, 7);
+            }
 
             let processAggregatedSnap = (snap) => {
                 let fbData = [];
@@ -1778,10 +1797,7 @@ function saveGlobalGSUrl() {
                 dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(fetchDateStr));
                 dbSubmissions = dbSubmissions.concat(fbData);
                 window.fetchedQueries[queryKey] = true;
-                if(currentTab==='dashboard') renderDashboard(); 
-                
-                else if(currentTab==='comparison') renderComparisonTable();
-                else renderTrackingTable();
+                refreshCurrentTabView();
                 if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                 setSyncing(false);
             };
@@ -1812,10 +1828,7 @@ function saveGlobalGSUrl() {
                     dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
                     dbSubmissions = dbSubmissions.concat(fbData);
                     window.fetchedQueries[queryKey] = true;
-                    if(currentTab==='dashboard') renderDashboard(); 
-                    
-                    else if(currentTab==='comparison') renderComparisonTable();
-                    else renderTrackingTable();
+                    refreshCurrentTabView();
                     if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                     setSyncing(false);
                 };
@@ -1843,7 +1856,8 @@ function saveGlobalGSUrl() {
                 return;
             }
             
-            if(document.getElementById('dash-mode').value !== 'daily') {
+            let modeEl = document.getElementById('dash-mode');
+            if(!modeEl || modeEl.value !== 'daily') {
                 alertBox.classList.add('hidden');
                 return;
             }
@@ -1974,22 +1988,12 @@ function saveGlobalGSUrl() {
             let dObj = new Date(sy, sm-1, sd, 12, 0, 0, 0);
             let dayStr = sd < 10 ? '0'+sd : ''+sd;
             
-            let weeks = [];
-            let firstDay = new Date(sy, sm-1, 1);
-            let lastDay = new Date(sy, sm, 0);
-            let curr = new Date(firstDay);
-            let wNum = 1;
-            while(curr <= lastDay) {
-                let wStart = new Date(curr);
-                let wEnd = new Date(curr); wEnd.setDate(wEnd.getDate() + 6);
-                if(wEnd > lastDay) wEnd = new Date(lastDay);
-                weeks.push({ start: wStart.getTime(), end: wEnd.getTime(), label: 'W'+wNum });
-                curr.setDate(curr.getDate() + 7);
-                wNum++;
-            }
+            let weeks = typeof getWeeksForMonth === 'function' ? getWeeksForMonth(sy, sm) : [];
             let weekLabel = null;
             for(let w of weeks) {
-                if(dObj.getTime() >= w.start && dObj.getTime() <= w.end) {
+                let wStart = new Date(w.start); wStart.setHours(0,0,0,0);
+                let wEnd = new Date(w.end); wEnd.setHours(23,59,59,999);
+                if(dObj >= wStart && dObj <= wEnd) {
                     weekLabel = w.label;
                     break;
                 }
@@ -2084,6 +2088,8 @@ function saveGlobalGSUrl() {
                 }, {merge: true});
             } else if (action === 'reset_bank' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
+                let payload = { bank1: 0, bank2: 0, date: payloadData.date, code: payloadData.code };
+                updateMonthlySummary(payload, bAm);
                 fbPromise = db.collection("submissions").doc(docId).set({
                     date: payloadData.date, code: payloadData.code,
                     bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true, am: bAm
@@ -2224,16 +2230,23 @@ function saveGlobalGSUrl() {
         function logout() {
             currentUser = null; localStorage.removeItem('pbi_user');
             if(typeof hasAlertedSurvey !== 'undefined') hasAlertedSurvey = false;
-            if(typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe) surveyUnsubscribe();
-            if(typeof responsesUnsubscribe !== 'undefined' && responsesUnsubscribe) responsesUnsubscribe();
+            if(typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe) { surveyUnsubscribe(); surveyUnsubscribe = null; }
+            if(typeof responsesUnsubscribe !== 'undefined' && responsesUnsubscribe) { responsesUnsubscribe(); responsesUnsubscribe = null; }
             if(typeof unsubToday !== 'undefined' && unsubToday) { unsubToday(); unsubToday = null; }
             if(typeof unsubBank !== 'undefined' && unsubBank) { unsubBank(); unsubBank = null; }
             if(typeof unsubNight !== 'undefined' && unsubNight) { unsubNight(); unsubNight = null; }
             if(typeof window.unsubTarget !== 'undefined' && window.unsubTarget) { window.unsubTarget(); window.unsubTarget = null; }
             window.currentBranchTarget = 0;
-            if(typeof unsubToday !== 'undefined' && unsubToday) { unsubToday(); unsubToday = null; }
-            if(typeof unsubBank !== 'undefined' && unsubBank) { unsubBank(); unsubBank = null; }
-            if(typeof unsubNight !== 'undefined' && unsubNight) { unsubNight(); unsubNight = null; }
+            window.currentBranchSales = 0;
+            if (window.activeListeners) {
+                for (let key in window.activeListeners) {
+                    if (typeof window.activeListeners[key] === 'function') window.activeListeners[key]();
+                }
+            }
+            window.activeListeners = {};
+            window.fetchedQueries = {};
+            window.fetchedRangeQueries = {};
+            dbSubmissions = [];
             document.getElementById('header-subtitle').classList.remove('hidden');
             document.getElementById('logged-in-controls').classList.add('hidden'); document.getElementById('logged-in-controls').classList.remove('flex');
             document.getElementById('nav-buttons').classList.remove('hidden'); document.getElementById('section-branch').classList.add('hidden');
@@ -2361,7 +2374,15 @@ function saveGlobalGSUrl() {
                         });
                     }
                 }
-                document.getElementById('b-target-current').innerText = 'RM ' + formatRM(curSales);
+                let subSales = 0;
+                dbSubmissions.forEach(sub => {
+                    if (String(sub.code) === String(currentUser.id) && sub.date && sub.date.startsWith(mStr)) {
+                        subSales += (parseFloat(sub.sales) || 0);
+                    }
+                });
+                if (subSales > curSales) curSales = subSales;
+                window.currentBranchSales = curSales;
+                document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
                 
                 // Live listener for targets
                 if(typeof window.unsubTarget !== 'undefined' && window.unsubTarget) {
@@ -2371,7 +2392,7 @@ function saveGlobalGSUrl() {
                         if (!currentUser) return; // safeguard
                         let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
                         window.currentBranchTarget = target;
-                        renderBranchTargetWidget(curSales);
+                        renderBranchTargetWidget(window.currentBranchSales || 0);
                     }, e => {
                         console.error('Error loading target:', e); 
                         document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; 
@@ -2380,7 +2401,7 @@ function saveGlobalGSUrl() {
                 
                 // initial render using whatever we have so far
                 if (typeof window.currentBranchTarget !== 'undefined') {
-                    renderBranchTargetWidget(curSales);
+                    renderBranchTargetWidget(window.currentBranchSales || 0);
                 }
             } catch(e) { console.error('Error loading target:', e); document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; }
             
@@ -2811,11 +2832,14 @@ function saveGlobalGSUrl() {
                 let daySum = dbSubmissions.filter(s => s.date === d && branchCodes.includes(String(s.code)) && s.night_locked).reduce((a,c)=>a+(c.sales||0), 0);
                 salesData.push(daySum);
             }
+            let trendEl = document.getElementById('chart-sales-trend');
+            let barEl = document.getElementById('chart-bar-compare');
+            if (!trendEl || !barEl) return;
             if(trendChartObj) trendChartObj.destroy();
-            trendChartObj = new Chart(document.getElementById('chart-sales-trend').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sales (RM)', data: salesData, borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}},x:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
+            trendChartObj = new Chart(trendEl.getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sales (RM)', data: salesData, borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}},x:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
 
             if(barChartObj) barChartObj.destroy();
-            barChartObj = new Chart(document.getElementById('chart-bar-compare').getContext('2d'), { type: 'bar', data: { labels: ['Today\'s Operations'], datasets: [ { label: 'Total Sales', data: [tKPI.sales], backgroundColor: '#06b6d4', borderRadius: 4 }, { label: 'Total Bank-In', data: [tKPI.bank], backgroundColor: '#10b981', borderRadius: 4 }, { label: 'Lorry Cost', data: [tKPI.lorry], backgroundColor: '#a855f7', borderRadius: 4 } ]}, options: { responsive: true, maintainAspectRatio: false, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
+            barChartObj = new Chart(barEl.getContext('2d'), { type: 'bar', data: { labels: ['Today\'s Operations'], datasets: [ { label: 'Total Sales', data: [tKPI.sales], backgroundColor: '#06b6d4', borderRadius: 4 }, { label: 'Total Bank-In', data: [tKPI.bank], backgroundColor: '#10b981', borderRadius: 4 }, { label: 'Lorry Cost', data: [tKPI.lorry], backgroundColor: '#a855f7', borderRadius: 4 } ]}, options: { responsive: true, maintainAspectRatio: false, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
         }
 
         function renderComparisonTable() {
@@ -3325,7 +3349,8 @@ function saveGlobalGSUrl() {
                             if (bData.daily) {
                                 for (let day in bData.daily) {
                                     let daily = bData.daily[day];
-                                    let fullDate = d.month + "-" + day;
+                                    let docMonth = doc.id.split('_')[0];
+                                    let fullDate = (d.month || docMonth) + "-" + day;
                                     if (fullDate >= startDate && fullDate <= endDate) {
                                         snapData.push({
                                             code: String(code),
@@ -5344,22 +5369,12 @@ function saveGlobalGSUrl() {
                     let dObj = new Date(sy, sm-1, sd, 12, 0, 0, 0);
                     let dayStr = sd < 10 ? '0'+sd : ''+sd;
                     
-                    let weeks = [];
-                    let firstDay = new Date(sy, sm-1, 1);
-                    let lastDay = new Date(sy, sm, 0);
-                    let curr = new Date(firstDay);
-                    let wNum = 1;
-                    while(curr <= lastDay) {
-                        let wStart = new Date(curr);
-                        let wEnd = new Date(curr); wEnd.setDate(wEnd.getDate() + 6);
-                        if(wEnd > lastDay) wEnd = new Date(lastDay);
-                        weeks.push({ start: wStart.getTime(), end: wEnd.getTime(), label: 'W'+wNum });
-                        curr.setDate(curr.getDate() + 7);
-                        wNum++;
-                    }
+                    let weeks = typeof getWeeksForMonth === 'function' ? getWeeksForMonth(sy, sm) : [];
                     let weekLabel = null;
                     for(let w of weeks) {
-                        if(dObj.getTime() >= w.start && dObj.getTime() <= w.end) {
+                        let wStart = new Date(w.start); wStart.setHours(0,0,0,0);
+                        let wEnd = new Date(w.end); wEnd.setHours(23,59,59,999);
+                        if(dObj >= wStart && dObj <= wEnd) {
                             weekLabel = w.label;
                             break;
                         }
@@ -5426,9 +5441,7 @@ function saveGlobalGSUrl() {
                 
                 // Check if any branches are now missing from the new summaries that were in the old ones,
                 // and fetch latest data.
-                if (currentTab === 'dashboard') renderDashboard(); 
-                else if (currentTab === 'comparison') renderComparisonTable();
-                else renderTrackingTable();
+                refreshCurrentTabView();
                 
                 setSyncing(false);
                 Swal.fire('Berjaya!', 'Semua data telah berjaya dikira dan disimpan!', 'success');
@@ -5524,6 +5537,18 @@ function saveGlobalGSUrl() {
                         console.error("Query summary failed for", docId, e);
                     }
                 }
+
+                branches.forEach(b => {
+                    let subSales = 0;
+                    dbSubmissions.forEach(sub => {
+                        if (String(sub.code) === String(b.code) && sub.date && sub.date.startsWith(month)) {
+                            subSales += (parseFloat(sub.sales) || 0);
+                        }
+                    });
+                    if (subSales > (currentSales[b.code] || 0)) {
+                        currentSales[b.code] = subSales;
+                    }
+                });
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 4 (render)...</td></tr>';
 
