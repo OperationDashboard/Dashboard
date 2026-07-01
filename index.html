@@ -2304,17 +2304,18 @@ function saveGlobalGSUrl() {
                 document.getElementById('b-target-bar').style.width = '0%';
                 document.getElementById('b-target-req').innerText = '-';
                 
-                // Live query branch's submissions from Firestore directly
+                // Live query branch's submissions from Firestore directly without composite index!
                 let curSales = 0;
                 try {
                     let subSnap = await db.collection("submissions")
-                        .where("code", "==", currentUser.id)
                         .where("date", ">=", mStr + "-01")
                         .where("date", "<=", mStr + "-31")
                         .get();
                     subSnap.forEach(doc => {
                         let d = doc.data();
-                        curSales += (parseFloat(d.sales) || 0);
+                        if (d && String(d.code) === String(currentUser.id)) {
+                            curSales += (parseFloat(d.sales) || 0);
+                        }
                     });
                 } catch(e) {
                     console.error("Error fetching branch submissions:", e);
@@ -5409,12 +5410,9 @@ function saveGlobalGSUrl() {
                 else if (!isAdminOrOp) branches = branches.filter(b => b.am === currentUser.name);
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 2 (targets)...</td></tr>';
-                let q = db.collection('targets').where('month', '==', month);
-                if (amFilter) q = q.where('am', '==', amFilter);
-                
                 let targetSnap;
                 try {
-                    targetSnap = await q.get();
+                    targetSnap = await db.collection('targets').where('month', '==', month).get();
                 } catch(e) {
                     console.error("Query targets failed", e);
                     throw new Error("Gagal tarik database targets: " + e.message);
@@ -5422,7 +5420,12 @@ function saveGlobalGSUrl() {
 
                 let targets = {};
                 if (targetSnap && targetSnap.docs) {
-                    targetSnap.docs.forEach(d => { targets[d.data().code] = d.data().target_sales; });
+                    targetSnap.docs.forEach(d => {
+                        let tData = d.data();
+                        if (!amFilter || tData.am === amFilter) {
+                            targets[tData.code] = tData.target_sales;
+                        }
+                    });
                 }
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 3 (sales)...</td></tr>';
