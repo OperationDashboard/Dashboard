@@ -3270,25 +3270,26 @@ function saveGlobalGSUrl() {
 
         function getWeeksForMonth(year, month) {
             let weeks = [];
-            let firstDay = new Date(year, month - 1, 1);
-            let startDay = new Date(firstDay);
-            let dayOfWeek = startDay.getDay(); 
-            let diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-            startDay.setDate(startDay.getDate() + diff);
+            let lastDay = new Date(year, month, 0).getDate();
+            let fmt = (d) => `${d.getDate()}/${d.getMonth()+1}`;
             
-            let currentStart = new Date(startDay);
-            while(currentStart.getMonth() === month - 1 || currentStart < firstDay) {
-                let currentEnd = new Date(currentStart);
-                currentEnd.setDate(currentEnd.getDate() + 6);
-                let fmt = (d) => `${d.getDate()}/${d.getMonth()+1}`;
-                let label = `${fmt(currentStart)} - ${fmt(currentEnd)}`;
+            let intervals = [
+                { s: 1, e: 5 },
+                { s: 6, e: 12 },
+                { s: 13, e: 19 },
+                { s: 20, e: 26 },
+                { s: 27, e: lastDay }
+            ];
+            
+            intervals.forEach(i => {
+                let start = new Date(year, month - 1, i.s);
+                let end = new Date(year, month - 1, i.e);
                 weeks.push({
-                    start: new Date(currentStart),
-                    end: new Date(currentEnd),
-                    label: label
+                    start: start,
+                    end: end,
+                    label: `${fmt(start)} - ${fmt(end)}`
                 });
-                currentStart.setDate(currentStart.getDate() + 7);
-            }
+            });
             return weeks;
         }
 
