@@ -1761,36 +1761,10 @@ function saveGlobalGSUrl() {
             let fetchMode = mode;
             let fetchDateStr = dateStr;
 
-            let processAggregatedSnap = (snap) => {
+            let processSnap = (snap) => {
                 let fbData = [];
-                snap.forEach(doc => {
-                    let d = doc.data();
-                    let docMonth = doc.id.split('_')[0];
-                    if(d.branches) {
-                        for(let code in d.branches) {
-                            let bData = d.branches[code];
-                            if(bData.daily) {
-                                for(let day in bData.daily) {
-                                    let daily = bData.daily[day];
-                                    fbData.push({
-                                        date: docMonth + "-" + day,
-                                        code: code,
-                                        name: bData.name || "",
-                                        am: bData.am || d.am || "",
-                                        sales: daily.s || 0,
-                                        lorry: daily.l || 0,
-                                        mykasih: daily.m || 0,
-                                        transactions: daily.t || 0,
-                                        bank1: daily.b1 || 0,
-                                        bank2: daily.b2 || 0,
-                                        night_locked: true
-                                    });
-                                }
-                            }
-                        }
-                    }
-                });
-                dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(fetchDateStr));
+                snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
+                dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
                 dbSubmissions = dbSubmissions.concat(fbData);
                 window.fetchedQueries[queryKey] = true;
                 refreshCurrentTabView();
@@ -1798,43 +1772,18 @@ function saveGlobalGSUrl() {
                 setSyncing(false);
             };
 
+            let query;
             if (fetchMode === 'monthly') {
-                let query = db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", fetchDateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchDateStr + "_\uf8ff");
-                let getOptions = needsLive ? { source: 'server' } : undefined;
-                if (currentUser.role === 'am') {
-                    let safeAm = currentUser.name.replace(/\//g, '-');
-                    query = db.collection("monthly_summaries").doc(fetchDateStr + "_" + safeAm);
-                    query.get(getOptions).then(doc => {
-                        let snap = { forEach: (cb) => { if(doc.exists) cb(doc); } };
-                        processAggregatedSnap(snap);
-                    }).catch(e => { console.error(e); setSyncing(false); });
-                } else {
-                    query.get(getOptions).then(snap => {
-                        processAggregatedSnap(snap);
-                    }).catch(e => { console.error(e); setSyncing(false); });
-                }
+                query = db.collection("submissions").where("date", ">=", fetchDateStr + "-01").where("date", "<=", fetchDateStr + "-31");
             } else {
-                let query = db.collection("submissions").where("date", "==", fetchDateStr);
-                
-                // Do not filter by 'am' in the Firebase query to avoid composite index crash.
-                // The data is filtered locally in JavaScript via getManagerFilteredBranches().
-                let processSnap = (snap) => {
-                    let fbData = [];
-                    snap.forEach(doc => { let d = doc.data(); if(d.date) fbData.push(d); });
-                    dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
-                    dbSubmissions = dbSubmissions.concat(fbData);
-                    window.fetchedQueries[queryKey] = true;
-                    refreshCurrentTabView();
-                    if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
-                    setSyncing(false);
-                };
-                
-                if (window.activeListeners[queryKey]) window.activeListeners[queryKey]();
-                window.activeListeners[queryKey] = query.onSnapshot(processSnap, e => {
-                    console.error("Live sync failed", e);
-                    setSyncing(false);
-                });
+                query = db.collection("submissions").where("date", "==", fetchDateStr);
             }
+
+            if (window.activeListeners[queryKey]) window.activeListeners[queryKey]();
+            window.activeListeners[queryKey] = query.onSnapshot(processSnap, e => {
+                console.error("Live sync failed", e);
+                setSyncing(false);
+            });
         }
 
         window.historicalDropCache = window.historicalDropCache || {};
@@ -2355,28 +2304,26 @@ function saveGlobalGSUrl() {
                 document.getElementById('b-target-bar').style.width = '0%';
                 document.getElementById('b-target-req').innerText = '-';
                 
-                // Live query branch's submissions first
+                // Live query branch's submissions from Firestore directly
                 let curSales = 0;
-                let safeAm = '';
-                let cb = masterBranches.find(x=>x.code==currentUser.id);
-                if(cb && cb.am) safeAm = String(cb.am).replace(/\//g, '-');
-                let docId = mStr + '_' + safeAm;
-                let summaryDoc = await db.collection("monthly_summaries").doc(docId).get();
-                if(summaryDoc.exists) {
-                    let sData = summaryDoc.data();
-                    if(sData.branches && sData.branches[currentUser.id] && sData.branches[currentUser.id].daily) {
-                        Object.values(sData.branches[currentUser.id].daily).forEach(dayData => {
-                            curSales += (dayData.s || 0);
-                        });
-                    }
+                try {
+                    let subSnap = await db.collection("submissions")
+                        .where("code", "==", currentUser.id)
+                        .where("date", ">=", mStr + "-01")
+                        .where("date", "<=", mStr + "-31")
+                        .get();
+                    subSnap.forEach(doc => {
+                        let d = doc.data();
+                        curSales += (parseFloat(d.sales) || 0);
+                    });
+                } catch(e) {
+                    console.error("Error fetching branch submissions:", e);
+                    dbSubmissions.forEach(sub => {
+                        if (String(sub.code) === String(currentUser.id) && sub.date && sub.date.startsWith(mStr)) {
+                            curSales += (parseFloat(sub.sales) || 0);
+                        }
+                    });
                 }
-                let subSales = 0;
-                dbSubmissions.forEach(sub => {
-                    if (String(sub.code) === String(currentUser.id) && sub.date && sub.date.startsWith(mStr)) {
-                        subSales += (parseFloat(sub.sales) || 0);
-                    }
-                });
-                if (subSales > curSales) curSales = subSales;
                 window.currentBranchSales = curSales;
                 document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
                 
@@ -3319,59 +3266,26 @@ function saveGlobalGSUrl() {
         }
 
         async function fetchRangeFromSummaries(startDate, endDate) {
-            let sDate = new Date(startDate);
-            let eDate = new Date(endDate);
-            let monthsToFetch = new Set();
-            
-            let curr = new Date(sDate);
-            while (curr <= eDate) {
-                let y = curr.getFullYear();
-                let m = String(curr.getMonth() + 1).padStart(2, '0');
-                monthsToFetch.add(`${y}-${m}`);
-                curr.setDate(curr.getDate() + 1);
-            }
-            
-            let promises = [];
-            for (let mStr of monthsToFetch) {
-                let query = db.collection("monthly_summaries")
-                    .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
-                    .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff");
-                promises.push(query.get());
-            }
-            
-            let snaps = await Promise.all(promises);
+            let snap = await db.collection("submissions")
+                .where("date", ">=", startDate)
+                .where("date", "<=", endDate)
+                .get();
             let snapData = [];
-            
-            snaps.forEach(snap => {
-                snap.forEach(doc => {
-                    let d = doc.data();
-                    if (d.branches) {
-                        for (let code in d.branches) {
-                            let bData = d.branches[code];
-                            if (bData.daily) {
-                                for (let day in bData.daily) {
-                                    let daily = bData.daily[day];
-                                    let docMonth = doc.id.split('_')[0];
-                                    let fullDate = (d.month || docMonth) + "-" + day;
-                                    if (fullDate >= startDate && fullDate <= endDate) {
-                                        snapData.push({
-                                            code: String(code),
-                                            date: fullDate,
-                                            sales: daily.s || 0,
-                                            lorry: daily.l || 0,
-                                            mykasih: daily.m || 0,
-                                            transactions: daily.t || 0,
-                                            night_locked: true,
-                                            am: bData.am || d.am || ""
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
+            snap.forEach(doc => {
+                let d = doc.data();
+                if (d.date && d.code) {
+                    snapData.push({
+                        code: String(d.code),
+                        date: d.date,
+                        sales: parseFloat(d.sales) || 0,
+                        lorry: parseFloat(d.lorry) || 0,
+                        mykasih: parseFloat(d.mykasih) || 0,
+                        transactions: parseInt(d.transactions) || 0,
+                        night_locked: d.night_locked !== undefined ? d.night_locked : true,
+                        am: d.am || ""
+                    });
+                }
             });
-            
             return snapData;
         }
 
@@ -5513,33 +5427,21 @@ function saveGlobalGSUrl() {
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 3 (sales)...</td></tr>';
                 let currentSales = {};
-                let amsToFetch = amFilter ? [amFilter] : [...new Set((masterBranches||[]).filter(b=>b && b.am).map(b=>b.am))];
-                
-                for(let a of amsToFetch) {
-                    if (!a) continue;
-                    let safeAm = String(a).replace(/\//g, '-');
-                    let docId = month + '_' + safeAm;
-                    try {
-                        let d = await db.collection('monthly_summaries').doc(docId).get();
-                        if(d.exists) {
-                            let data = d.data();
-                            if(data.branches) {
-                                Object.keys(data.branches).forEach(c => {
-                                    let totalS = 0;
-                                    if(data.branches[c].daily) {
-                                        Object.values(data.branches[c].daily).forEach(dayData => {
-                                            totalS += (dayData.s || 0);
-                                        });
-                                    }
-                                    currentSales[c] = totalS;
-                                });
-                            }
+                try {
+                    let subSnap = await db.collection('submissions')
+                        .where("date", ">=", month + "-01")
+                        .where("date", "<=", month + "-31")
+                        .get();
+                    subSnap.forEach(doc => {
+                        let d = doc.data();
+                        if (d && d.code) {
+                            let c = String(d.code);
+                            currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
                         }
-                    } catch(e) {
-                        console.error("Query summary failed for", docId, e);
-                    }
+                    });
+                } catch(e) {
+                    console.error("Error loading monthly submissions for target tracker:", e);
                 }
-
                 branches.forEach(b => {
                     let subSales = 0;
                     dbSubmissions.forEach(sub => {
