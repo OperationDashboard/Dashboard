@@ -2351,7 +2351,7 @@ function saveGlobalGSUrl() {
                 let curSales = 0;
                 let safeAm = '';
                 let cb = masterBranches.find(x=>x.code==currentUser.id);
-                if(cb && cb.am) safeAm = String(cb.am).replace(/[^a-zA-Z0-9]/g, '');
+                if(cb && cb.am) safeAm = String(cb.am).replace(/[^a-zA-Z0-9_]/g, '_');
                 let docId = mStr + '_' + safeAm;
                 let summaryDoc = await db.collection("monthly_summaries").doc(docId).get();
                 if(summaryDoc.exists) {
@@ -5319,7 +5319,7 @@ function saveGlobalGSUrl() {
                 
                 for(let a of amsToFetch) {
                     if (!a) continue;
-                    let safeAm = String(a).replace(/[^a-zA-Z0-9]/g, '');
+                    let safeAm = String(a).replace(/[^a-zA-Z0-9_]/g, '_');
                     let docId = month + '_' + safeAm;
                     try {
                         let d = await db.collection('monthly_summaries').doc(docId).get();
