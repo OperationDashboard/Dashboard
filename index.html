@@ -1170,12 +1170,15 @@ function doPost(e) {
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
                                     <input type="text" id="survey-builder-qlabel" class="md:col-span-2 w-full bg-slate-950 text-white rounded-lg px-3 py-1.5 border border-slate-700 text-sm" placeholder="Question Label (e.g. Kuantiti Maggi)">
-                                    <select id="survey-builder-qtype" class="w-full bg-slate-950 text-white rounded-lg px-3 py-1.5 border border-slate-700 text-sm">
+                                    <select id="survey-builder-qtype" onchange="toggleSurveyQuestionReasonUI()" class="w-full bg-slate-950 text-white rounded-lg px-3 py-1.5 border border-slate-700 text-sm">
                                         <option value="number">Kuantiti (Nombor)</option>
                                         <option value="yesno">Option (Yes/No)</option>
                                         <option value="text">Teks Pendek</option>
                                     </select>
                                     <button onclick="addCustomQuestion()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold py-1.5 px-3 rounded-lg"><i class="fa-solid fa-plus"></i> Add</button>
+                                </div>
+                                <div id="survey-builder-reason-container" class="hidden mt-2">
+                                    <input type="text" id="survey-builder-qreasons" class="w-full bg-slate-950 text-indigo-200 rounded-lg px-3 py-1.5 border border-indigo-700/50 text-xs placeholder-slate-500" placeholder="Senarai Sebab jika jawab 'Tidak' (asingkan dengan koma, cth: Outlet Type D, Tiada Rak, Lain-lain)">
                                 </div>
                                 
                                 <div class="mt-4 pt-4 border-t border-slate-700/50">
@@ -4231,6 +4234,79 @@ function saveGlobalGSUrl() {
             updateSurveyUI();
         }
 
+        async function handleSurveyYesNoChange(selectEl, qLabel) {
+            if (selectEl.value === 'Tidak') {
+                let reasonsStr = selectEl.getAttribute('data-reasons');
+                let reasons = [];
+                if (reasonsStr) {
+                    try { reasons = JSON.parse(reasonsStr); } catch(e){}
+                }
+                
+                let inputOptions = {};
+                if (reasons && reasons.length > 0) {
+                    reasons.forEach(r => { inputOptions[r] = r; });
+                    inputOptions['Lain-lain'] = 'Lain-lain / Nyatakan';
+                } else {
+                    inputOptions['Tiada Stok'] = 'Tiada Stok';
+                    inputOptions['Tiada Ruang / Rak'] = 'Tiada Ruang / Rak';
+                    inputOptions['Tidak Relevan'] = 'Tidak Relevan';
+                    inputOptions['Lain-lain'] = 'Lain-lain / Nyatakan';
+                }
+                
+                let { value: selectedReason, isDismissed } = await Swal.fire({
+                    title: 'Sebab Jawapan "Tidak"',
+                    text: `Sila pilih sebab bagi: ${qLabel}`,
+                    input: 'select',
+                    inputOptions: inputOptions,
+                    inputPlaceholder: '-- Pilih Sebab --',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sah',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#4f46e5',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Sila pilih satu sebab!';
+                        }
+                    }
+                });
+                
+                if (isDismissed || !selectedReason) {
+                    selectEl.value = '';
+                    return;
+                }
+                
+                let finalReason = selectedReason;
+                if (selectedReason === 'Lain-lain') {
+                    let { value: customText } = await Swal.fire({
+                        title: 'Nyatakan Sebab Lain',
+                        input: 'text',
+                        inputPlaceholder: 'Tulis sebab di sini...',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sah',
+                        confirmButtonColor: '#4f46e5',
+                        inputValidator: (val) => {
+                            if (!val || !val.trim()) return 'Sila nyatakan sebab!';
+                        }
+                    });
+                    if (!customText) {
+                        selectEl.value = '';
+                        return;
+                    }
+                    finalReason = customText.trim();
+                }
+                
+                let displayVal = `Tidak - ${finalReason}`;
+                let opt = Array.from(selectEl.options).find(o => o.value === displayVal);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    opt.value = displayVal;
+                    opt.text = `Tidak (${finalReason})`;
+                    selectEl.add(opt);
+                }
+                selectEl.value = displayVal;
+            }
+        }
+
         function generateCustomSurveyHTML(s, amBranches = null) {
             let html = `<div class="bg-slate-800 rounded-lg p-4 border border-indigo-500/50 mb-4 shadow-lg shadow-indigo-900/20" id="survey-box-${s.id}">`;
             html += `<h3 class="text-md font-bold text-white mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-clipboard-list text-indigo-400 mr-2"></i>${s.title}</h3>`;
@@ -4257,7 +4333,8 @@ function saveGlobalGSUrl() {
                         if(q.type === 'number') {
                             html += `<input type="number" id="sq_${s.id}_${b.code}_${q.id}" class="w-full min-w-[80px] bg-slate-900 text-white rounded px-2 py-1 text-center border border-slate-700 outline-none focus:border-indigo-500" placeholder="0">`;
                         } else if (q.type === 'yesno') {
-                            html += `<select id="sq_${s.id}_${b.code}_${q.id}" class="w-full min-w-[80px] bg-slate-900 text-white rounded px-2 py-1 border border-slate-700 outline-none focus:border-indigo-500">
+                            let rAttr = (q.reasons && q.reasons.length > 0) ? `data-reasons='${JSON.stringify(q.reasons).replace(/'/g, "&#39;")}'` : '';
+                            html += `<select id="sq_${s.id}_${b.code}_${q.id}" ${rAttr} onchange="handleSurveyYesNoChange(this, '${q.label.replace(/'/g, "\\'")}')" class="w-full min-w-[80px] bg-slate-900 text-white rounded px-2 py-1 border border-slate-700 outline-none focus:border-indigo-500">
                                 <option value="">-</option>
                                 <option value="Ya">Ya</option>
                                 <option value="Tidak">Tidak</option>
@@ -4278,7 +4355,8 @@ function saveGlobalGSUrl() {
                     if(q.type === 'number') {
                         html += `<input type="number" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Kuantiti (0)">`;
                     } else if (q.type === 'yesno') {
-                        html += `<select id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">
+                        let rAttr = (q.reasons && q.reasons.length > 0) ? `data-reasons='${JSON.stringify(q.reasons).replace(/'/g, "&#39;")}'` : '';
+                        html += `<select id="sq_${s.id}_${q.id}" ${rAttr} onchange="handleSurveyYesNoChange(this, '${q.label.replace(/'/g, "\\'")}')" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">
                             <option value="">-- Select --</option>
                             <option value="Ya">Ya</option>
                             <option value="Tidak">Tidak</option>
@@ -4504,6 +4582,18 @@ function saveGlobalGSUrl() {
             }
         }
 
+        function toggleSurveyQuestionReasonUI() {
+            let type = document.getElementById('survey-builder-qtype').value;
+            let container = document.getElementById('survey-builder-reason-container');
+            if (container) {
+                if (type === 'yesno') {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            }
+        }
+
         function renderBuilderQuestions() {
             let container = document.getElementById('survey-builder-questions');
             if (builderQuestions.length === 0) {
@@ -4514,9 +4604,16 @@ function saveGlobalGSUrl() {
             builderQuestions.forEach((q, idx) => {
                 let icon = q.type === 'number' ? 'fa-hashtag' : (q.type === 'yesno' ? 'fa-toggle-on' : 'fa-font');
                 let typeName = q.type === 'number' ? 'Kuantiti' : (q.type === 'yesno' ? 'Ya/Tidak' : 'Teks');
+                let reasonsBadge = '';
+                if (q.type === 'yesno' && q.reasons && q.reasons.length > 0) {
+                    reasonsBadge = `<div class="text-[10px] text-amber-300 mt-1"><i class="fa-solid fa-circle-question mr-1"></i>Sebab Tidak: ${q.reasons.join(', ')}</div>`;
+                }
                 html += `
                 <div class="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-700">
-                    <div class="text-sm text-white"><i class="fa-solid ${icon} text-indigo-400 w-5"></i> ${q.label} <span class="text-xs text-slate-500 ml-2">(${typeName})</span></div>
+                    <div>
+                        <div class="text-sm text-white"><i class="fa-solid ${icon} text-indigo-400 w-5"></i> ${q.label} <span class="text-xs text-slate-500 ml-2">(${typeName})</span></div>
+                        ${reasonsBadge}
+                    </div>
                     <button onclick="removeCustomQuestion(${idx})" class="text-rose-500 hover:text-rose-400"><i class="fa-solid fa-times"></i></button>
                 </div>
                 `;
@@ -4527,9 +4624,17 @@ function saveGlobalGSUrl() {
         function addCustomQuestion() {
             let label = document.getElementById('survey-builder-qlabel').value.trim();
             let type = document.getElementById('survey-builder-qtype').value;
+            let reasonsEl = document.getElementById('survey-builder-qreasons');
+            let reasonsStr = reasonsEl ? reasonsEl.value.trim() : '';
             if (!label) return showToast('error', 'Please enter question label.');
-            builderQuestions.push({ id: 'q_' + Date.now() + '_' + Math.floor(Math.random()*1000), label, type });
+            
+            let qObj = { id: 'q_' + Date.now() + '_' + Math.floor(Math.random()*1000), label, type };
+            if (type === 'yesno' && reasonsStr) {
+                qObj.reasons = reasonsStr.split(',').map(r => r.trim()).filter(r => r.length > 0);
+            }
+            builderQuestions.push(qObj);
             document.getElementById('survey-builder-qlabel').value = '';
+            if (reasonsEl) reasonsEl.value = '';
             renderBuilderQuestions();
         }
 
