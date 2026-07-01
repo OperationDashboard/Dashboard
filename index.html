@@ -4434,8 +4434,10 @@ function saveGlobalGSUrl() {
                                                 <th class="p-2 border border-slate-700 whitespace-nowrap">KOD</th>
                                                 <th class="p-2 border border-slate-700 whitespace-nowrap">NAMA CAWANGAN</th>
                                                 <th class="p-2 border border-slate-700 whitespace-nowrap text-center">STATUS</th>`;
+                                let isYesNoAM = (q) => q.type === 'yesno' || (responsesForSurvey && responsesForSurvey.some(r => r.answers && r.answers[q.id] && String(r.answers[q.id].value).startsWith('Tidak - ')));
                                 (s.questions || []).forEach(q => {
                                     html += `<th class="p-2 border border-slate-700 text-center">${q.label}</th>`;
+                                    if (isYesNoAM(q)) html += `<th class="p-2 border border-slate-700 text-center text-amber-300">Sebab (Jika Tidak)</th>`;
                                 });
                                 html += `</tr></thead><tbody>`;
                                 
@@ -4457,7 +4459,21 @@ function saveGlobalGSUrl() {
                                             if (ans === false) ans = "Tidak";
                                         }
                                         let colorClass = resp ? "text-white font-medium" : "text-slate-500";
-                                        html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${ans}</td>`;
+                                        if (isYesNoAM(q)) {
+                                            let mainAns = String(ans);
+                                            let reasonAns = '-';
+                                            if (mainAns.startsWith('Tidak - ')) {
+                                                reasonAns = mainAns.substring(8).trim();
+                                                mainAns = 'Tidak';
+                                            } else if (mainAns === 'Tidak') {
+                                                mainAns = 'Tidak';
+                                                reasonAns = '-';
+                                            }
+                                            html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${mainAns}</td>`;
+                                            html += `<td class="p-2 border border-slate-700 text-center text-amber-300 font-semibold">${reasonAns}</td>`;
+                                        } else {
+                                            html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${ans}</td>`;
+                                        }
                                     });
                                     html += `</tr>`;
                                 });
@@ -4945,11 +4961,18 @@ function saveGlobalGSUrl() {
             }
             
             if (s.type === 'custom') {
+                let isYesNoReport = (q) => q.type === 'yesno' || (sResp && sResp.some(r => r.answers && r.answers[q.id] && String(r.answers[q.id].value).startsWith('Tidak - ')));
+                let totalCols = 5;
                 let theads = `<th class="p-2 border border-slate-700 whitespace-nowrap">Kod</th>`;
                 theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">Branch</th>`;
                 theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">AM</th>`;
                 (s.questions || []).forEach(q => {
                     theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">${q.label}</th>`;
+                    totalCols++;
+                    if (isYesNoReport(q)) {
+                        theads += `<th class="p-2 border border-slate-700 whitespace-nowrap text-amber-300">Sebab (Jika Tidak)</th>`;
+                        totalCols++;
+                    }
                 });
                 theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">Masa</th>`;
                 theads += `<th class="p-2 border border-slate-700 text-center whitespace-nowrap">Tindakan</th>`;
@@ -4974,15 +4997,29 @@ function saveGlobalGSUrl() {
                     tbodys += `<td class="p-2 border-r border-slate-700">${bName}</td>`;
                     tbodys += `<td class="p-2 border-r border-slate-700 font-bold">${am}</td>`;
                     (s.questions || []).forEach(q => {
-                        let ans = (r.answers && r.answers[q.id]) ? r.answers[q.id].value : '-';
-                        tbodys += `<td class="p-2 border-r border-slate-700 text-center">${ans}</td>`;
+                        let ans = (r.answers && r.answers[q.id]) ? String(r.answers[q.id].value) : '-';
+                        if (isYesNoReport(q)) {
+                            let mainAns = ans;
+                            let reasonAns = '-';
+                            if (ans.startsWith('Tidak - ')) {
+                                mainAns = 'Tidak';
+                                reasonAns = ans.substring(8).trim();
+                            } else if (ans === 'Tidak') {
+                                mainAns = 'Tidak';
+                                reasonAns = '-';
+                            }
+                            tbodys += `<td class="p-2 border-r border-slate-700 text-center">${mainAns}</td>`;
+                            tbodys += `<td class="p-2 border-r border-slate-700 text-center text-amber-300 font-semibold">${reasonAns}</td>`;
+                        } else {
+                            tbodys += `<td class="p-2 border-r border-slate-700 text-center">${ans}</td>`;
+                        }
                     });
                     tbodys += `<td class="p-2 border-r border-slate-700 text-[10px] text-slate-400">${dateStr}</td>`;
                     tbodys += `<td class="p-2 text-center"><button onclick="deleteSurveyResponse('${r.id}', '${id}')" class="text-rose-400 hover:text-rose-300" title="Reset/Padam"><i class="fa-solid fa-trash"></i></button></td></tr>`;
                 });
                 
                 if(sResp.length === 0) {
-                    tbodys = `<tr><td colspan="${(s.questions||[]).length + 5}" class="p-4 text-center text-slate-400">Belum ada maklum balas.</td></tr>`;
+                    tbodys = `<tr><td colspan="${totalCols}" class="p-4 text-center text-slate-400">Belum ada maklum balas.</td></tr>`;
                 }
                 
                 let amStatusMap = {};
@@ -5167,8 +5204,12 @@ function saveGlobalGSUrl() {
             let csv = '';
             
             if (s.type === 'custom') {
+                let isYesNoExport = (q) => q.type === 'yesno' || (sResp && sResp.some(r => r.answers && r.answers[q.id] && String(r.answers[q.id].value).startsWith('Tidak - ')));
                 let headers = ['CODE', 'BRANCH NAME', 'AREA MANAGER'];
-                (s.questions || []).forEach(q => headers.push(q.label));
+                (s.questions || []).forEach(q => {
+                    headers.push(q.label);
+                    if (isYesNoExport(q)) headers.push('SEBAB (JIKA TIDAK)');
+                });
                 csv += headers.map(h => '"' + h.replace(/"/g, '""') + '"').join(',') + '\n';
                 
                 sResp.forEach(r => {
@@ -5186,8 +5227,22 @@ function saveGlobalGSUrl() {
                     
                     let row = ['"'+code+'"', '"'+bName.replace(/"/g, '""')+'"', '"'+am.replace(/"/g, '""')+'"'];
                     (s.questions || []).forEach(q => {
-                        let ans = (r.answers && r.answers[q.id]) ? r.answers[q.id].value : '-';
-                        row.push('"' + String(ans).replace(/"/g, '""') + '"');
+                        let ans = (r.answers && r.answers[q.id]) ? String(r.answers[q.id].value) : '-';
+                        if (isYesNoExport(q)) {
+                            let mainAns = ans;
+                            let reasonAns = '-';
+                            if (ans.startsWith('Tidak - ')) {
+                                mainAns = 'Tidak';
+                                reasonAns = ans.substring(8).trim();
+                            } else if (ans === 'Tidak') {
+                                mainAns = 'Tidak';
+                                reasonAns = '-';
+                            }
+                            row.push('"' + mainAns.replace(/"/g, '""') + '"');
+                            row.push('"' + reasonAns.replace(/"/g, '""') + '"');
+                        } else {
+                            row.push('"' + ans.replace(/"/g, '""') + '"');
+                        }
                     });
                     csv += row.join(',') + '\n';
                 });
