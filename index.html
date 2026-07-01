@@ -5220,26 +5220,25 @@ function saveGlobalGSUrl() {
                 
                 Swal.fire({ title: 'Memadam & Menyimpan', text: 'Membersihkan rekod lama & menyimpan data baru...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
-                // Delete existing monthly_summaries for this month
+                // Delete existing monthly_summaries for this month using Promise.all to bypass batch limits
                 let existingSummaries = await db.collection("monthly_summaries").where("month", "==", targetMonth).get();
-                let delBatch = db.batch();
-                let delCount = 0;
+                let delPromises = [];
                 existingSummaries.docs.forEach(dDoc => {
-                    delBatch.delete(dDoc.ref);
-                    delCount++;
+                    delPromises.push(dDoc.ref.delete());
                 });
-                if(delCount > 0) await delBatch.commit();
+                for (let i = 0; i < delPromises.length; i += 50) {
+                    await Promise.all(delPromises.slice(i, i + 50));
+                }
                 
-                // Write new summaries without merge to ensure total clean sweep
+                // Write new summaries using Promise.all
                 let docIds = Object.keys(summaries);
-                for (let i = 0; i < docIds.length; i += 2) {
-                    let batch = db.batch();
-                    let chunk = docIds.slice(i, i + 2);
-                    chunk.forEach(id => {
-                        let ref = db.collection("monthly_summaries").doc(id);
-                        batch.set(ref, summaries[id]);
-                    });
-                    await batch.commit();
+                let setPromises = [];
+                docIds.forEach(id => {
+                    let ref = db.collection("monthly_summaries").doc(id);
+                    setPromises.push(ref.set(summaries[id]));
+                });
+                for (let i = 0; i < setPromises.length; i += 50) {
+                    await Promise.all(setPromises.slice(i, i + 50));
                 }
                 
                 // Check if any branches are now missing from the new summaries that were in the old ones,
