@@ -5117,24 +5117,39 @@ function saveGlobalGSUrl() {
         }
 
         async function aggregateAllData() {
+            const { value: targetMonth } = await Swal.fire({
+                title: 'Kira Semula Data Bulanan',
+                input: 'month',
+                inputLabel: 'Pilih bulan untuk dikira semula',
+                inputValue: todayStr.substring(0, 7),
+                showCancelButton: true,
+                confirmButtonText: 'Kira & Bersihkan Data',
+                cancelButtonText: 'Batal',
+                inputValidator: (value) => {
+                    if (!value) return 'Anda mesti memilih bulan!';
+                }
+            });
+
+            if (!targetMonth) return;
+
             let confirmResult = await Swal.fire({
-                title: 'Amaran!',
-                text: 'Ini akan mengira semula data dari semua sejarah transaksi. Ia memakan masa dan data yang banyak. Teruskan?',
+                title: 'Amaran Pembersihan Total!',
+                text: `Ini akan MEMADAM rumusan sedia ada untuk bulan ${targetMonth} dan mengiranya semula dari jadual harian (Clean Sweep). Teruskan?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#3085d6',
                 cancelButtonColor: '#d33',
-                confirmButtonText: 'Ya, teruskan',
+                confirmButtonText: 'Ya, Bersihkan & Kira',
                 cancelButtonText: 'Batal'
             });
             if (!confirmResult.isConfirmed) return;
             
             setSyncing(true);
-            Swal.fire({ title: 'Sedang Memproses...', text: 'Memuat turun data lepas...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            Swal.fire({ title: 'Sedang Memproses...', text: `Memuat turun data harian untuk ${targetMonth}...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             try {
-                let snap = await db.collection("submissions").get();
+                let snap = await db.collection("submissions").where("date", ">=", targetMonth + "-01").where("date", "<=", targetMonth + "-31").get();
                 let docs = snap.docs;
-                Swal.fire({ title: 'Menyusun Data', text: `Menjumpai ${docs.length} rekod. Sedang mengira rumusan...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                Swal.fire({ title: 'Menyusun Data', text: `Menjumpai ${docs.length} rekod. Sedang memadam rumusan lama & mengira baru...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
                 let summaries = {}; // key: docId -> updateObj
                 
@@ -5203,17 +5218,35 @@ function saveGlobalGSUrl() {
                     summaries[docId].branches[d.code].daily[dayStr].b2 += b2;
                 });
                 
-                Swal.fire({ title: 'Menyimpan', text: 'Menyimpan data yang telah dikira ke pangkalan data...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                Swal.fire({ title: 'Memadam & Menyimpan', text: 'Membersihkan rekod lama & menyimpan data baru...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                
+                // Delete existing monthly_summaries for this month
+                let existingSummaries = await db.collection("monthly_summaries").where("month", "==", targetMonth).get();
+                let delBatch = db.batch();
+                let delCount = 0;
+                existingSummaries.docs.forEach(dDoc => {
+                    delBatch.delete(dDoc.ref);
+                    delCount++;
+                });
+                if(delCount > 0) await delBatch.commit();
+                
+                // Write new summaries without merge to ensure total clean sweep
                 let docIds = Object.keys(summaries);
                 for (let i = 0; i < docIds.length; i += 20) {
                     let batch = db.batch();
                     let chunk = docIds.slice(i, i + 20);
                     chunk.forEach(id => {
                         let ref = db.collection("monthly_summaries").doc(id);
-                        batch.set(ref, summaries[id], {merge: true});
+                        batch.set(ref, summaries[id]);
                     });
                     await batch.commit();
                 }
+                
+                // Check if any branches are now missing from the new summaries that were in the old ones,
+                // and fetch latest data.
+                if (currentTab === 'dashboard') renderDashboard(); 
+                else if (currentTab === 'comparison') renderComparisonTable();
+                else renderTrackingTable();
                 
                 setSyncing(false);
                 Swal.fire('Berjaya!', 'Semua data telah berjaya dikira dan disimpan!', 'success');
