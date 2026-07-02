@@ -1349,7 +1349,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.56;
+        const APP_VERSION = 9.57;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1604,6 +1604,9 @@ function saveGlobalGSUrl() {
                     let data = doc.data();
                     if(data.app_version && data.app_version > APP_VERSION) {
                         window.location.href = window.location.pathname + '?v=' + new Date().getTime();
+                    }
+                    if (currentUser && currentUser.role === 'admin' && (!data.app_version || data.app_version < APP_VERSION)) {
+                        db.collection("config").doc("system").set({app_version: APP_VERSION}, {merge: true});
                     }
                     
                     window.globalConfig = data;
@@ -2622,6 +2625,9 @@ function saveGlobalGSUrl() {
             if (currentUser.role === 'admin') {
                 let btnPatch = document.getElementById('btn-patch-db');
                 if(btnPatch) btnPatch.classList.remove('hidden');
+                if (window.globalConfig && (!window.globalConfig.app_version || window.globalConfig.app_version < APP_VERSION)) {
+                    db.collection("config").doc("system").set({app_version: APP_VERSION}, {merge: true});
+                }
             }
             
             if (typeof surveysLoaded !== 'undefined' && surveysLoaded && responsesLoaded) {
