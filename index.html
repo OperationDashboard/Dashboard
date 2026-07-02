@@ -4469,6 +4469,15 @@ function saveGlobalGSUrl() {
             return html;
         }
 
+        function formatSafeDate(val) {
+            if (!val) return '';
+            try {
+                if (typeof val.toMillis === 'function') return new Date(val.toMillis()).toLocaleString();
+                if (val.seconds) return new Date(val.seconds * 1000).toLocaleString();
+                return new Date(val).toLocaleString();
+            } catch(e) { return String(val); }
+        }
+
         function updateSurveyUI() {
             if(!currentUser) return;
             
@@ -4656,7 +4665,7 @@ function saveGlobalGSUrl() {
                         }
                         
                         let isClosed = s.status === 'closed';
-                        let dateStr = s.createdAt ? new Date(s.createdAt.toMillis()).toLocaleString() : '';
+                        let dateStr = formatSafeDate(s.createdAt);
                         html += `
                         <tr class="hover:bg-slate-800/30 transition-colors">
                             <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50">${dateStr}</td>
@@ -4863,7 +4872,7 @@ function saveGlobalGSUrl() {
                 target: s.target || 'am',
                 type: s.type || 'exception',
                 status: 'active',
-                createdAt: new Date().toISOString(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 options: s.options || [],
                 items: s.items || []
             };
@@ -5151,7 +5160,7 @@ function saveGlobalGSUrl() {
                         if(bInfo) bName = bInfo.name;
                     }
                     
-                    let dateStr = r.submittedAt ? new Date(r.submittedAt.toMillis()).toLocaleString() : '';
+                    let dateStr = formatSafeDate(r.submittedAt);
                     tbodys += `<tr class="border-b border-slate-800">`;
                     tbodys += `<td class="p-2 border-r border-slate-700 font-bold text-emerald-400">${code}</td>`;
                     tbodys += `<td class="p-2 border-r border-slate-700">${bName}</td>`;
@@ -5409,7 +5418,7 @@ function saveGlobalGSUrl() {
             } else {
                 csv = 'Soalan Survey,Nama AM,Tarikh Hantar,Kod Branch Pengecualian,Nama Branch Pengecualian\n';
                 sResp.forEach(r => {
-                    let dateStr = r.submittedAt ? new Date(r.submittedAt.toMillis()).toLocaleString() : '';
+                    let dateStr = formatSafeDate(r.submittedAt);
                     let title = '"' + s.title.replace(/"/g, '""') + '"';
                     let amName = '"' + r.amName.replace(/"/g, '""') + '"';
                     let dateEsc = '"' + dateStr + '"';
