@@ -1349,7 +1349,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.57;
+        const APP_VERSION = 9.58;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1406,19 +1406,41 @@ function saveGlobalGSUrl() {
         let masterLock = false;
         let pastLock = true;
 
+        function normalizeBranchData(list) {
+            if(!Array.isArray(list)) return [];
+            let seen = new Set();
+            return list.filter(b => {
+                if(!b || !b.code) return false;
+                let c = String(b.code).trim();
+                if(seen.has(c)) return false;
+                seen.add(c);
+                return true;
+            }).map(b => {
+                if(b.code != null) b.code = String(b.code).trim();
+                if (!b.am || String(b.am).trim() === "") {
+                    if (b["AREA MANAGER"]) b.am = b["AREA MANAGER"];
+                    else if (b["AM"]) b.am = b["AM"];
+                    else if (b["AreaMgr"]) b.am = b["AreaMgr"];
+                    else if (b["AREA MGR"]) b.am = b["AREA MGR"];
+                }
+                if (b.am != null) {
+                    b.am = String(b.am).trim().toUpperCase();
+                }
+                if (b.name != null) {
+                    b.name = String(b.name).trim();
+                }
+                return b;
+            });
+        }
+
         function loadBranchesCache() {
             let cached = localStorage.getItem('master_branches_cache');
             if(cached) {
-                let parsed = JSON.parse(cached);
-                let seen = new Set();
-                masterBranches = parsed.filter(b => {
-                    if(!b.code) return false;
-                    let c = String(b.code).trim();
-                    if(seen.has(c)) return false;
-                    seen.add(c);
-                    return true;
-                });
-                ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
+                try {
+                    let parsed = JSON.parse(cached);
+                    masterBranches = normalizeBranchData(parsed);
+                    ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
+                } catch(e) {}
             }
         }
         
@@ -1427,22 +1449,7 @@ function saveGlobalGSUrl() {
             if(!url || url === "SILA_TAMPAL_URL_GOOGLE_APPS_SCRIPT_DI_SINI") return;
             fetch(url + '?t=' + new Date().getTime() + '&action=get_branches').then(r=>r.json()).then(data => {
                 if(Array.isArray(data) && data.length > 0) {
-                    let seen = new Set();
-                    masterBranches = data.filter(b => {
-                        if(!b.code) return false;
-                        let c = String(b.code).trim();
-                        if(seen.has(c)) return false;
-                        seen.add(c);
-                        return true;
-                    }).map(b => { if(b.code != null) b.code = String(b.code).trim();
-                        if (!b.am || b.am === "") {
-                            if (b["AREA MANAGER"]) b.am = b["AREA MANAGER"];
-                            else if (b["AM"]) b.am = b["AM"];
-                            else if (b["AreaMgr"]) b.am = b["AreaMgr"];
-                            else if (b["AREA MGR"]) b.am = b["AREA MGR"];
-                        }
-                        return b;
-                    });
+                    masterBranches = normalizeBranchData(data);
                     ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
                     localStorage.setItem('master_branches_cache', JSON.stringify(data));
                     if(document.getElementById('am-select') && ams.length > 0) {
@@ -2249,6 +2256,7 @@ function saveGlobalGSUrl() {
         }
 
                 function switchTab(tab) {
+            window.isFillingSurveyActive = false;
             currentTab = tab;
             ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target'].forEach(t => {
                 let s = document.getElementById('tab-' + t), b = document.getElementById('tab-btn-' + t);
@@ -2637,12 +2645,12 @@ function saveGlobalGSUrl() {
 
         function getManagerFilteredBranches() {
             if(!currentUser) return [];
-            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
+            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => (b.am || '').trim().toUpperCase() === (currentUser.name || '').trim().toUpperCase());
             let fAM = document.getElementById('filter-am') ? document.getElementById('filter-am').value : '';
             let fState = document.getElementById('filter-state') ? document.getElementById('filter-state').value : '';
             let fWH = document.getElementById('filter-warehouse') ? document.getElementById('filter-warehouse').value : '';
             let fB = document.getElementById('filter-branch') ? document.getElementById('filter-branch').value : '';
-            if(fAM) base = base.filter(b => b.am === fAM);
+            if(fAM) base = base.filter(b => (b.am || '').trim().toUpperCase() === String(fAM).trim().toUpperCase());
             if(fState) base = base.filter(b => b.state === fState);
             if(fWH) base = base.filter(b => b.warehouse === fWH);
             if(fB) base = base.filter(b => String(b.code) === String(fB));
@@ -2651,7 +2659,7 @@ function saveGlobalGSUrl() {
 
         function populateFilters() {
             if(!document.getElementById('filter-am') || !currentUser) return;
-            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => b.am === currentUser.name);
+            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => (b.am || '').trim().toUpperCase() === (currentUser.name || '').trim().toUpperCase());
             
             let ams = [...new Set(base.map(b=>b.am).filter(Boolean))].sort();
             let states = [...new Set(base.map(b=>b.state).filter(Boolean))].sort();
@@ -4226,7 +4234,7 @@ function saveGlobalGSUrl() {
             responsesLoaded = false;
             hasAlertedSurvey = false;
             
-            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').limit(10).onSnapshot(snap => {
+            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').limit(20).onSnapshot(snap => {
                 allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 surveysLoaded = true;
                 
@@ -4272,15 +4280,15 @@ function saveGlobalGSUrl() {
                     if (s.status !== 'active') return false;
                     if (!s.targetAudience || s.targetAudience === 'am') {
                         if (s.type === 'custom') {
-                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
-                            let myBranches = masterBranches.filter(b => b.am === amName);
+                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
+                            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
                             return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                         }
-                        return !allResponses.some(r => r.surveyId === s.id && r.amName === amName);
+                        return !allResponses.some(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName);
                     }
                     if (s.targetAudience === 'branch') {
                         let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
-                        let myBranches = masterBranches.filter(b => b.am === amName);
+                        let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
                         return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                     }
                     return false;
@@ -4474,22 +4482,24 @@ function saveGlobalGSUrl() {
             if(!currentUser) return;
             
             // Elak data hilang: Jangan re-render UI jika pengguna sedang mengisi borang survey atau popup Swal aktif
+            if (typeof Swal !== 'undefined' && Swal.isVisible()) return;
             let amListEl = document.getElementById('survey-am-list');
             if (amListEl && amListEl.innerHTML.trim() !== '') {
-                if (amListEl.contains(document.activeElement) || (typeof Swal !== 'undefined' && Swal.isVisible())) return;
-                let hasInput = Array.from(amListEl.querySelectorAll('input:not([type="hidden"]), select')).some(el => {
-                    if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-';
-                    if (el.id && el.id.startsWith('survey-exc-')) return el.value !== '0';
-                    return el.value !== '';
+                if (amListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
+                let hasInput = Array.from(amListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
+                    if (el.id && el.id.startsWith('survey-exc-')) return el.value !== '0' && el.value !== '';
+                    if (el.id && el.id.startsWith('survey-code-')) return true; // Pengecualian branch sedang diisi
+                    if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
+                    return el.value !== '' && el.value !== '0' && el.value !== '-';
                 });
                 if (hasInput) return;
             }
             let branchListEl = document.getElementById('branch-survey-container');
             if (branchListEl && branchListEl.innerHTML.trim() !== '') {
-                if (branchListEl.contains(document.activeElement) || (typeof Swal !== 'undefined' && Swal.isVisible())) return;
-                let hasInput = Array.from(branchListEl.querySelectorAll('input:not([type="hidden"]), select')).some(el => {
-                    if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-';
-                    return el.value !== '';
+                if (branchListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
+                let hasInput = Array.from(branchListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
+                    if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
+                    return el.value !== '' && el.value !== '0' && el.value !== '-';
                 });
                 if (hasInput) return;
             }
@@ -4519,11 +4529,11 @@ function saveGlobalGSUrl() {
                     if (s.status !== 'active') return false;
                     if (!s.targetAudience || s.targetAudience === 'am') {
                         if (s.type === 'custom') {
-                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
-                            let myBranches = masterBranches.filter(b => b.am === amName);
+                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
+                            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
                             return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                         }
-                        return !allResponses.some(r => r.surveyId === s.id && r.amName === amName);
+                        return !allResponses.some(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName);
                     }
                     if (s.targetAudience === 'branch') {
                         return true;
@@ -4537,7 +4547,7 @@ function saveGlobalGSUrl() {
                 } else {
                     pendingSurveys.forEach(s => {
                         if (s.targetAudience === 'branch') {
-                            let myBranches = masterBranches.filter(b => b.am === amName);
+                            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
                             let responsesForSurvey = allResponses.filter(r => r.surveyId === s.id);
                             
                             html += `<div class="bg-slate-800 rounded-lg p-4 border border-blue-500/50 mb-4 shadow-lg shadow-blue-900/20">
@@ -4610,8 +4620,8 @@ function saveGlobalGSUrl() {
                                 html += `</div></div>`;
                             }
                         } else if (s.type === 'custom') {
-                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
-                            let remainingBranches = masterBranches.filter(b => b.am === amName && !respondedBranches.includes(String(b.code)));
+                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
+                            let remainingBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName && !respondedBranches.includes(String(b.code)));
                             html += generateCustomSurveyHTML(s, remainingBranches);
                         } else {
                             html += `
@@ -4681,6 +4691,7 @@ function saveGlobalGSUrl() {
         }
 
         function renderSurveyInputs(id) {
+            window.isFillingSurveyActive = true;
             let count = parseInt(document.getElementById(`survey-exc-${id}`).value) || 0;
             let html = '';
             
@@ -4703,6 +4714,17 @@ function saveGlobalGSUrl() {
             }
             document.getElementById(`survey-inputs-${id}`).innerHTML = html;
         }
+
+        document.addEventListener('input', function(e) {
+            if (e.target && ((e.target.id || '').startsWith('sq_') || (e.target.id || '').startsWith('survey-exc-') || (e.target.id || '').startsWith('survey-code-'))) {
+                window.isFillingSurveyActive = true;
+            }
+        });
+        document.addEventListener('change', function(e) {
+            if (e.target && ((e.target.id || '').startsWith('sq_') || (e.target.id || '').startsWith('survey-exc-') || (e.target.id || '').startsWith('survey-code-'))) {
+                window.isFillingSurveyActive = true;
+            }
+        });
 
         let builderQuestions = [];
 
@@ -4861,10 +4883,13 @@ function saveGlobalGSUrl() {
             if (!newTitle) return;
             let surveyData = {
                 title: newTitle.trim(),
-                target: s.target || 'am',
+                targetAudience: s.targetAudience || s.target || 'am',
+                target: s.target || s.targetAudience || 'am',
                 type: s.type || 'exception',
                 status: 'active',
+                createdBy: currentUser ? currentUser.name : (s.createdBy || 'Admin'),
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                questions: s.questions || [],
                 options: s.options || [],
                 items: s.items || []
             };
@@ -4952,6 +4977,7 @@ function saveGlobalGSUrl() {
                 }
                 
                 await db.collection('survey_responses').add(payload);
+                window.isFillingSurveyActive = false;
                 showToast('success', 'Maklum balas telah direkodkan!');
                 let box = document.getElementById(`survey-box-${id}`);
                 if (box) {
@@ -4959,6 +4985,7 @@ function saveGlobalGSUrl() {
                     setTimeout(() => { if(box) box.remove(); }, 2000);
                 }
             } catch(e) {
+                window.isFillingSurveyActive = false;
                 showToast('error', 'Error: ' + e.message);
                 if (btn) {
                     btn.innerHTML = oldHtml;
@@ -4972,8 +4999,8 @@ function saveGlobalGSUrl() {
             if(!s) return;
             
             let amName = (currentUser.name || '').trim().toUpperCase();
-            let myBranches = masterBranches.filter(b => b.am === amName);
-            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && r.amName === amName).map(r => String(r.branchCode));
+            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
+            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
             let remainingBranches = myBranches.filter(b => !respondedBranches.includes(String(b.code)));
             
             let allPayloads = [];
@@ -5018,6 +5045,7 @@ function saveGlobalGSUrl() {
                     batch.set(docRef, p);
                 });
                 await batch.commit();
+                window.isFillingSurveyActive = false;
                 showToast('success', 'Maklum balas semua cawangan direkodkan!');
                 let container = document.getElementById('survey-am-list');
                 if (container) {
@@ -5025,6 +5053,7 @@ function saveGlobalGSUrl() {
                 }
                 updateSurveyUI();
             } catch (e) {
+                window.isFillingSurveyActive = false;
                 console.error(e);
                 showToast('error', 'Failed to save feedback.');
                 if (btn) {
@@ -5070,12 +5099,14 @@ function saveGlobalGSUrl() {
                     exceptionCount: count,
                     exceptions: exceptions
                 });
+                window.isFillingSurveyActive = false;
                 showToast('success', 'Terima kasih! Maklum balas berjaya dihantar.');
                 let box = document.getElementById(`survey-box-${id}`);
                 if (box) {
                     box.innerHTML = '<div class="text-emerald-400 text-sm font-bold py-2"><i class="fa-solid fa-check-circle mr-2"></i>Maklum balas telah direkodkan.</div>';
                 }
             } catch(e) {
+                window.isFillingSurveyActive = false;
                 showToast('error', 'Error: ' + e.message);
                 if (btn) {
                     btn.innerHTML = oldHtml;
@@ -5602,8 +5633,8 @@ function saveGlobalGSUrl() {
             
             try {
                 let branches = masterBranches || [];
-                if (amFilter) branches = branches.filter(b => b.am === amFilter);
-                else if (!isAdminOrOp) branches = branches.filter(b => b.am === currentUser.name);
+                if (amFilter) branches = branches.filter(b => (b.am || '').trim().toUpperCase() === String(amFilter).trim().toUpperCase());
+                else if (!isAdminOrOp) branches = branches.filter(b => (b.am || '').trim().toUpperCase() === (currentUser.name || '').trim().toUpperCase());
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 2 (targets)...</td></tr>';
                 let targetSnap;
@@ -5618,7 +5649,7 @@ function saveGlobalGSUrl() {
                 if (targetSnap && targetSnap.docs) {
                     targetSnap.docs.forEach(d => {
                         let tData = d.data();
-                        if (!amFilter || tData.am === amFilter) {
+                        if (!amFilter || (tData.am || '').trim().toUpperCase() === String(amFilter).trim().toUpperCase()) {
                             targets[tData.code] = tData.target_sales;
                         }
                     });
