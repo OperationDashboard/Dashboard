@@ -1817,14 +1817,8 @@ function saveGlobalGSUrl() {
                         setSyncing(false);
                     });
                 } else {
-                    queryMonthlySummariesData(startDate, endDate).then(fbData => {
-                        dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(fetchDateStr));
-                        dbSubmissions = dbSubmissions.concat(fbData);
-                        window.fetchedQueries[queryKey] = true;
-                        refreshCurrentTabView();
-                        if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
-                        setSyncing(false);
-                    }).catch(e => {
+                    let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
+                    query.get().then(processSnap).catch(e => {
                         console.error("Monthly sync failed", e);
                         setSyncing(false);
                     });
@@ -3426,7 +3420,24 @@ function saveGlobalGSUrl() {
                     });
                     return snapData;
                 }
-                return await queryMonthlySummariesData(startDate, endDate);
+                let snap = await db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate).get();
+                let snapData = [];
+                snap.forEach(doc => {
+                    let d = doc.data();
+                    if (d && d.date && d.code) {
+                        snapData.push({
+                            code: String(d.code),
+                            date: d.date,
+                            sales: parseFloat(d.sales) || 0,
+                            lorry: parseFloat(d.lorry) || 0,
+                            mykasih: parseFloat(d.mykasih) || 0,
+                            transactions: parseInt(d.transactions) || 0,
+                            night_locked: d.night_locked !== undefined ? d.night_locked : true,
+                            am: d.am || ""
+                        });
+                    }
+                });
+                return snapData;
             } catch(e) {
                 console.error("Error in fetchRangeFromSummaries:", e);
                 return [];
@@ -5586,23 +5597,12 @@ function saveGlobalGSUrl() {
                             }
                         });
                     } else {
-                        let sumSnap = await db.collection("monthly_summaries")
-                            .where(firebase.firestore.FieldPath.documentId(), ">=", month + "_")
-                            .where(firebase.firestore.FieldPath.documentId(), "<=", month + "_\uf8ff")
-                            .get();
-                        sumSnap.forEach(doc => {
+                        let subSnap = await db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate).get();
+                        subSnap.forEach(doc => {
                             let d = doc.data();
-                            if (d && d.branches) {
-                                for (let code in d.branches) {
-                                    let bData = d.branches[code];
-                                    let bSales = parseFloat(bData.totalSales) || 0;
-                                    if (bSales === 0 && bData.daily) {
-                                        Object.values(bData.daily).forEach(day => {
-                                            bSales += (parseFloat(day.s) || 0);
-                                        });
-                                    }
-                                    currentSales[String(code)] = (currentSales[String(code)] || 0) + bSales;
-                                }
+                            if (d && d.code && d.date && d.date.startsWith(month)) {
+                                let c = String(d.code);
+                                currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
                             }
                         });
                     }
