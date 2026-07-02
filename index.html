@@ -1734,29 +1734,56 @@ function saveGlobalGSUrl() {
             }
         }
 
+        async function fetchSubmissionsChunked(monthStr, amName) {
+            let [y, m] = monthStr.split('-');
+            let daysInMonth = new Date(y, m, 0).getDate();
+            let days = [];
+            for (let d = 1; d <= daysInMonth; d++) {
+                let dStr = d < 10 ? '0' + d : '' + d;
+                days.push(`${monthStr}-${dStr}`);
+            }
+            let chunks = [];
+            for (let i = 0; i < days.length; i += 10) chunks.push(days.slice(i, i + 10));
+            
+            let promises = chunks.map(chunk => {
+                let q = db.collection("submissions").where("date", "in", chunk);
+                if (amName) q = q.where("am", "==", amName);
+                return q.get();
+            });
+            let snaps = await Promise.all(promises);
+            let combined = [];
+            snaps.forEach(snap => snap.forEach(doc => { if (doc.exists) combined.push(doc); }));
+            return combined;
+        }
+
         function syncManagerFromCloud() {
             let mode = 'daily';
             let dateStr = todayStr;
             
             if (currentTab === 'dashboard') {
-                mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
+                mode = document.getElementById('dash-mode').value;
                 dateStr = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
             } else if (currentTab === 'analytics') {
                 mode = 'monthly';
                 dateStr = todayStr.substring(0,7);
             } else if (currentTab === 'comparison') {
                 mode = 'monthly';
-                let cm = document.getElementById('compare-month');
-                if(!cm.value) cm.value = todayStr.substring(0,7);
-                dateStr = cm.value;
-            } else {
+                dateStr = document.getElementById('compare-month') ? document.getElementById('compare-month').value : todayStr.substring(0,7);
+            } else if (currentTab === 'tracking') {
                 mode = 'daily';
-                let td = document.getElementById('track-date');
-                if(!td.value) td.value = todayStr;
-                dateStr = td.value;
+                dateStr = document.getElementById('track-date').value;
+            } else if (currentTab === 'lorry') {
+                mode = 'monthly';
+                dateStr = document.getElementById('lorry-month') ? document.getElementById('lorry-month').value : todayStr.substring(0,7);
+            } else if (currentTab === 'target') {
+                mode = 'monthly';
+                dateStr = document.getElementById('target-month') ? document.getElementById('target-month').value : todayStr.substring(0,7);
+            } else if (currentTab === 'drop') {
+                return;
             }
 
-            let queryKey = mode + "_" + dateStr + "_" + currentUser.role;
+            if (!dateStr) return;
+            let queryKey = mode + "_" + dateStr + "_" + (currentUser ? currentUser.id : 'anon');
 
             if (window.activeListeners[queryKey] || window.fetchedQueries[queryKey]) {
                 refreshCurrentTabView();
@@ -1765,10 +1792,6 @@ function saveGlobalGSUrl() {
             }
 
             setSyncing(true);
-            
-            let isCurrentMonth = dateStr.startsWith(todayStr.substring(0,7));
-            let isCurrentDay = dateStr === todayStr;
-            let needsLive = isCurrentMonth || (currentTab === 'tracking') || (mode === 'daily' && isCurrentDay);
             
             let fetchMode = mode;
             let fetchDateStr = dateStr;
@@ -1791,41 +1814,12 @@ function saveGlobalGSUrl() {
             }
 
             if (fetchMode === 'monthly') {
-                let startDate = fetchDateStr + "-01";
-                let endDate = fetchDateStr + "-31";
-                if (currentUser && currentUser.role === 'am') {
-                    let sDate = new Date(startDate);
-                    let eDate = new Date(endDate);
-                    let days = [];
-                    let curr = new Date(sDate);
-                    while (curr <= eDate) {
-                        let y = curr.getFullYear();
-                        let m = String(curr.getMonth() + 1).padStart(2, '0');
-                        let d = String(curr.getDate()).padStart(2, '0');
-                        days.push(`${y}-${m}-${d}`);
-                        curr.setDate(curr.getDate() + 1);
-                    }
-                    let chunks = [];
-                    for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                    
-                    let promises = chunks.map(chunk => 
-                        db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get()
-                    );
-                    Promise.all(promises).then(snaps => {
-                        let combined = [];
-                        snaps.forEach(snap => snap.forEach(doc => { if(doc.exists) combined.push(doc); }));
-                        processSnap(combined);
-                    }).catch(e => {
-                        console.error("Monthly AM sync failed", e);
-                        setSyncing(false);
-                    });
-                } else {
-                    let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
-                    query.get().then(processSnap).catch(e => {
+                fetchSubmissionsChunked(fetchDateStr, (currentUser && currentUser.role === 'am') ? currentUser.name : null)
+                    .then(processSnap)
+                    .catch(e => {
                         console.error("Monthly sync failed", e);
                         setSyncing(false);
                     });
-                }
             } else {
                 let query = db.collection("submissions").where("date", "==", fetchDateStr);
                 if (currentUser && currentUser.role === 'am') {
@@ -3424,9 +3418,9 @@ function saveGlobalGSUrl() {
                     });
                     return snapData;
                 }
-                let snap = await db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate).get();
+                let combinedDocs = await fetchSubmissionsChunked(monthStr, null);
                 let snapData = [];
-                snap.forEach(doc => {
+                combinedDocs.forEach(doc => {
                     let d = doc.data();
                     if (d && d.date && d.code) {
                         snapData.push({
@@ -5477,8 +5471,7 @@ function saveGlobalGSUrl() {
             setSyncing(true);
             Swal.fire({ title: 'Sedang Memproses...', text: `Memuat turun data harian untuk ${targetMonth}...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             try {
-                let snap = await db.collection("submissions").where("date", ">=", targetMonth + "-01").where("date", "<=", targetMonth + "-31").get();
-                let docs = snap.docs;
+                let docs = await fetchSubmissionsChunked(targetMonth, null);
                 Swal.fire({ title: 'Menyusun Data', text: `Menjumpai ${docs.length} rekod. Sedang memadam rumusan lama & mengira baru...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
                 let summaries = {}; // key: docId -> updateObj
@@ -5666,8 +5659,8 @@ function saveGlobalGSUrl() {
                             });
                         });
                     } else {
-                        let subSnap = await db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate).get();
-                        subSnap.forEach(doc => {
+                        let combinedDocs = await fetchSubmissionsChunked(month, null);
+                        combinedDocs.forEach(doc => {
                             let d = doc.data();
                             if (d && d.code && d.date && d.date.startsWith(month)) {
                                 let c = String(d.code);
