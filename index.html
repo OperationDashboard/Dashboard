@@ -2721,12 +2721,17 @@ function saveGlobalGSUrl() {
         function togglePastLock() {
               if(currentUser.role !== 'admin') return;
               let actionText = pastLock ? "Unlock" : "Lock";
+              let newLockState = !pastLock;
               Swal.fire({ title: `${actionText} Past Dates?`, text: `Are you sure you want to ${actionText.toLowerCase()} the Primary Operations form for ALL PAST DATES?`, icon: 'warning', showCancelButton: true, confirmButtonText: `Yes, ${actionText}` })
               .then((result) => {
                   if (result.isConfirmed) {
-                      pastLock = !pastLock;
-                      updateMasterLockUI();
-                      syncToCloud('set_past_lock', {locked: pastLock}, () => { syncManagerFromCloud(); });
+                      Swal.fire({ title: 'Menyimpan...', text: `Mengemaskini status kunci tarikh lepas di server...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                      syncToCloud('set_past_lock', {locked: newLockState}, () => { 
+                          pastLock = newLockState;
+                          updateMasterLockUI();
+                          Swal.close();
+                          syncManagerFromCloud(); 
+                      });
                   }
               });
           }
@@ -2734,12 +2739,17 @@ function saveGlobalGSUrl() {
           function toggleMasterLock() {
             if(currentUser.role !== 'admin') return;
             let actionText = masterLock ? "Unlock" : "Lock";
+            let newLockState = !masterLock;
             Swal.fire({ title: `${actionText} System?`, text: `Are you sure you want to ${actionText.toLowerCase()} the Primary Operations form for ALL branches?`, icon: 'warning', showCancelButton: true, confirmButtonText: `Yes, ${actionText}` })
             .then((result) => {
                 if (result.isConfirmed) {
-                    masterLock = !masterLock;
-                    updateMasterLockUI();
-                    syncToCloud('set_global_lock', {locked: masterLock}, () => { syncManagerFromCloud(); });
+                    Swal.fire({ title: 'Menyimpan...', text: `Mengemaskini status kunci sistem hari ini di server...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    syncToCloud('set_global_lock', {locked: newLockState}, () => { 
+                        masterLock = newLockState;
+                        updateMasterLockUI();
+                        Swal.close();
+                        syncManagerFromCloud(); 
+                    });
                 }
             });
         }
@@ -3380,60 +3390,42 @@ function saveGlobalGSUrl() {
 
         async function fetchRangeFromSummaries(startDate, endDate) {
             try {
-                if (currentUser && currentUser.role === 'am') {
-                    let snapData = [];
-                    let sDate = new Date(startDate);
-                    let eDate = new Date(endDate);
-                    let days = [];
-                    let curr = new Date(sDate);
-                    while (curr <= eDate) {
-                        let y = curr.getFullYear();
-                        let m = String(curr.getMonth() + 1).padStart(2, '0');
-                        let d = String(curr.getDate()).padStart(2, '0');
-                        days.push(`${y}-${m}-${d}`);
-                        curr.setDate(curr.getDate() + 1);
-                    }
-                    let chunks = [];
-                    for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                    let promises = chunks.map(chunk => 
-                        db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get()
-                    );
-                    let snaps = await Promise.all(promises);
-                    snaps.forEach(snap => {
-                        snap.forEach(doc => {
-                            let d = doc.data();
-                            if (d && d.date && d.code) {
-                                snapData.push({
-                                    code: String(d.code),
-                                    date: d.date,
-                                    sales: parseFloat(d.sales) || 0,
-                                    lorry: parseFloat(d.lorry) || 0,
-                                    mykasih: parseFloat(d.mykasih) || 0,
-                                    transactions: parseInt(d.transactions) || 0,
-                                    night_locked: d.night_locked !== undefined ? d.night_locked : true,
-                                    am: d.am || ""
-                                });
-                            }
-                        });
-                    });
-                    return snapData;
-                }
-                let combinedDocs = await fetchSubmissionsChunked(monthStr, null);
                 let snapData = [];
-                combinedDocs.forEach(doc => {
-                    let d = doc.data();
-                    if (d && d.date && d.code) {
-                        snapData.push({
-                            code: String(d.code),
-                            date: d.date,
-                            sales: parseFloat(d.sales) || 0,
-                            lorry: parseFloat(d.lorry) || 0,
-                            mykasih: parseFloat(d.mykasih) || 0,
-                            transactions: parseInt(d.transactions) || 0,
-                            night_locked: d.night_locked !== undefined ? d.night_locked : true,
-                            am: d.am || ""
-                        });
-                    }
+                let sDate = new Date(startDate);
+                let eDate = new Date(endDate);
+                let days = [];
+                let curr = new Date(sDate);
+                while (curr <= eDate) {
+                    let y = curr.getFullYear();
+                    let m = String(curr.getMonth() + 1).padStart(2, '0');
+                    let d = String(curr.getDate()).padStart(2, '0');
+                    days.push(`${y}-${m}-${d}`);
+                    curr.setDate(curr.getDate() + 1);
+                }
+                let chunks = [];
+                for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
+                let promises = chunks.map(chunk => {
+                    let q = db.collection("submissions").where("date", "in", chunk);
+                    if (currentUser && currentUser.role === 'am') q = q.where("am", "==", currentUser.name);
+                    return q.get();
+                });
+                let snaps = await Promise.all(promises);
+                snaps.forEach(snap => {
+                    snap.forEach(doc => {
+                        let d = doc.data();
+                        if (d && d.date && d.code) {
+                            snapData.push({
+                                code: String(d.code),
+                                date: d.date,
+                                sales: parseFloat(d.sales) || 0,
+                                lorry: parseFloat(d.lorry) || 0,
+                                mykasih: parseFloat(d.mykasih) || 0,
+                                transactions: parseInt(d.transactions) || 0,
+                                night_locked: d.night_locked !== undefined ? d.night_locked : true,
+                                am: d.am || ""
+                            });
+                        }
+                    });
                 });
                 return snapData;
             } catch(e) {
