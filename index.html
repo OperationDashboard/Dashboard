@@ -1789,48 +1789,17 @@ function saveGlobalGSUrl() {
             if (fetchMode === 'monthly') {
                 let startDate = fetchDateStr + "-01";
                 let endDate = fetchDateStr + "-31";
-                if (currentUser && currentUser.role === 'am') {
-                    // Area Manager: query submissions by 10-day chunks with am filter (prevents loading 105,000 company records, no composite index needed!)
-                    let sDate = new Date(startDate);
-                    let eDate = new Date(endDate);
-                    let days = [];
-                    let curr = new Date(sDate);
-                    while (curr <= eDate) {
-                        let y = curr.getFullYear();
-                        let m = String(curr.getMonth() + 1).padStart(2, '0');
-                        let d = String(curr.getDate()).padStart(2, '0');
-                        days.push(`${y}-${m}-${d}`);
-                        curr.setDate(curr.getDate() + 1);
-                    }
-                    let chunks = [];
-                    for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                    
-                    let promises = chunks.map(chunk => 
-                        db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get()
-                    );
-                    Promise.all(promises).then(snaps => {
-                        let combined = [];
-                        snaps.forEach(snap => snap.forEach(doc => { if(doc.exists) combined.push(doc); }));
-                        processSnap(combined);
-                    }).catch(e => {
-                        console.error("Monthly AM sync failed", e);
-                        setSyncing(false);
-                    });
-                } else {
-                    // Admin and Operation: directly query submissions for full month to guarantee 100% data completion
-                    let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
-                    if (needsLive) {
-                        window.activeListeners[queryKey] = query.onSnapshot(processSnap, e => {
-                            console.error("Live sync failed", e);
-                            setSyncing(false);
-                        });
-                    } else {
-                        query.get().then(processSnap).catch(e => {
-                            console.error("Monthly sync failed", e);
-                            setSyncing(false);
-                        });
-                    }
-                }
+                queryMonthlySummariesData(startDate, endDate).then(fbData => {
+                    dbSubmissions = dbSubmissions.filter(s => !s.date.startsWith(fetchDateStr));
+                    dbSubmissions = dbSubmissions.concat(fbData);
+                    window.fetchedQueries[queryKey] = true;
+                    refreshCurrentTabView();
+                    if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
+                    setSyncing(false);
+                }).catch(e => {
+                    console.error("Monthly sync failed", e);
+                    setSyncing(false);
+                });
             } else {
                 let query = db.collection("submissions").where("date", "==", fetchDateStr);
                 if (currentUser && currentUser.role === 'am') {
@@ -2350,79 +2319,6 @@ function saveGlobalGSUrl() {
             let b = masterBranches.find(x=>x.code==currentUser.id);
             document.getElementById('info-branch-am').innerText = b ? (b.am || "UNASSIGNED") : "UNASSIGNED";
 
-            // Target Tracker Logic
-            try {
-                let today = new Date();
-                let mStr = today.getFullYear() + '-' + ((today.getMonth()+1)<10?'0':'')+(today.getMonth()+1);
-                
-                // Show the widget in Branch view first to avoid hidden if target fetch fails
-                document.getElementById('branch-target-widget').classList.remove('hidden');
-                document.getElementById('b-target-total').innerText = 'Belum ditetapkan';
-                document.getElementById('b-target-pct').innerText = '0%';
-                document.getElementById('b-target-bar').style.width = '0%';
-                document.getElementById('b-target-req').innerText = '-';
-                
-                // Query branch submissions for current month using chunked IN queries (fast, accurate, no composite index needed)
-                let curSales = 0;
-                try {
-                    let startDate = mStr + "-01";
-                    let endDate = mStr + "-31";
-                    let sDate = new Date(startDate);
-                    let eDate = new Date(endDate);
-                    let days = [];
-                    let curr = new Date(sDate);
-                    while (curr <= eDate) {
-                        let y = curr.getFullYear();
-                        let m = String(curr.getMonth() + 1).padStart(2, '0');
-                        let d = String(curr.getDate()).padStart(2, '0');
-                        days.push(`${y}-${m}-${d}`);
-                        curr.setDate(curr.getDate() + 1);
-                    }
-                    let chunks = [];
-                    for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                    let promises = chunks.map(chunk => 
-                        db.collection("submissions").where("code", "==", String(currentUser.id)).where("date", "in", chunk).get()
-                    );
-                    let snaps = await Promise.all(promises);
-                    snaps.forEach(snap => {
-                        snap.forEach(doc => {
-                            let d = doc.data();
-                            if (d && d.sales) curSales += (parseFloat(d.sales) || 0);
-                        });
-                    });
-                } catch(e) { console.error("Error fetching branch submissions:", e); }
-                
-                if (curSales === 0) {
-                    dbSubmissions.forEach(sub => {
-                        if (String(sub.code) === String(currentUser.id) && sub.date && sub.date.startsWith(mStr)) {
-                            curSales += (parseFloat(sub.sales) || 0);
-                        }
-                    });
-                }
-                window.currentBranchSales = curSales;
-                document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
-                
-                // Live listener for targets
-                if(typeof window.unsubTarget !== 'undefined' && window.unsubTarget) {
-                    // listener already attached
-                } else {
-                    window.unsubTarget = db.collection('targets').doc(`${mStr}_${currentUser.id}`).onSnapshot(tSnap => {
-                        if (!currentUser) return; // safeguard
-                        let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
-                        window.currentBranchTarget = target;
-                        renderBranchTargetWidget(window.currentBranchSales || 0);
-                    }, e => {
-                        console.error('Error loading target:', e); 
-                        document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; 
-                    });
-                }
-                
-                // initial render using whatever we have so far
-                if (typeof window.currentBranchTarget !== 'undefined') {
-                    renderBranchTargetWidget(window.currentBranchSales || 0);
-                }
-            } catch(e) { console.error('Error loading target:', e); document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; }
-            
             let nightDate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
             let nightRec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
             let timeEl = document.getElementById('info-branch-submit-time');
@@ -2500,6 +2396,61 @@ function saveGlobalGSUrl() {
                 document.getElementById('f-bank1').value = ''; document.getElementById('f-bank2').value = ''; 
                 document.getElementById('bank1-time').innerText = ''; document.getElementById('bank2-time').innerText = '';
             }
+
+            // Target Tracker Logic (run asynchronously without blocking UI)
+            try {
+                let today = new Date();
+                let mStr = today.getFullYear() + '-' + ((today.getMonth()+1)<10?'0':'')+(today.getMonth()+1);
+                
+                if (document.getElementById('branch-target-widget')) {
+                    document.getElementById('branch-target-widget').classList.remove('hidden');
+                    document.getElementById('b-target-total').innerText = 'Belum ditetapkan';
+                    document.getElementById('b-target-pct').innerText = '0%';
+                    document.getElementById('b-target-bar').style.width = '0%';
+                    document.getElementById('b-target-req').innerText = '-';
+                    document.getElementById('b-target-current').innerText = 'RM 0.00';
+                }
+                
+                // Live listener for targets
+                if(typeof window.unsubTarget !== 'undefined' && window.unsubTarget) {
+                    // listener already attached
+                } else {
+                    window.unsubTarget = db.collection('targets').doc(`${mStr}_${currentUser.id}`).onSnapshot(tSnap => {
+                        if (!currentUser) return; // safeguard
+                        let target = (tSnap.exists && tSnap.data().target_sales > 0) ? tSnap.data().target_sales : 0;
+                        window.currentBranchTarget = target;
+                        renderBranchTargetWidget(window.currentBranchSales || 0);
+                    }, e => {
+                        console.error('Error loading target:', e); 
+                        if(document.getElementById('b-target-total')) document.getElementById('b-target-total').innerText = 'Ralat: ' + e.message; 
+                    });
+                }
+                
+                // Query branch submissions using single-field query (no composite index needed!)
+                db.collection("submissions").where("code", "==", String(currentUser.id)).get().then(subSnap => {
+                    let curSales = 0;
+                    subSnap.forEach(doc => {
+                        let d = doc.data();
+                        if (d && d.date && d.date.startsWith(mStr) && d.sales) {
+                            curSales += (parseFloat(d.sales) || 0);
+                        }
+                    });
+                    if (curSales === 0) {
+                        dbSubmissions.forEach(sub => {
+                            if (String(sub.code) === String(currentUser.id) && sub.date && sub.date.startsWith(mStr)) {
+                                curSales += (parseFloat(sub.sales) || 0);
+                            }
+                        });
+                    }
+                    window.currentBranchSales = curSales;
+                    if(document.getElementById('b-target-current')) document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
+                    if (typeof window.currentBranchTarget !== 'undefined') {
+                        renderBranchTargetWidget(window.currentBranchSales || 0);
+                    }
+                }).catch(e => {
+                    console.error("Error fetching branch submissions:", e);
+                });
+            } catch(e) { console.error('Error loading target:', e); }
         }
 
         let pendingNightData = null;
@@ -3340,68 +3291,72 @@ function saveGlobalGSUrl() {
             return weeks;
         }
 
-        async function fetchRangeFromSummaries(startDate, endDate) {
-            let snapData = [];
-            try {
-                if (currentUser && currentUser.role === 'am') {
-                    // For AM: query submissions by chunk to save reads without requiring a composite index
-                    let sDate = new Date(startDate);
-                    let eDate = new Date(endDate);
-                    let days = [];
-                    let curr = new Date(sDate);
-                    while (curr <= eDate) {
-                        let y = curr.getFullYear();
-                        let m = String(curr.getMonth() + 1).padStart(2, '0');
-                        let d = String(curr.getDate()).padStart(2, '0');
-                        days.push(`${y}-${m}-${d}`);
-                        curr.setDate(curr.getDate() + 1);
-                    }
-                    let chunks = [];
-                    for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                    let promises = chunks.map(chunk => 
-                        db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get()
-                    );
-                    let snaps = await Promise.all(promises);
-                    snaps.forEach(snap => {
-                        snap.forEach(doc => {
-                            let d = doc.data();
-                            if (d && d.date && d.code) {
-                                snapData.push({
-                                    code: String(d.code),
-                                    date: d.date,
-                                    sales: parseFloat(d.sales) || 0,
-                                    lorry: parseFloat(d.lorry) || 0,
-                                    mykasih: parseFloat(d.mykasih) || 0,
-                                    transactions: parseInt(d.transactions) || 0,
-                                    night_locked: d.night_locked !== undefined ? d.night_locked : true,
-                                    am: d.am || ""
-                                });
+        async function queryMonthlySummariesData(startDate, endDate, amFilter = "") {
+            let sDate = new Date(startDate);
+            let eDate = new Date(endDate);
+            let monthsToFetch = new Set();
+            let curr = new Date(sDate);
+            while (curr <= eDate) {
+                let y = curr.getFullYear();
+                let m = String(curr.getMonth() + 1).padStart(2, '0');
+                monthsToFetch.add(`${y}-${m}`);
+                curr.setDate(curr.getDate() + 1);
+            }
+            let promises = [];
+            for (let mStr of monthsToFetch) {
+                promises.push(db.collection("monthly_summaries")
+                    .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
+                    .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff").get());
+            }
+            let snaps = await Promise.all(promises);
+            let results = [];
+            let filterAm = amFilter ? amFilter.trim().toUpperCase() : (currentUser && currentUser.role === 'am' ? String(currentUser.name).trim().toUpperCase() : "");
+            snaps.forEach(snap => {
+                snap.forEach(doc => {
+                    let d = doc.data();
+                    let docAm = String(d.am || "").trim().toUpperCase();
+                    if (filterAm && docAm !== filterAm && !(currentUser && (currentUser.role.includes('admin') || currentUser.role.includes('operation')) && !amFilter)) return;
+                    let docMonth = doc.id.split('_')[0];
+                    if (d.branches) {
+                        for (let code in d.branches) {
+                            let bData = d.branches[code];
+                            let branchAm = String(bData.am || d.am || "").trim().toUpperCase();
+                            if (filterAm && branchAm !== filterAm) continue;
+                            if (bData.daily) {
+                                for (let day in bData.daily) {
+                                    let daily = bData.daily[day];
+                                    let fullDate = (d.month || docMonth) + "-" + day;
+                                    if (fullDate >= startDate && fullDate <= endDate) {
+                                        results.push({
+                                            code: String(code),
+                                            date: fullDate,
+                                            name: bData.name || "",
+                                            sales: parseFloat(daily.s) || 0,
+                                            lorry: parseFloat(daily.l) || 0,
+                                            mykasih: parseFloat(daily.m) || 0,
+                                            transactions: parseInt(daily.t) || 0,
+                                            bank1: parseFloat(daily.b1) || 0,
+                                            bank2: parseFloat(daily.b2) || 0,
+                                            night_locked: true,
+                                            am: bData.am || d.am || ""
+                                        });
+                                    }
+                                }
                             }
-                        });
-                    });
-                } else {
-                    // For Admin and Operation: query submissions directly for full range
-                    let snap = await db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate).get();
-                    snap.forEach(doc => {
-                        let d = doc.data();
-                        if (d && d.date && d.code) {
-                            snapData.push({
-                                code: String(d.code),
-                                date: d.date,
-                                sales: parseFloat(d.sales) || 0,
-                                lorry: parseFloat(d.lorry) || 0,
-                                mykasih: parseFloat(d.mykasih) || 0,
-                                transactions: parseInt(d.transactions) || 0,
-                                night_locked: d.night_locked !== undefined ? d.night_locked : true,
-                                am: d.am || ""
-                            });
                         }
-                    });
-                }
+                    }
+                });
+            });
+            return results;
+        }
+
+        async function fetchRangeFromSummaries(startDate, endDate) {
+            try {
+                return await queryMonthlySummariesData(startDate, endDate);
             } catch(e) {
                 console.error("Error in fetchRangeFromSummaries:", e);
+                return [];
             }
-            return snapData;
         }
 
         function renderLorryTracker() {
@@ -5547,46 +5502,29 @@ function saveGlobalGSUrl() {
                 try {
                     let startDate = month + "-01";
                     let endDate = month + "-31";
-                    if (amFilter && amFilter !== "") {
-                        let sDate = new Date(startDate);
-                        let eDate = new Date(endDate);
-                        let days = [];
-                        let curr = new Date(sDate);
-                        while (curr <= eDate) {
-                            let y = curr.getFullYear();
-                            let m = String(curr.getMonth() + 1).padStart(2, '0');
-                            let d = String(curr.getDate()).padStart(2, '0');
-                            days.push(`${y}-${m}-${d}`);
-                            curr.setDate(curr.getDate() + 1);
-                        }
-                        let chunks = [];
-                        for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                        let promises = chunks.map(chunk => 
-                            db.collection("submissions").where("am", "==", amFilter).where("date", "in", chunk).get()
-                        );
-                        let snaps = await Promise.all(promises);
-                        snaps.forEach(snap => {
-                            snap.forEach(doc => {
-                                let d = doc.data();
-                                if (d && d.code) {
-                                    let c = String(d.code);
-                                    currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
+                    let sumSnap = await db.collection("monthly_summaries")
+                        .where(firebase.firestore.FieldPath.documentId(), ">=", month + "_")
+                        .where(firebase.firestore.FieldPath.documentId(), "<=", month + "_\uf8ff")
+                        .get();
+                    sumSnap.forEach(doc => {
+                        let d = doc.data();
+                        let docAm = String(d.am || "").trim().toUpperCase();
+                        if (amFilter && amFilter !== "" && docAm !== amFilter.toUpperCase()) return;
+                        if (d && d.branches) {
+                            for (let code in d.branches) {
+                                let bData = d.branches[code];
+                                let branchAm = String(bData.am || d.am || "").trim().toUpperCase();
+                                if (amFilter && amFilter !== "" && branchAm !== amFilter.toUpperCase()) continue;
+                                let bSales = parseFloat(bData.totalSales) || 0;
+                                if (bSales === 0 && bData.daily) {
+                                    Object.values(bData.daily).forEach(day => {
+                                        bSales += (parseFloat(day.s) || 0);
+                                    });
                                 }
-                            });
-                        });
-                    } else {
-                        let subSnap = await db.collection('submissions')
-                            .where("date", ">=", startDate)
-                            .where("date", "<=", endDate)
-                            .get();
-                        subSnap.forEach(doc => {
-                            let d = doc.data();
-                            if (d && d.code) {
-                                let c = String(d.code);
-                                currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
+                                currentSales[String(code)] = (currentSales[String(code)] || 0) + bSales;
                             }
-                        });
-                    }
+                        }
+                    });
                 } catch(e) {
                     console.error("Error loading submissions for target tracker:", e);
                 }
