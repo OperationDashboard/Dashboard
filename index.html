@@ -2354,11 +2354,10 @@ function saveGlobalGSUrl() {
             let nightDiff = Math.round((parseD(todayStr) - parseD(nightDate)) / 86400000);
             let isToday = (nightDiff === 0);
             let nightUnlocked = false;
-            let hasSubmitted = nightRec && nightRec.night_locked && (nightRec.night_submit_time && nightRec.night_submit_time !== "");
             if (isToday) {
-                nightUnlocked = !masterLock && (!hasSubmitted || nightRec.night_unlocked);
+                nightUnlocked = !masterLock || (nightRec && nightRec.night_unlocked);
             } else {
-                nightUnlocked = !pastLock || (!hasSubmitted || (nightRec && nightRec.night_unlocked));
+                nightUnlocked = !pastLock || (nightRec && nightRec.night_unlocked);
             }
             
             let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
@@ -3072,9 +3071,10 @@ function saveGlobalGSUrl() {
                   let needsUnlockNight = false;
                   if (date === todayStr) {
                       if (masterLock) needsUnlockNight = !sub || !sub.night_unlocked;
-                      else needsUnlockNight = isNightLocked;
+                      else needsUnlockNight = false;
                   } else {
-                      needsUnlockNight = !sub || !sub.night_unlocked;
+                      if (pastLock) needsUnlockNight = !sub || !sub.night_unlocked;
+                      else needsUnlockNight = false;
                   }
                   let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && needsUnlockNight) ? `<button onclick="unlockNight('${date}', '${b.code}')" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
                 
