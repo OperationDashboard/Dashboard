@@ -1362,7 +1362,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.60;
+        const APP_VERSION = 9.61;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -5108,16 +5108,30 @@ function saveGlobalGSUrl() {
                 color: '#fff'
             }).then(async (result) => {
                 if (result.isConfirmed) {
+                    showToast('info', 'Sedang memadam data survey...');
                     try {
-                        let responses = allResponses.filter(r => r.surveyId === id);
-                        let batch = db.batch();
-                        responses.forEach(r => {
-                            batch.delete(db.collection('survey_responses').doc(r.id));
-                        });
-                        batch.delete(db.collection('surveys').doc(id));
-                        await batch.commit();
-                        showToast('success', 'Survey berjaya dipadam.');
+                        // Immediately remove from UI for instant feedback
+                        allSurveys = allSurveys.filter(s => s.id !== id);
+                        allResponses = allResponses.filter(r => r.surveyId !== id);
+                        updateSurveyUI();
+                        
+                        // Query Firestore directly for ALL responses belonging to this survey (active or closed)
+                        let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
+                        let docs = snap.docs;
+                        let chunkSize = 400;
+                        for (let i = 0; i < docs.length; i += chunkSize) {
+                            let chunk = docs.slice(i, i + chunkSize);
+                            let batch = db.batch();
+                            chunk.forEach(d => {
+                                batch.delete(d.ref);
+                            });
+                            await batch.commit();
+                        }
+                        
+                        await db.collection('surveys').doc(id).delete();
+                        showToast('success', `Survey dan ${docs.length} rekod maklum balas berjaya dipadam bersih.`);
                     } catch(e) {
+                        console.error(e);
                         showToast('error', 'Error memadam survey: ' + e.message);
                     }
                 }
