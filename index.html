@@ -1161,6 +1161,19 @@ function doPost(e) {
                                     <button onclick="createSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap"><i class="fa-solid fa-paper-plane mr-2"></i> Publish Survey</button>
                                 </div>
                             </div>
+                            <div class="mt-4 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                                    <label class="text-xs font-bold text-slate-300 uppercase tracking-wide flex items-center gap-1.5"><i class="fa-solid fa-bullseye text-indigo-400"></i> Sasaran Cawangan Terpilih (Pilihan - Kosongkan Untuk Semua)</label>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <input type="file" id="upload-branches-file" accept=".csv,.txt,.xlsx,.xls" class="hidden" onchange="handleUploadBranchesFile(event)">
+                                        <button onclick="document.getElementById('upload-branches-file').click()" type="button" class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 px-2.5 py-1 rounded-md text-[11px] font-bold border border-indigo-500/30 transition-colors flex items-center gap-1"><i class="fa-solid fa-file-arrow-up"></i> Upload Excel / CSV</button>
+                                        <button onclick="openSelectBranchesModal()" type="button" class="bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 px-2.5 py-1 rounded-md text-[11px] font-bold border border-emerald-500/30 transition-colors flex items-center gap-1"><i class="fa-solid fa-list-check"></i> Pilih dari Senarai AM</button>
+                                        <button onclick="document.getElementById('survey-selected-branches').value = ''; showToast('info', 'Senarai cawangan dikosongkan.');" type="button" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 px-2.5 py-1 rounded-md text-[11px] font-bold border border-rose-500/30 transition-colors flex items-center gap-1" title="Kosongkan"><i class="fa-solid fa-trash-can"></i> Kosongkan</button>
+                                    </div>
+                                </div>
+                                <input type="text" id="survey-selected-branches" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500 text-sm font-mono" placeholder="Contoh untuk 800 outlet: Paste kod atau guna butang di atas (cth: 001, 002, 005)">
+                                <span class="text-[10px] text-slate-400 mt-1 block"><i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i> Jika diisi, survey hanya akan terpapar untuk kod cawangan di dalam senarai ini sahaja (menjimatkan sehingga 77% kos bil database!).</span>
+                            </div>
 
                             <!-- Custom Survey Builder Area (Hidden by default) -->
                             <div id="survey-builder-area" class="hidden mt-2 p-4 border border-dashed border-indigo-500/50 rounded-lg bg-indigo-900/10">
@@ -1349,7 +1362,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.58;
+        const APP_VERSION = 9.60;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1744,7 +1757,18 @@ function saveGlobalGSUrl() {
             }
         }
 
-        async function fetchSubmissionsChunked(monthStr, amName) {
+        async function fetchSubmissionsChunked(monthStr, amName, forceRaw = false) {
+            if (!forceRaw && typeof queryMonthlySummariesData === 'function') {
+                try {
+                    let sumData = await queryMonthlySummariesData(monthStr + "-01", monthStr + "-31", amName);
+                    return sumData.map(item => ({
+                        exists: true,
+                        data: () => item
+                    }));
+                } catch (e) {
+                    console.error("Failed monthly summaries read, falling back to raw:", e);
+                }
+            }
             let [y, m] = monthStr.split('-');
             let daysInMonth = new Date(y, m, 0).getDate();
             let days = [];
@@ -3404,44 +3428,8 @@ function saveGlobalGSUrl() {
 
         async function fetchRangeFromSummaries(startDate, endDate) {
             try {
-                let snapData = [];
-                let sDate = new Date(startDate);
-                let eDate = new Date(endDate);
-                let days = [];
-                let curr = new Date(sDate);
-                while (curr <= eDate) {
-                    let y = curr.getFullYear();
-                    let m = String(curr.getMonth() + 1).padStart(2, '0');
-                    let d = String(curr.getDate()).padStart(2, '0');
-                    days.push(`${y}-${m}-${d}`);
-                    curr.setDate(curr.getDate() + 1);
-                }
-                let chunks = [];
-                for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                let promises = chunks.map(chunk => {
-                    let q = db.collection("submissions").where("date", "in", chunk);
-                    if (currentUser && currentUser.role === 'am') q = q.where("am", "==", currentUser.name);
-                    return q.get();
-                });
-                let snaps = await Promise.all(promises);
-                snaps.forEach(snap => {
-                    snap.forEach(doc => {
-                        let d = doc.data();
-                        if (d && d.date && d.code) {
-                            snapData.push({
-                                code: String(d.code),
-                                date: d.date,
-                                sales: parseFloat(d.sales) || 0,
-                                lorry: parseFloat(d.lorry) || 0,
-                                mykasih: parseFloat(d.mykasih) || 0,
-                                transactions: parseInt(d.transactions) || 0,
-                                night_locked: d.night_locked !== undefined ? d.night_locked : true,
-                                am: d.am || ""
-                            });
-                        }
-                    });
-                });
-                return snapData;
+                let amFilterVal = currentUser && currentUser.role === 'am' ? currentUser.name : "";
+                return await queryMonthlySummariesData(startDate, endDate, amFilterVal);
             } catch(e) {
                 console.error("Error in fetchRangeFromSummaries:", e);
                 return [];
@@ -4267,6 +4255,179 @@ function saveGlobalGSUrl() {
             });
         }
         
+        function filterBranchesForSurvey(branches, s) {
+            if (!s || !s.selectedBranches || !Array.isArray(s.selectedBranches) || s.selectedBranches.length === 0) {
+                return branches;
+            }
+            return branches.filter(b => s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)));
+        }
+
+        function isSurveyForUser(s, user) {
+            if (!s || s.status !== 'active') return false;
+            if (s.selectedBranches && s.selectedBranches.length > 0) {
+                if (user.role === 'branch') {
+                    return s.selectedBranches.includes(String(user.id)) || s.selectedBranches.includes(Number(user.id));
+                } else if (user.role === 'am') {
+                    let amName = (user.name || '').trim().toUpperCase();
+                    let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
+                    let hasTarget = myBranches.some(b => s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)));
+                    if (!hasTarget) return false;
+                }
+            }
+            return true;
+        }
+
+        function handleUploadBranchesFile(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+            
+            let reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    let codes = new Set();
+                    if (file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+                        let text = new TextDecoder().decode(evt.target.result);
+                        let matches = text.match(/\b\d{3,5}\b/g) || [];
+                        matches.forEach(m => {
+                            if (masterBranches.some(b => String(b.code) === String(m) || Number(b.code) === Number(m))) {
+                                codes.add(String(m));
+                            }
+                        });
+                    } else {
+                        const workbook = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
+                        const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                        json.forEach(row => {
+                            if (Array.isArray(row)) {
+                                row.forEach(val => {
+                                    if (val) {
+                                        let str = String(val).trim();
+                                        let matches = str.match(/\b\d{3,5}\b/g) || [];
+                                        matches.forEach(m => {
+                                            if (masterBranches.some(b => String(b.code) === String(m) || Number(b.code) === Number(m))) {
+                                                codes.add(String(m));
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    
+                    if (codes.size > 0) {
+                        let arr = Array.from(codes).sort();
+                        let existing = document.getElementById('survey-selected-branches').value.trim();
+                        let combined = existing ? [...new Set([...existing.split(/[\s,]+/).filter(Boolean), ...arr])].join(', ') : arr.join(', ');
+                        document.getElementById('survey-selected-branches').value = combined;
+                        showToast('success', `Berjaya memuat naik ${arr.length} kod cawangan daripada fail!`);
+                    } else {
+                        showToast('error', 'Tiada kod cawangan sah dijumpai dalam fail tersebut.');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('error', 'Gagal membaca fail. Pastikan format sah.');
+                }
+                event.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function openSelectBranchesModal() {
+            let ams = getActiveAMs();
+            let amOptions = '<option value="">-- Pilih Semua atau Mengikut AM --</option>';
+            ams.forEach(a => { amOptions += `<option value="${a}">${a}</option>`; });
+            
+            let html = `
+                <div class="text-left space-y-4">
+                    <p class="text-xs text-slate-300">Pilih cawangan dengan pantas melalui penapis di bawah atau muat naik fail:</p>
+                    
+                    <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">1. Pilih Mengikut Area Manager (AM)</label>
+                        <div class="flex gap-2">
+                            <select id="modal-filter-am" class="w-full bg-slate-950 text-white rounded px-3 py-1.5 border border-slate-700 text-xs">${amOptions}</select>
+                            <button type="button" onclick="addBranchesFromAM()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i> Tambah AM Ini</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">2. Cari Kod / Nama Cawangan</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="modal-search-branch" class="w-full bg-slate-950 text-white rounded px-3 py-1.5 border border-slate-700 text-xs" placeholder="Taip kod / nama (cth: 001 atau Klang)">
+                        </div>
+                        <div id="modal-search-results" class="max-h-36 overflow-y-auto text-xs space-y-1 mt-2"></div>
+                    </div>
+
+                    <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 flex justify-between items-center">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">3. Upload Fail CSV / Excel / TXT</span>
+                            <span class="text-[10px] text-slate-500">Muat naik senarai kod dari komputer anda</span>
+                        </div>
+                        <button type="button" onclick="document.getElementById('upload-branches-file').click(); Swal.close();" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-bold"><i class="fa-solid fa-file-excel mr-1"></i> Upload Fail</button>
+                    </div>
+                </div>
+            `;
+            
+            Swal.fire({
+                title: '<span class="text-lg font-bold text-white"><i class="fa-solid fa-list-check mr-2 text-indigo-400"></i>Pilih Cawangan Sasaran</span>',
+                html: html,
+                background: '#0f172a',
+                color: '#fff',
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: '500px',
+                didOpen: () => {
+                    let searchInput = document.getElementById('modal-search-branch');
+                    if (searchInput) {
+                        searchInput.addEventListener('input', (e) => {
+                            let val = e.target.value.trim().toLowerCase();
+                            let resDiv = document.getElementById('modal-search-results');
+                            if (!val || val.length < 2) { resDiv.innerHTML = ''; return; }
+                            let matches = masterBranches.filter(b => String(b.code).includes(val) || (b.name && b.name.toLowerCase().includes(val))).slice(0, 15);
+                            if (matches.length === 0) {
+                                resDiv.innerHTML = '<div class="text-slate-500 text-center py-1">Tiada cawangan dijumpai.</div>';
+                            } else {
+                                resDiv.innerHTML = matches.map(b => `
+                                    <div class="flex justify-between items-center p-1.5 bg-slate-950 rounded hover:bg-slate-800 transition-colors">
+                                        <span><strong class="text-emerald-400">${b.code}</strong> - ${b.name} (${b.am || 'No AM'})</span>
+                                        <button type="button" onclick="addSingleBranchToSelection('${b.code}');" class="bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">+ Tambah</button>
+                                    </div>
+                                `).join('');
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        function addBranchesFromAM() {
+            let am = document.getElementById('modal-filter-am').value;
+            if (!am) {
+                showToast('error', 'Sila pilih Area Manager (AM)');
+                return;
+            }
+            let branches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === am).map(b => String(b.code));
+            if (branches.length === 0) {
+                showToast('error', 'Tiada cawangan dijumpai untuk AM ini.');
+                return;
+            }
+            let existing = document.getElementById('survey-selected-branches').value.trim();
+            let combined = existing ? [...new Set([...existing.split(/[\s,]+/).filter(Boolean), ...branches])].join(', ') : branches.join(', ');
+            document.getElementById('survey-selected-branches').value = combined;
+            showToast('success', `Berjaya menambah ${branches.length} cawangan di bawah AM ${am}!`);
+            Swal.close();
+        }
+
+        function addSingleBranchToSelection(code) {
+            let existing = document.getElementById('survey-selected-branches').value.trim();
+            let arr = existing ? existing.split(/[\s,]+/).filter(Boolean) : [];
+            if (!arr.includes(String(code))) {
+                arr.push(String(code));
+                document.getElementById('survey-selected-branches').value = arr.join(', ');
+                showToast('success', `Cawangan ${code} ditambah!`);
+            } else {
+                showToast('info', `Cawangan ${code} sudah ada dalam senarai.`);
+            }
+        }
+
         let hasAlertedSurvey = false;
         function checkSurveyAlerts() {
             if (!currentUser) return;
@@ -4277,18 +4438,20 @@ function saveGlobalGSUrl() {
             if (currentUser.role === 'am') {
                 let amName = (currentUser.name || '').trim().toUpperCase();
                 pendingSurveys = allSurveys.filter(s => {
-                    if (s.status !== 'active') return false;
+                    if (!isSurveyForUser(s, currentUser)) return false;
                     if (!s.targetAudience || s.targetAudience === 'am') {
                         if (s.type === 'custom') {
                             let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
-                            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
+                            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
+                            if (myBranches.length === 0) return false;
                             return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                         }
                         return !allResponses.some(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName);
                     }
                     if (s.targetAudience === 'branch') {
                         let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
-                        let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
+                        let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
+                        if (myBranches.length === 0) return false;
                         return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                     }
                     return false;
@@ -4296,7 +4459,7 @@ function saveGlobalGSUrl() {
                 badge = document.getElementById('survey-badge');
             } else if (currentUser.role === 'branch') {
                 let branchCode = currentUser.id;
-                pendingSurveys = allSurveys.filter(s => s.status === 'active' && s.targetAudience === 'branch' && !allResponses.some(r => r.surveyId === s.id && r.branchCode === branchCode));
+                pendingSurveys = allSurveys.filter(s => isSurveyForUser(s, currentUser) && s.targetAudience === 'branch' && !allResponses.some(r => r.surveyId === s.id && r.branchCode === branchCode));
                 // Assuming branch might not have a badge, but if they do we can handle it here
             }
 
@@ -4506,7 +4669,7 @@ function saveGlobalGSUrl() {
             
             if (currentUser.role === 'branch') {
                 let branchCode = currentUser.id;
-                let pendingSurveys = allSurveys.filter(s => s.status === 'active' && s.targetAudience === 'branch' && !allResponses.some(r => r.surveyId === s.id && r.branchCode === branchCode));
+                let pendingSurveys = allSurveys.filter(s => isSurveyForUser(s, currentUser) && s.targetAudience === 'branch' && !allResponses.some(r => r.surveyId === s.id && r.branchCode === branchCode));
                 
                 let html = '';
                 if (pendingSurveys.length > 0) {
@@ -4526,17 +4689,21 @@ function saveGlobalGSUrl() {
                 
                 let amName = (currentUser.name || '').trim().toUpperCase();
                 let pendingSurveys = allSurveys.filter(s => {
-                    if (s.status !== 'active') return false;
+                    if (!isSurveyForUser(s, currentUser)) return false;
                     if (!s.targetAudience || s.targetAudience === 'am') {
                         if (s.type === 'custom') {
                             let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
-                            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
+                            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
+                            if (myBranches.length === 0) return false;
                             return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                         }
                         return !allResponses.some(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName);
                     }
                     if (s.targetAudience === 'branch') {
-                        return true;
+                        let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
+                        let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
+                        if (myBranches.length === 0) return false;
+                        return myBranches.some(b => !respondedBranches.includes(String(b.code)));
                     }
                     return false;
                 });
@@ -4547,7 +4714,7 @@ function saveGlobalGSUrl() {
                 } else {
                     pendingSurveys.forEach(s => {
                         if (s.targetAudience === 'branch') {
-                            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
+                            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
                             let responsesForSurvey = allResponses.filter(r => r.surveyId === s.id);
                             
                             html += `<div class="bg-slate-800 rounded-lg p-4 border border-blue-500/50 mb-4 shadow-lg shadow-blue-900/20">
@@ -4655,12 +4822,16 @@ function saveGlobalGSUrl() {
                         let rCount = 0;
                         let tCount = 0;
                         if (s.targetAudience === 'branch') {
-                            tCount = masterBranches.length;
+                            tCount = (s.selectedBranches && s.selectedBranches.length > 0) ? s.selectedBranches.length : masterBranches.length;
                             let uniqueBranches = new Set();
                             sResp.forEach(r => { if(r.branchCode) uniqueBranches.add(String(r.branchCode)); });
                             rCount = uniqueBranches.size;
                         } else {
-                            tCount = getActiveAMs().length;
+                            let activeAMs = getActiveAMs();
+                            if (s.selectedBranches && s.selectedBranches.length > 0) {
+                                activeAMs = activeAMs.filter(a => masterBranches.some(b => (b.am || '').trim().toUpperCase() === a && (s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)))));
+                            }
+                            tCount = activeAMs.length;
                             let uniqueAMs = new Set();
                             sResp.forEach(r => { if(r.amName) uniqueAMs.add(String(r.amName).toUpperCase()); });
                             rCount = uniqueAMs.size;
@@ -4822,11 +4993,18 @@ function saveGlobalGSUrl() {
                 return showToast('error', 'Please add at least 1 question for Custom Survey.');
             }
             
+            let selBranchesStr = (document.getElementById('survey-selected-branches') ? document.getElementById('survey-selected-branches').value : "").trim();
+            let selectedBranches = [];
+            if (selBranchesStr) {
+                selectedBranches = selBranchesStr.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
+            }
+
             let surveyData = {
                 title: title,
                 targetAudience: target,
                 type: type,
-                createdBy: currentUser.name,
+                selectedBranches: selectedBranches,
+                createdBy: currentUser ? currentUser.name : 'Admin',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 status: 'active'
             };
@@ -4841,6 +5019,7 @@ function saveGlobalGSUrl() {
                 document.getElementById('survey-new-title').value = '';
                 document.getElementById('survey-new-type').value = 'exception';
                 document.getElementById('survey-new-target').value = 'am';
+                if(document.getElementById('survey-selected-branches')) document.getElementById('survey-selected-branches').value = '';
                 builderQuestions = [];
                 toggleSurveyTypeUI();
                 renderBuilderQuestions();
@@ -4866,13 +5045,13 @@ function saveGlobalGSUrl() {
             if(!s) return;
             let { value: newTitle } = await Swal.fire({
                 title: 'Guna Semula / Clone Survey',
-                text: 'Sila semak atau ubah tajuk / tarikh untuk survey hari ini:',
+                text: 'Sila semak atau ubah tajuk survey. Format soalan akan dimuat naik ke kotak cipta di atas untuk anda edit & sahkan sebelum diterbitkan:',
                 input: 'text',
                 inputValue: s.title,
                 showCancelButton: true,
                 confirmButtonColor: '#0d9488',
                 cancelButtonColor: '#475569',
-                confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Terbitkan Survey Baru',
+                confirmButtonText: '<i class="fa-solid fa-pen-to-square mr-1"></i> Muat Naik ke Kotak Cipta & Edit',
                 cancelButtonText: 'Batal',
                 background: '#1e293b',
                 color: '#fff',
@@ -4881,24 +5060,38 @@ function saveGlobalGSUrl() {
                 }
             });
             if (!newTitle) return;
-            let surveyData = {
-                title: newTitle.trim(),
-                targetAudience: s.targetAudience || s.target || 'am',
-                target: s.target || s.targetAudience || 'am',
-                type: s.type || 'exception',
-                status: 'active',
-                createdBy: currentUser ? currentUser.name : (s.createdBy || 'Admin'),
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                questions: s.questions || [],
-                options: s.options || [],
-                items: s.items || []
-            };
-            try {
-                await db.collection('surveys').add(surveyData);
-                showToast('success', 'Survey Berjaya Diguna Semula!');
-            } catch(e) {
-                showToast('error', 'Error: ' + e.message);
+
+            document.getElementById('survey-new-title').value = newTitle.trim();
+            document.getElementById('survey-new-target').value = s.targetAudience || s.target || 'am';
+            document.getElementById('survey-new-type').value = s.type || 'exception';
+            
+            if (s.selectedBranches && s.selectedBranches.length > 0) {
+                let selBox = document.getElementById('survey-selected-branches');
+                if (selBox) selBox.value = s.selectedBranches.join(', ');
+            } else {
+                let selBox = document.getElementById('survey-selected-branches');
+                if (selBox) selBox.value = '';
             }
+
+            if ((s.type === 'custom' || s.type === 'survey') && s.questions) {
+                builderQuestions = JSON.parse(JSON.stringify(s.questions));
+            } else {
+                builderQuestions = [];
+            }
+            toggleSurveyTypeUI();
+            renderBuilderQuestions();
+
+            let createCard = document.getElementById('survey-new-title');
+            if (createCard) createCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            Swal.fire({
+                title: 'Format Sedia Untuk Diedit!',
+                text: 'Semua soalan & tetapan telah dimuat naik ke kotak cipta di atas. Sila semak/edit dan tekan butang ungu "Publish Survey" apabila selesai.',
+                icon: 'success',
+                timer: 3500,
+                showConfirmButton: true,
+                confirmButtonColor: '#8b5cf6'
+            });
         }
 
         function deleteSurvey(id) {
@@ -4999,7 +5192,7 @@ function saveGlobalGSUrl() {
             if(!s) return;
             
             let amName = (currentUser.name || '').trim().toUpperCase();
-            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
+            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
             let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
             let remainingBranches = myBranches.filter(b => !respondedBranches.includes(String(b.code)));
             
@@ -5220,6 +5413,7 @@ function saveGlobalGSUrl() {
                 });
                 
                 masterBranches.forEach(b => {
+                    if (s.selectedBranches && s.selectedBranches.length > 0 && !s.selectedBranches.includes(String(b.code)) && !s.selectedBranches.includes(Number(b.code))) return;
                     let am = (b.am || '').trim().toUpperCase();
                     if(amStatusMap[am]) {
                         amStatusMap[am].total++;
@@ -5298,6 +5492,9 @@ function saveGlobalGSUrl() {
             }
 
             let ams = getActiveAMs();
+            if (s.selectedBranches && s.selectedBranches.length > 0) {
+                ams = ams.filter(a => masterBranches.some(b => (b.am || '').trim().toUpperCase() === a && (s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)))));
+            }
             
             let submittedAMs = [...new Set(sResp.map(r => r.amName))].sort();
             let missingAMs = ams.filter(a => !submittedAMs.includes(a)).sort();
@@ -5500,7 +5697,7 @@ function saveGlobalGSUrl() {
             setSyncing(true);
             Swal.fire({ title: 'Sedang Memproses...', text: `Memuat turun data harian untuk ${targetMonth}...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             try {
-                let docs = await fetchSubmissionsChunked(targetMonth, null);
+                let docs = await fetchSubmissionsChunked(targetMonth, null, true);
                 Swal.fire({ title: 'Menyusun Data', text: `Menjumpai ${docs.length} rekod. Sedang memadam rumusan lama & mengira baru...`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
                 let summaries = {}; // key: docId -> updateObj
@@ -5660,43 +5857,15 @@ function saveGlobalGSUrl() {
                 try {
                     let startDate = month + "-01";
                     let endDate = month + "-31";
-                    if (currentUser && currentUser.role === 'am') {
-                        let sDate = new Date(startDate);
-                        let eDate = new Date(endDate);
-                        let days = [];
-                        let curr = new Date(sDate);
-                        while (curr <= eDate) {
-                            let y = curr.getFullYear();
-                            let m = String(curr.getMonth() + 1).padStart(2, '0');
-                            let d = String(curr.getDate()).padStart(2, '0');
-                            days.push(`${y}-${m}-${d}`);
-                            curr.setDate(curr.getDate() + 1);
+                    let amFilterVal = currentUser && currentUser.role === 'am' ? currentUser.name : null;
+                    let combinedDocs = await fetchSubmissionsChunked(month, amFilterVal);
+                    combinedDocs.forEach(doc => {
+                        let d = doc.data();
+                        if (d && d.code && d.date && d.date.startsWith(month)) {
+                            let c = String(d.code);
+                            currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
                         }
-                        let chunks = [];
-                        for(let i=0; i<days.length; i+=10) chunks.push(days.slice(i, i+10));
-                        let promises = chunks.map(chunk => 
-                            db.collection("submissions").where("am", "==", currentUser.name).where("date", "in", chunk).get()
-                        );
-                        let snaps = await Promise.all(promises);
-                        snaps.forEach(snap => {
-                            snap.forEach(doc => {
-                                let d = doc.data();
-                                if (d && d.code && d.date && d.date.startsWith(month)) {
-                                    let c = String(d.code);
-                                    currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
-                                }
-                            });
-                        });
-                    } else {
-                        let combinedDocs = await fetchSubmissionsChunked(month, null);
-                        combinedDocs.forEach(doc => {
-                            let d = doc.data();
-                            if (d && d.code && d.date && d.date.startsWith(month)) {
-                                let c = String(d.code);
-                                currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
-                            }
-                        });
-                    }
+                    });
                 } catch(e) {
                     console.error("Error loading submissions for target tracker:", e);
                 }
