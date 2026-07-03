@@ -1362,7 +1362,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.61;
+        const APP_VERSION = 9.62;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2091,6 +2091,7 @@ function saveGlobalGSUrl() {
         function syncToCloud(action, payloadData, callback) {
             setSyncing(true);
             sessionStorage.clear(); // Clear cache to ensure fresh data after mutation
+            if (window._monthlySummaryCache) window._monthlySummaryCache = {};
             
             if(['reset_night', 'reset_bank', 'unlock_night', 'unlock_bank2', 'master_reset'].includes(action)) {
                 logAuditAction(action, payloadData);
@@ -2490,10 +2491,9 @@ function saveGlobalGSUrl() {
                         if (sVal > 0) { curSales += sVal; seenDates.add(sub.date); }
                     }
                 });
-                db.collection("submissions").where("code", "in", [String(currentUser.id), Number(currentUser.id)]).get().then(subSnap => {
-                    subSnap.forEach(doc => {
-                        let d = doc.data();
-                        if (d && d.date && d.date.startsWith(mStr) && !seenDates.has(d.date)) {
+                queryMonthlySummariesData(mStr + "-01", mStr + "-31").then(sumData => {
+                    sumData.forEach(d => {
+                        if (String(d.code) === String(currentUser.id) && !seenDates.has(d.date)) {
                             let sVal = parseFloat(d.sales) || 0;
                             if (sVal > 0) { curSales += sVal; seenDates.add(d.date); }
                         }
@@ -3366,7 +3366,8 @@ function saveGlobalGSUrl() {
             return weeks;
         }
 
-        async function queryMonthlySummariesData(startDate, endDate, amFilter = "") {
+        window._monthlySummaryCache = window._monthlySummaryCache || {};
+        async function queryMonthlySummariesData(startDate, endDate, amFilter = "", forceRefresh = false) {
             let sDate = new Date(startDate);
             let eDate = new Date(endDate);
             let monthsToFetch = new Set();
@@ -3377,51 +3378,69 @@ function saveGlobalGSUrl() {
                 monthsToFetch.add(`${y}-${m}`);
                 curr.setDate(curr.getDate() + 1);
             }
-            let promises = [];
+            
+            let allDocs = [];
+            let missingMonths = [];
+            
             for (let mStr of monthsToFetch) {
-                promises.push(db.collection("monthly_summaries")
-                    .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
-                    .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff").get());
+                if (!forceRefresh && window._monthlySummaryCache[mStr] && (Date.now() - window._monthlySummaryCache[mStr].ts < 300000)) {
+                    allDocs.push(...window._monthlySummaryCache[mStr].docs);
+                } else {
+                    missingMonths.push(mStr);
+                }
             }
-            let snaps = await Promise.all(promises);
+            
+            if (missingMonths.length > 0) {
+                let promises = missingMonths.map(mStr => {
+                    return db.collection("monthly_summaries")
+                        .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
+                        .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff").get()
+                        .then(snap => ({ mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) }));
+                });
+                let fetched = await Promise.all(promises);
+                fetched.forEach(item => {
+                    window._monthlySummaryCache[item.mStr] = { ts: Date.now(), docs: item.docs };
+                    allDocs.push(...item.docs);
+                });
+            }
+            
             let results = [];
             let filterAm = amFilter ? amFilter.trim().toUpperCase() : (currentUser && currentUser.role === 'am' ? String(currentUser.name).trim().toUpperCase() : "");
             let amBranchCodes = null;
             if (filterAm) {
                 amBranchCodes = new Set(masterBranches.filter(b => (b.am || "").trim().toUpperCase() === filterAm).map(b => String(b.code)));
             }
-            snaps.forEach(snap => {
-                snap.forEach(doc => {
-                    let d = doc.data();
-                    let docMonth = doc.id.split('_')[0];
-                    if (d.branches) {
-                        for (let code in d.branches) {
-                            if (amBranchCodes && !amBranchCodes.has(String(code))) continue;
-                            let bData = d.branches[code];
-                            if (bData.daily) {
-                                for (let day in bData.daily) {
-                                    let daily = bData.daily[day];
-                                    let fullDate = (d.month || docMonth) + "-" + day;
-                                    if (fullDate >= startDate && fullDate <= endDate) {
-                                        results.push({
-                                            code: String(code),
-                                            date: fullDate,
-                                            name: bData.name || "",
-                                            sales: parseFloat(daily.s) || 0,
-                                            lorry: parseFloat(daily.l) || 0,
-                                            mykasih: parseFloat(daily.m) || 0,
-                                            transactions: parseInt(daily.t) || 0,
-                                            bank1: parseFloat(daily.b1) || 0,
-                                            bank2: parseFloat(daily.b2) || 0,
-                                            night_locked: true,
-                                            am: bData.am || d.am || ""
-                                        });
-                                    }
+            
+            allDocs.forEach(docObj => {
+                let d = docObj.data;
+                let docMonth = docObj.id.split('_')[0];
+                if (d.branches) {
+                    for (let code in d.branches) {
+                        if (amBranchCodes && !amBranchCodes.has(String(code))) continue;
+                        let bData = d.branches[code];
+                        if (bData.daily) {
+                            for (let day in bData.daily) {
+                                let daily = bData.daily[day];
+                                let fullDate = (d.month || docMonth) + "-" + day;
+                                if (fullDate >= startDate && fullDate <= endDate) {
+                                    results.push({
+                                        code: String(code),
+                                        date: fullDate,
+                                        name: bData.name || "",
+                                        sales: parseFloat(daily.s) || 0,
+                                        lorry: parseFloat(daily.l) || 0,
+                                        mykasih: parseFloat(daily.m) || 0,
+                                        transactions: parseInt(daily.t) || 0,
+                                        bank1: parseFloat(daily.b1) || 0,
+                                        bank2: parseFloat(daily.b2) || 0,
+                                        night_locked: true,
+                                        am: bData.am || d.am || ""
+                                    });
                                 }
                             }
                         }
                     }
-                });
+                }
             });
             return results;
         }
