@@ -1362,7 +1362,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.63;
+        const APP_VERSION = 9.64;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1770,7 +1770,7 @@ function saveGlobalGSUrl() {
                     let hasDay01 = sumData.some(d => d.date === monthStr + "-01");
                     let hasDay02 = sumData.some(d => d.date === monthStr + "-02");
                     let hasDay03 = sumData.some(d => d.date === monthStr + "-03");
-                    let isMissingEarlyDays = isCurrentOrPastMonth && (!hasDay01 && todayStr >= monthStr + "-01") && (!hasDay02 && todayStr >= monthStr + "-02") && (!hasDay03 && todayStr >= monthStr + "-03");
+                    let isMissingEarlyDays = isCurrentOrPastMonth && ((!hasDay01 && todayStr >= monthStr + "-01") || (!hasDay02 && todayStr >= monthStr + "-02") || (!hasDay03 && todayStr >= monthStr + "-03"));
                     
                     if (sumData.length > 0 && !isMissingEarlyDays) {
                         return sumData.map(item => ({
@@ -3547,7 +3547,7 @@ function saveGlobalGSUrl() {
                 let hasDay01 = res.some(d => d.date === startM + "-01");
                 let hasDay02 = res.some(d => d.date === startM + "-02");
                 let hasDay03 = res.some(d => d.date === startM + "-03");
-                let isMissingEarly = isCurrentOrPast && (!hasDay01 && todayStr >= startM + "-01") && (!hasDay02 && todayStr >= startM + "-02") && (!hasDay03 && todayStr >= startM + "-03");
+                let isMissingEarly = isCurrentOrPast && ((!hasDay01 && todayStr >= startM + "-01") || (!hasDay02 && todayStr >= startM + "-02") || (!hasDay03 && todayStr >= startM + "-03"));
                 
                 if (res.length > 0 && !isMissingEarly) {
                     return res;
