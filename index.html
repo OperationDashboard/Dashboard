@@ -1362,7 +1362,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.64;
+        const APP_VERSION = 9.65;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1765,21 +1765,11 @@ function saveGlobalGSUrl() {
             if (!forceRaw && typeof queryMonthlySummariesData === 'function') {
                 try {
                     let sumData = await queryMonthlySummariesData(monthStr + "-01", monthStr + "-31", amName);
-                    let todayM = todayStr.substring(0, 7);
-                    let isCurrentOrPastMonth = (monthStr <= todayM);
-                    let hasDay01 = sumData.some(d => d.date === monthStr + "-01");
-                    let hasDay02 = sumData.some(d => d.date === monthStr + "-02");
-                    let hasDay03 = sumData.some(d => d.date === monthStr + "-03");
-                    let isMissingEarlyDays = isCurrentOrPastMonth && ((!hasDay01 && todayStr >= monthStr + "-01") || (!hasDay02 && todayStr >= monthStr + "-02") || (!hasDay03 && todayStr >= monthStr + "-03"));
-                    
-                    if (sumData.length > 0 && !isMissingEarlyDays) {
+                    if (sumData && sumData.length > 0) {
                         return sumData.map(item => ({
                             exists: true,
                             data: () => item
                         }));
-                    } else if (isCurrentOrPastMonth) {
-                        console.warn(`[Summary check] ${monthStr} summary incomplete or missing early days. Falling back to raw and silently backfilling...`);
-                        if (typeof silentBackfillMonth === 'function') setTimeout(() => silentBackfillMonth(monthStr), 500);
                     }
                 } catch (e) {
                     console.error("Failed monthly summaries read, falling back to raw:", e);
@@ -3541,19 +3531,10 @@ function saveGlobalGSUrl() {
             try {
                 let amFilterVal = currentUser && currentUser.role === 'am' ? currentUser.name : "";
                 let res = await queryMonthlySummariesData(startDate, endDate, amFilterVal);
-                let startM = startDate.substring(0, 7);
-                let todayM = todayStr.substring(0, 7);
-                let isCurrentOrPast = (startM <= todayM);
-                let hasDay01 = res.some(d => d.date === startM + "-01");
-                let hasDay02 = res.some(d => d.date === startM + "-02");
-                let hasDay03 = res.some(d => d.date === startM + "-03");
-                let isMissingEarly = isCurrentOrPast && ((!hasDay01 && todayStr >= startM + "-01") || (!hasDay02 && todayStr >= startM + "-02") || (!hasDay03 && todayStr >= startM + "-03"));
-                
-                if (res.length > 0 && !isMissingEarly) {
+                if (res && res.length > 0) {
                     return res;
                 } else {
-                    console.warn(`[Lorry Tracker] ${startM} summary incomplete or missing early days. Falling back to raw and backfilling...`);
-                    if (isCurrentOrPast) setTimeout(() => silentBackfillMonth(startM), 500);
+                    let startM = startDate.substring(0, 7);
                     let rawDocs = await fetchSubmissionsChunked(startM, amFilterVal, true);
                     let rawData = [];
                     rawDocs.forEach(d => { let val = d.data(); if (val && val.date && val.date >= startDate && val.date <= endDate) rawData.push(val); });
