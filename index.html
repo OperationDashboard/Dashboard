@@ -1362,7 +1362,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.65;
+        const APP_VERSION = 9.66;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3456,77 +3456,6 @@ function saveGlobalGSUrl() {
             return results;
         }
 
-        window._backfillingMonths = window._backfillingMonths || {};
-        async function silentBackfillMonth(targetMonth) {
-            if (!targetMonth || window._backfillingMonths[targetMonth]) return;
-            window._backfillingMonths[targetMonth] = true;
-            console.log(`[Auto-Backfill] Silently aggregating monthly_summaries for ${targetMonth}...`);
-            try {
-                let docs = await fetchSubmissionsChunked(targetMonth, null, true);
-                if (!docs || docs.length === 0) {
-                    window._backfillingMonths[targetMonth] = false;
-                    return;
-                }
-                let summaries = {};
-                docs.forEach(doc => {
-                    let d = doc.data();
-                    if (!d.date || !d.code) return;
-                    let monthStr = d.date.substring(0, 7);
-                    let [sy, sm, sd] = d.date.split('-').map(Number);
-                    let dObj = new Date(sy, sm-1, sd, 12, 0, 0, 0);
-                    let dayStr = sd < 10 ? '0'+sd : ''+sd;
-                    
-                    let weeks = typeof getWeeksForMonth === 'function' ? getWeeksForMonth(sy, sm) : [];
-                    let weekLabel = null;
-                    for(let w of weeks) {
-                        let wStart = new Date(w.start); wStart.setHours(0,0,0,0);
-                        let wEnd = new Date(w.end); wEnd.setHours(23,59,59,999);
-                        if(dObj >= wStart && dObj <= wEnd) {
-                            weekLabel = w.label;
-                            break;
-                        }
-                    }
-                    let bAm = d.am || "UNASSIGNED";
-                    let amKey = bAm.replace(/\//g, '-'); 
-                    let docId = monthStr + "_" + amKey;
-                    
-                    if(!summaries[docId]) summaries[docId] = { branches: {}, am: bAm, month: monthStr };
-                    if(!summaries[docId].branches[d.code]) summaries[docId].branches[d.code] = { totalSales: 0, totalLorry: 0, weeksCount: {}, daily: {}, am: bAm, name: d.name || "" };
-                    
-                    let s = parseFloat(d.sales) || 0, l = parseFloat(d.lorry) || 0, m = parseFloat(d.mykasih) || 0, t = parseInt(d.transactions) || 0, b1 = parseFloat(d.bank1) || 0, b2 = parseFloat(d.bank2) || 0;
-                    summaries[docId].branches[d.code].totalSales += s;
-                    summaries[docId].branches[d.code].totalLorry += l;
-                    if(l > 0 && weekLabel) {
-                        if(!summaries[docId].branches[d.code].weeksCount[weekLabel]) summaries[docId].branches[d.code].weeksCount[weekLabel] = 0;
-                        summaries[docId].branches[d.code].weeksCount[weekLabel] += 1;
-                    }
-                    if(!summaries[docId].branches[d.code].daily[dayStr]) summaries[docId].branches[d.code].daily[dayStr] = { s: 0, l: 0, m: 0, t: 0, b1: 0, b2: 0 };
-                    summaries[docId].branches[d.code].daily[dayStr].s += s;
-                    summaries[docId].branches[d.code].daily[dayStr].l += l;
-                    summaries[docId].branches[d.code].daily[dayStr].m += m;
-                    summaries[docId].branches[d.code].daily[dayStr].t += t;
-                    summaries[docId].branches[d.code].daily[dayStr].b1 += b1;
-                    summaries[docId].branches[d.code].daily[dayStr].b2 += b2;
-                });
-                
-                let docIds = Object.keys(summaries);
-                let setPromises = [];
-                docIds.forEach(id => {
-                    let ref = db.collection("monthly_summaries").doc(id);
-                    setPromises.push(ref.set(summaries[id], { merge: true }));
-                });
-                for (let i = 0; i < setPromises.length; i += 50) {
-                    await Promise.all(setPromises.slice(i, i + 50));
-                }
-                console.log(`[Auto-Backfill] Successfully backfilled ${docIds.length} summary docs for ${targetMonth}!`);
-                if (window._monthlySummaryCache) delete window._monthlySummaryCache[targetMonth];
-            } catch (e) {
-                console.error("[Auto-Backfill] Failed:", e);
-            } finally {
-                window._backfillingMonths[targetMonth] = false;
-            }
-        }
-
         async function fetchRangeFromSummaries(startDate, endDate) {
             try {
                 let amFilterVal = currentUser && currentUser.role === 'am' ? currentUser.name : "";
@@ -3534,10 +3463,11 @@ function saveGlobalGSUrl() {
                 if (res && res.length > 0) {
                     return res;
                 } else {
-                    let startM = startDate.substring(0, 7);
-                    let rawDocs = await fetchSubmissionsChunked(startM, amFilterVal, true);
+                    let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
+                    if (amFilterVal) query = query.where("am", "==", amFilterVal);
+                    let snap = await query.get();
                     let rawData = [];
-                    rawDocs.forEach(d => { let val = d.data(); if (val && val.date && val.date >= startDate && val.date <= endDate) rawData.push(val); });
+                    snap.forEach(d => { let val = d.data(); if (val) rawData.push(val); });
                     return rawData;
                 }
             } catch(e) {
