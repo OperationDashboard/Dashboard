@@ -1119,7 +1119,7 @@ function doPost(e) {
             <!-- SURVEY & TRACKING TAB -->
             <section id="tab-survey" class="hidden space-y-6">
                 <!-- AM VIEW -->
-                <div id="survey-am-view" class="am-only hidden">
+                <div id="survey-am-view" class="hidden">
                     <div class="pbi-card rounded-xl p-6 shadow-xl border-l-4 border-purple-500">
                         <h2 class="text-xl font-black text-white uppercase tracking-wider mb-4"><i class="fa-solid fa-clipboard-list text-purple-400 mr-2"></i> Survey Pending Feedback</h2>
                         <div id="survey-am-list" class="space-y-4">
@@ -1130,7 +1130,7 @@ function doPost(e) {
                 </div>
 
                 <!-- ADMIN VIEW -->
-                <div id="survey-admin-view" class="admin-only hidden space-y-6">
+                <div id="survey-admin-view" class="hidden space-y-6">
                     <!-- Create Survey Form -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl border-t-4 border-indigo-500">
                         <h2 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-plus-circle text-indigo-400 mr-2"></i> Create New Survey</h2>
@@ -1440,23 +1440,58 @@ window.onunhandledrejection = function(event) {
                     }
                     payload.updated_at = new Date().toISOString();
                 } else if (this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' || this.col === 'config') {
-                    if (opts && opts.merge) {
-                        let cur = await this.get();
-                        let curData = cur.exists ? cur.data() : {};
-                        let merged = applyDotUpdates(curData, dataObj);
-                        payload = Object.assign({}, merged, { id: this.id, data: merged });
-                    } else {
-                        payload = Object.assign({}, dataObj, { id: this.id, data: dataObj });
+                    let curData = {};
+                    if (opts && opts.merge) { let cur = await this.get(); curData = cur.exists ? cur.data() : {}; }
+                    let merged = applyDotUpdates(curData, dataObj);
+                    payload = { id: this.id, data: merged };
+                    if (this.col === 'surveys') {
+                        if (merged.title !== undefined) payload.title = merged.title;
+                        if (merged.targetAudience !== undefined) payload.targetAudience = merged.targetAudience;
+                        if (merged.status !== undefined) payload.status = merged.status;
+                        payload.updated_at = new Date().toISOString();
+                    } else if (this.col === 'survey_responses') {
+                        if (merged.surveyId !== undefined) payload.surveyId = merged.surveyId;
+                        if (merged.branchCode !== undefined) payload.branchCode = merged.branchCode;
+                        if (merged.amName !== undefined) payload.amName = merged.amName;
+                        if (merged.branchName !== undefined) payload.branchName = merged.branchName;
+                        if (merged.submittedAt !== undefined) payload.submittedAt = merged.submittedAt;
+                    } else if (this.col === 'config') {
+                        if (merged.global_lock !== undefined) payload.global_lock = merged.global_lock;
+                        if (merged.past_lock !== undefined) payload.past_lock = merged.past_lock;
+                        if (merged.app_version !== undefined) payload.app_version = merged.app_version;
+                        if (merged.enable_3days_alert !== undefined) payload.enable_3days_alert = merged.enable_3days_alert;
+                        if (merged.limit_sales !== undefined) payload.limit_sales = merged.limit_sales;
+                        if (merged.limit_mykasih !== undefined) payload.limit_mykasih = merged.limit_mykasih;
+                        if (merged.limit_lorry !== undefined) payload.limit_lorry = merged.limit_lorry;
+                    } else if (this.col === 'audit_logs') {
+                        if (merged.action !== undefined) payload.action = merged.action;
+                        if (merged.user !== undefined) payload.user = merged.user;
+                        if (merged.details !== undefined) payload.details = merged.details;
+                        if (merged.timestamp !== undefined) payload.timestamp = merged.timestamp;
+                        if (merged.ip !== undefined) payload.ip = merged.ip;
                     }
                 } else {
-                    if (opts && opts.merge) {
-                        let cur = await this.get();
-                        let curData = cur.exists ? cur.data() : {};
-                        let merged = applyDotUpdates(curData, dataObj);
-                        payload = Object.assign({}, merged, { id: this.id });
-                    } else {
-                        payload = Object.assign({}, dataObj, { id: this.id });
-                    }
+                    let curData = {};
+                    if (opts && opts.merge) { let cur = await this.get(); curData = cur.exists ? cur.data() : {}; }
+                    let merged = applyDotUpdates(curData, dataObj);
+                    payload = { id: this.id, data: merged };
+                    if (merged.date !== undefined) payload.date = merged.date;
+                    if (merged.code !== undefined) payload.code = merged.code;
+                    if (merged.name !== undefined) payload.name = merged.name;
+                    if (merged.am !== undefined) payload.am = merged.am;
+                    if (merged.sales !== undefined) payload.sales = merged.sales;
+                    if (merged.lorry !== undefined) payload.lorry = merged.lorry;
+                    if (merged.mykasih !== undefined) payload.mykasih = merged.mykasih;
+                    if (merged.transactions !== undefined) payload.transactions = merged.transactions;
+                    if (merged.bank1 !== undefined) payload.bank1 = merged.bank1;
+                    if (merged.bank2 !== undefined) payload.bank2 = merged.bank2;
+                    if (merged.night_locked !== undefined) payload.night_locked = merged.night_locked;
+                    if (merged.night_unlocked !== undefined) payload.night_unlocked = merged.night_unlocked;
+                    if (merged.bank2_unlocked !== undefined) payload.bank2_unlocked = merged.bank2_unlocked;
+                    if (merged.night_submit_time !== undefined) payload.night_submit_time = merged.night_submit_time;
+                    if (merged.bank1_time !== undefined) payload.bank1_time = merged.bank1_time;
+                    if (merged.bank2_time !== undefined) payload.bank2_time = merged.bank2_time;
+                    payload.updated_at = new Date().toISOString();
                 }
                 let res = await sbClient.from(this.col).upsert(payload);
                 if (res.error) {
@@ -1547,7 +1582,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.02;
+        const APP_VERSION = 10.03;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -4909,8 +4944,8 @@ function saveGlobalGSUrl() {
             }
 
             if (currentUser.role === 'am') {
-                document.getElementById('survey-am-view').classList.remove('hidden');
-                document.getElementById('survey-admin-view').classList.add('hidden');
+                let amV = document.getElementById('survey-am-view'); if(amV) { amV.classList.remove('hidden'); amV.style.display = 'block'; }
+                let adV = document.getElementById('survey-admin-view'); if(adV) { adV.classList.add('hidden'); adV.style.display = 'none'; }
                 
                 let amName = (currentUser.name || '').trim().toUpperCase();
                 let pendingSurveys = allSurveys.filter(s => {
@@ -5035,8 +5070,8 @@ function saveGlobalGSUrl() {
                 document.getElementById('survey-am-list').innerHTML = html;
             } else {
                 // Admin / Operation
-                document.getElementById('survey-admin-view').classList.remove('hidden');
-                document.getElementById('survey-am-view').classList.add('hidden');
+                let adV = document.getElementById('survey-admin-view'); if(adV) { adV.classList.remove('hidden'); adV.style.display = 'block'; }
+                let amV = document.getElementById('survey-am-view'); if(amV) { amV.classList.add('hidden'); amV.style.display = 'none'; }
                 let html = '';
                 if (allSurveys.length === 0) {
                     html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">No surveys found.</td></tr>';
