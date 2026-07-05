@@ -1399,9 +1399,9 @@ window.onunhandledrejection = function(event) {
                 let active = true;
                 this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); });
                 let interval = setInterval(() => {
-                    if (!active) return;
+                    if (!active || document.hidden) return;
                     this.get().then(snap => { if (active) cb(snap); }).catch(() => {});
-                }, 8000);
+                }, 45000);
                 return () => { active = false; clearInterval(interval); };
             }
         }
@@ -1456,6 +1456,7 @@ window.onunhandledrejection = function(event) {
                         if (merged.amName !== undefined) payload.amName = merged.amName;
                         if (merged.branchName !== undefined) payload.branchName = merged.branchName;
                         if (merged.submittedAt !== undefined) payload.submittedAt = merged.submittedAt;
+                        if (merged.answers !== undefined) payload.answers = merged.answers;
                     } else if (this.col === 'config') {
                         if (merged.global_lock !== undefined) payload.global_lock = merged.global_lock;
                         if (merged.past_lock !== undefined) payload.past_lock = merged.past_lock;
@@ -1514,9 +1515,9 @@ window.onunhandledrejection = function(event) {
                 let active = true;
                 this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); });
                 let interval = setInterval(() => {
-                    if (!active) return;
+                    if (!active || document.hidden) return;
                     this.get().then(snap => { if (active) cb(snap); }).catch(() => {});
-                }, 6000);
+                }, 45000);
                 return () => { active = false; clearInterval(interval); };
             }
         }
@@ -1770,6 +1771,11 @@ function saveGlobalGSUrl() {
         document.addEventListener("DOMContentLoaded", () => {
               let vd = document.getElementById('version-display'); if(vd) vd.innerText = APP_VERSION;
               listenToFirebaseConfig();
+              document.addEventListener("visibilitychange", () => {
+                  if (!document.hidden && currentUser) {
+                      if (typeof triggerDataSync === 'function') triggerDataSync();
+                  }
+              });
             loadBranchesCache();
             if(document.getElementById('night-date')) document.getElementById('night-date').max = todayStr;
             if(document.getElementById('bank-in-date')) document.getElementById('bank-in-date').max = todayStr;
@@ -1853,7 +1859,7 @@ function saveGlobalGSUrl() {
                     if(data.app_version && data.app_version > APP_VERSION) {
                         window.location.href = window.location.pathname + '?v=' + new Date().getTime();
                     }
-                    if(!data.app_version || data.app_version < APP_VERSION) {
+                    if(currentUser && currentUser.role === 'admin' && (!data.app_version || data.app_version < APP_VERSION)) {
                         db.collection("config").doc("system").set({app_version: APP_VERSION}, {merge: true}).catch(e => {});
                     }
                     
@@ -1870,7 +1876,7 @@ function saveGlobalGSUrl() {
                             btn.innerText = "LOCKED (OFF)";
                         }
                     }
-                    if (document.getElementById('limit-sales')) {
+                    if (document.getElementById('limit-sales') && !(document.activeElement && ['limit-sales', 'limit-mykasih', 'limit-lorry'].includes(document.activeElement.id))) {
                         document.getElementById('limit-sales').value = data.limit_sales || '';
                         document.getElementById('limit-mykasih').value = data.limit_mykasih || '';
                         document.getElementById('limit-lorry').value = data.limit_lorry || '';
@@ -1971,12 +1977,15 @@ function saveGlobalGSUrl() {
             }
         }
 
-        function refreshCurrentTabView() {
+        function refreshCurrentTabView(force = false) {
+            if (!force && (window.isFillingSurveyActive || (document.activeElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)))) {
+                return; // Prevent screen blink or focus loss when user is actively typing or selecting
+            }
             if (currentTab === 'dashboard') renderDashboard();
             else if (currentTab === 'comparison') renderComparisonTable();
             else if (currentTab === 'tracking') renderTrackingTable();
             else if (currentTab === 'lorry') renderLorryTracker();
-            else if (currentTab === 'target') loadTargetTracker();
+            else if (currentTab === 'target') loadTargetTracker(force);
             else if (currentTab === 'drop') {
                 if (document.getElementById('drop-start') && document.getElementById('drop-start').value && document.getElementById('drop-end') && document.getElementById('drop-end').value) runDropAnalysis();
             }
@@ -2622,10 +2631,20 @@ function saveGlobalGSUrl() {
             let nightDiff = Math.round((parseD(todayStr) - parseD(nightDate)) / 86400000);
             let isToday = (nightDiff === 0);
             let nightUnlocked = false;
+            let isIndividualLocked = (nightRec && nightRec.night_locked === true);
+            let isIndividualUnlocked = (nightRec && nightRec.night_unlocked === true);
             if (isToday) {
-                nightUnlocked = !masterLock || (nightRec && nightRec.night_unlocked);
+                if (masterLock || isIndividualLocked) {
+                    nightUnlocked = isIndividualUnlocked;
+                } else {
+                    nightUnlocked = true;
+                }
             } else {
-                nightUnlocked = !pastLock || (nightRec && nightRec.night_unlocked);
+                if (pastLock || isIndividualLocked) {
+                    nightUnlocked = isIndividualUnlocked;
+                } else {
+                    nightUnlocked = true;
+                }
             }
             
             let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
@@ -3351,15 +3370,14 @@ function saveGlobalGSUrl() {
                 
                   let needsUnlockNight = false;
                   if (date === todayStr) {
-                      if (masterLock) needsUnlockNight = !sub || !sub.night_unlocked;
-                      else needsUnlockNight = false;
+                      needsUnlockNight = isNightLocked || (masterLock && (!sub || !sub.night_unlocked));
                   } else {
-                      if (pastLock) needsUnlockNight = !sub || !sub.night_unlocked;
-                      else needsUnlockNight = false;
+                      needsUnlockNight = isNightLocked || (pastLock && (!sub || !sub.night_unlocked));
                   }
-                  let adminUnlockNight = ((currentUser.role === 'admin' || currentUser.role === 'am') && needsUnlockNight) ? `<button onclick="unlockNight('${date}', '${b.code}')" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
+                  let canUnlockRole = (currentUser.role === 'admin' || currentUser.role === 'am' || currentUser.role === 'operation');
+                  let adminUnlockNight = (canUnlockRole && needsUnlockNight) ? `<button onclick="unlockNight('${date}', '${b.code}')" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
                 
-                let adminUnlockBank = (currentUser.role === 'admin' && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', '${b.code}')" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
+                let adminUnlockBank = (canUnlockRole && diffDays > 1 && (!sub || !sub.bank2_unlocked)) ? `<button onclick="unlockBank2('${date}', '${b.code}')" class="w-full mt-1 bg-cyan-950/80 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-unlock mr-1 text-[8px]"></i> UNLOCK 2ND BANK</button>` : '';
                 
                 adminAct = adminUnlockNight + adminUnlockBank;
 
@@ -5135,23 +5153,50 @@ function saveGlobalGSUrl() {
             let html = '';
             
             let amName = (currentUser.name || '').trim().toUpperCase();
-            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName).sort((a,b) => String(a.code).localeCompare(String(b.code)));
+            let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName).sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
             
             let optionsHtml = '<option value="" disabled selected>-- Pilih Branch Pengecualian --</option>';
             myBranches.forEach(b => {
                 let safeName = (b.name || '').replace(/"/g, '&quot;');
-                optionsHtml += `<option value="${b.code}" data-name="${safeName}">${b.code} - ${b.name}</option>`;
+                optionsHtml += `<option value="${b.code}" data-name="${safeName}">${b.name} (${b.code})</option>`;
             });
 
             for(let i=0; i<count; i++) {
                 html += `
                 <div class="mb-2">
-                    <select id="survey-code-${id}-${i}" class="w-full bg-slate-950 text-white rounded px-3 py-2 border border-slate-700 outline-none text-sm focus:border-purple-500">
+                    <select id="survey-code-${id}-${i}" onchange="updateSurveyExceptionOptions('${id}', ${count})" class="w-full bg-slate-950 text-white rounded px-3 py-2 border border-slate-700 outline-none text-sm focus:border-purple-500">
                         ${optionsHtml}
                     </select>
                 </div>`;
             }
             document.getElementById(`survey-inputs-${id}`).innerHTML = html;
+            updateSurveyExceptionOptions(id, count);
+        }
+
+        function updateSurveyExceptionOptions(id, count) {
+            let selected = new Set();
+            for(let i=0; i<count; i++) {
+                let el = document.getElementById(`survey-code-${id}-${i}`);
+                if(el && el.value) selected.add(el.value);
+            }
+            for(let i=0; i<count; i++) {
+                let el = document.getElementById(`survey-code-${id}-${i}`);
+                if(!el) continue;
+                let curVal = el.value;
+                Array.from(el.options).forEach(opt => {
+                    if(opt.value && opt.value !== curVal && selected.has(opt.value)) {
+                        opt.disabled = true;
+                        opt.style.color = '#475569';
+                        opt.style.backgroundColor = '#0f172a';
+                        if (!opt.text.endsWith(' (Telah Dipilih)')) opt.text += ' (Telah Dipilih)';
+                    } else if (opt.value) {
+                        opt.disabled = false;
+                        opt.style.color = '#ffffff';
+                        opt.style.backgroundColor = '';
+                        opt.text = opt.text.replace(' (Telah Dipilih)', '');
+                    }
+                });
+            }
         }
 
         document.addEventListener('input', function(e) {
@@ -6099,7 +6144,10 @@ function saveGlobalGSUrl() {
             }
         }
 
-                async function loadTargetTracker() {
+        async function loadTargetTracker(force = false) {
+            if (!force && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('target-input')) {
+                return;
+            }
             let mEl = document.getElementById('target-month-select');
             if(!mEl) return;
             let month = mEl.value;
@@ -6108,7 +6156,9 @@ function saveGlobalGSUrl() {
             let amFilter = isAdminOrOp && amEl ? amEl.value : currentUser.name;
             let tbody = document.getElementById('target-table-body');
             
-            if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 1...</td></tr>';
+            if(tbody && (!tbody.children.length || force || tbody.getAttribute('data-month') !== month || tbody.getAttribute('data-am') !== String(amFilter))) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 1...</td></tr>';
+            }
             
             try {
                 let branches = masterBranches || [];
@@ -6211,7 +6261,11 @@ function saveGlobalGSUrl() {
                 });
 
                 if(branches.length === 0) htmlStr = '<tr><td colspan="6" class="text-center py-8 text-slate-500">No branches found.</td></tr>';
-                if(tbody) tbody.innerHTML = htmlStr;
+                if(tbody) {
+                    tbody.innerHTML = htmlStr;
+                    tbody.setAttribute('data-month', month);
+                    tbody.setAttribute('data-am', String(amFilter));
+                }
 
                 if(isAdminOrOp) {
                     let eT = document.getElementById('target-total-kpi');
