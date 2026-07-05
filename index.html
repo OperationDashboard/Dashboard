@@ -1386,7 +1386,7 @@ window.onunhandledrejection = function(event) {
                     id: r.id,
                     exists: true,
                     ref: new SBDocRef(this.col, r.id),
-                    data: () => (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' || this.col === 'config' ? (r.data !== undefined && r.data !== null ? r.data : r) : r)
+                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r, r.data || {}) : r) : null)
                 }));
                 return {
                     empty: docs.length === 0,
@@ -1415,7 +1415,7 @@ window.onunhandledrejection = function(event) {
                     exists: !!r,
                     id: this.id,
                     ref: this,
-                    data: () => (r ? (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' || this.col === 'config' ? (r.data !== undefined && r.data !== null ? r.data : r) : r) : null)
+                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r, r.data || {}) : r) : null)
                 };
             }
             async set(dataObj, opts) {
@@ -1442,12 +1442,21 @@ window.onunhandledrejection = function(event) {
                 } else if (this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' || this.col === 'config') {
                     if (opts && opts.merge) {
                         let cur = await this.get();
-                        payload = Object.assign({}, cur.exists ? cur.data() : {}, dataObj, { id: this.id });
+                        let curData = cur.exists ? cur.data() : {};
+                        let merged = applyDotUpdates(curData, dataObj);
+                        payload = Object.assign({}, merged, { id: this.id, data: merged });
+                    } else {
+                        payload = Object.assign({}, dataObj, { id: this.id, data: dataObj });
+                    }
+                } else {
+                    if (opts && opts.merge) {
+                        let cur = await this.get();
+                        let curData = cur.exists ? cur.data() : {};
+                        let merged = applyDotUpdates(curData, dataObj);
+                        payload = Object.assign({}, merged, { id: this.id });
                     } else {
                         payload = Object.assign({}, dataObj, { id: this.id });
                     }
-                } else {
-                    payload = Object.assign({}, dataObj, { id: this.id });
                 }
                 let res = await sbClient.from(this.col).upsert(payload);
                 if (res.error) {
@@ -1538,7 +1547,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.01;
+        const APP_VERSION = 10.02;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
