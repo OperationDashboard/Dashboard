@@ -1448,7 +1448,8 @@ window.onunhandledrejection = function(event) {
                         if (merged.title !== undefined) payload.title = merged.title;
                         if (merged.targetAudience !== undefined) payload.targetAudience = merged.targetAudience;
                         if (merged.status !== undefined) payload.status = merged.status;
-                        payload.updated_at = new Date().toISOString();
+                        merged.updatedAt = new Date().toISOString();
+                        payload.data = merged;
                     } else if (this.col === 'survey_responses') {
                         if (merged.surveyId !== undefined) payload.surveyId = merged.surveyId;
                         if (merged.branchCode !== undefined) payload.branchCode = merged.branchCode;
@@ -1501,7 +1502,14 @@ window.onunhandledrejection = function(event) {
                 return res;
             }
             async update(dataObj) { return await this.set(dataObj, { merge: true }); }
-            async delete() { return await sbClient.from(this.col).delete().eq('id', this.id); }
+            async delete() {
+                let res = await sbClient.from(this.col).delete().eq('id', this.id);
+                if (res.error) {
+                    console.error(`Supabase Delete Error (${this.col}):`, res.error.message);
+                    throw new Error(res.error.message);
+                }
+                return res;
+            }
             onSnapshot(cb, errCb) {
                 let active = true;
                 this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); });
@@ -1582,7 +1590,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.03;
+        const APP_VERSION = 10.04;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
