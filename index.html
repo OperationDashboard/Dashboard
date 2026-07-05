@@ -15,8 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.8/sweetalert2.all.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .pbi-card { background-color: #1f2937; border: 1px solid #374151; }
@@ -1326,19 +1325,174 @@ window.onunhandledrejection = function(event) {
             else el.value = '';
         }
 
-        // --- Firebase Config ---
-        const firebaseConfig = {
-          apiKey: "AIzaSyAuMQnfR6hbCkT_4Mk7GhkPagWLaFIc3jE",
-          authDomain: "dashboard---operation.firebaseapp.com",
-          projectId: "dashboard---operation",
-          storageBucket: "dashboard---operation.firebasestorage.app",
-          messagingSenderId: "347436205899",
-          appId: "1:347436205899:web:c0ed632281c66fba034ace",
-          measurementId: "G-39QWDE2WTR"
+        // --- Supabase Database Bridge (v10.00 Merdeka Edition) ---
+        const SUPABASE_URL = "https://jolrtaqlpqqydncacqza.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbHJ0YXFscHFxeWRuY2FjcXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTM5OTYsImV4cCI6MjA5ODc2OTk5Nn0.09IP62_5lE5mMziTeBlYfVhydZeCXHuxwMSvnZBQD6E";
+        const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function applyDotUpdates(target, updateObj) {
+            target = target || {};
+            for (let key in updateObj) {
+                let val = updateObj[key];
+                if (key.includes('.')) {
+                    let parts = key.split('.'); let curr = target;
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        if (!curr[parts[i]] || typeof curr[parts[i]] !== 'object') curr[parts[i]] = {};
+                        curr = curr[parts[i]];
+                    }
+                    let last = parts[parts.length - 1];
+                    if (val && val.__isIncrement) curr[last] = (Number(curr[last]) || 0) + val.val;
+                    else curr[last] = val;
+                } else {
+                    if (val && val.__isIncrement) target[key] = (Number(target[key]) || 0) + val.val;
+                    else target[key] = val;
+                }
+            }
+            return target;
+        }
+
+        class SBQuery {
+            constructor(col, filters = [], orders = [], lim = null) {
+                this.col = col; this.filters = filters; this.orders = orders; this.lim = lim;
+            }
+            where(field, op, val) {
+                if (typeof field === 'object' && field && field.__isDocId) field = 'id';
+                return new SBQuery(this.col, [...this.filters, {field, op, val}], this.orders, this.lim);
+            }
+            orderBy(field, dir = 'asc') {
+                return new SBQuery(this.col, this.filters, [...this.orders, {field, dir}], this.lim);
+            }
+            limit(n) {
+                return new SBQuery(this.col, this.filters, this.orders, n);
+            }
+            async get() {
+                let q = sbClient.from(this.col).select('*');
+                for (let f of this.filters) {
+                    let fld = f.field === '__name__' || f.field === 'id' ? 'id' : f.field;
+                    if (f.op === '==') q = q.eq(fld, f.val);
+                    else if (f.op === '>=') q = q.gte(fld, f.val);
+                    else if (f.op === '<=') q = q.lte(fld, f.val);
+                    else if (f.op === '>') q = q.gt(fld, f.val);
+                    else if (f.op === '<') q = q.lt(fld, f.val);
+                    else if (f.op === 'in') q = q.in(fld, Array.isArray(f.val) ? f.val : [f.val]);
+                }
+                for (let o of this.orders) {
+                    q = q.order(o.field, { ascending: o.dir !== 'desc' });
+                }
+                if (this.lim) q = q.limit(this.lim);
+                let res = await q;
+                let rows = res.data || [];
+                let docs = rows.map(r => ({
+                    id: r.id,
+                    exists: true,
+                    data: () => (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' ? (r.data !== undefined ? r.data : r) : r)
+                }));
+                return {
+                    empty: docs.length === 0,
+                    size: docs.length,
+                    docs: docs,
+                    forEach: (fn) => docs.forEach(fn)
+                };
+            }
+            onSnapshot(cb, errCb) {
+                let active = true;
+                this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); });
+                let interval = setInterval(() => {
+                    if (!active) return;
+                    this.get().then(snap => { if (active) cb(snap); }).catch(() => {});
+                }, 8000);
+                return () => { active = false; clearInterval(interval); };
+            }
+        }
+
+        class SBDocRef {
+            constructor(col, id) { this.col = col; this.id = id; }
+            async get() {
+                let res = await sbClient.from(this.col).select('*').eq('id', this.id).maybeSingle();
+                let r = res.data;
+                return {
+                    exists: !!r,
+                    id: this.id,
+                    data: () => (r ? (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' ? (r.data !== undefined ? r.data : r) : r) : null)
+                };
+            }
+            async set(dataObj, opts) {
+                let payload = { id: this.id };
+                if (this.col === 'monthly_summaries' || this.col === 'targets') {
+                    if (opts && opts.merge) {
+                        let cur = await this.get();
+                        let merged = applyDotUpdates(cur.exists ? cur.data() : {}, dataObj);
+                        payload.data = merged;
+                        if (this.col === 'targets') {
+                            payload.month = dataObj.month || this.id.split('_')[0];
+                            payload.code = dataObj.code || this.id.split('_')[1];
+                            payload.target = dataObj.target !== undefined ? dataObj.target : (cur.exists ? cur.data().target : 0);
+                        }
+                    } else {
+                        payload.data = dataObj;
+                        if (this.col === 'targets') {
+                            payload.month = dataObj.month || this.id.split('_')[0];
+                            payload.code = dataObj.code || this.id.split('_')[1];
+                            payload.target = dataObj.target || 0;
+                        }
+                    }
+                    payload.updated_at = new Date().toISOString();
+                } else if (this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs') {
+                    if (opts && opts.merge) {
+                        let cur = await this.get();
+                        payload = Object.assign({}, cur.exists ? cur.data() : {}, dataObj, { id: this.id });
+                    } else {
+                        payload = Object.assign({}, dataObj, { id: this.id });
+                    }
+                } else {
+                    payload = Object.assign({}, dataObj, { id: this.id });
+                }
+                return await sbClient.from(this.col).upsert(payload);
+            }
+            async update(dataObj) { return await this.set(dataObj, { merge: true }); }
+            async delete() { return await sbClient.from(this.col).delete().eq('id', this.id); }
+            onSnapshot(cb, errCb) {
+                let active = true;
+                this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); });
+                let interval = setInterval(() => {
+                    if (!active) return;
+                    this.get().then(snap => { if (active) cb(snap); }).catch(() => {});
+                }, 6000);
+                return () => { active = false; clearInterval(interval); };
+            }
+        }
+
+        class SBCollectionRef extends SBQuery {
+            constructor(col) { super(col); }
+            doc(id) {
+                if (!id) id = 'doc_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+                return new SBDocRef(this.col, id);
+            }
+            async add(dataObj) {
+                let id = 'doc_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+                let ref = new SBDocRef(this.col, id);
+                await ref.set(dataObj);
+                return ref;
+            }
+        }
+
+        const db = {
+            collection: (col) => new SBCollectionRef(col),
+            enablePersistence: () => Promise.resolve(),
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        db.enablePersistence({synchronizeTabs:true}).catch(e => console.log('Persistence:', e));
+
+        window.firebase = {
+            initializeApp: () => {},
+            firestore: () => db,
+        };
+        window.firebase.firestore.FieldValue = {
+            increment: (n) => ({ __isIncrement: true, val: n }),
+            serverTimestamp: () => new Date().toISOString(),
+        };
+        window.firebase.firestore.FieldPath = {
+            documentId: () => ({ __isDocId: true }),
+        };
+        window.db = db;
 
         // Polyfill for Swal if it fails to load due to poor network
         if (typeof window.Swal === 'undefined') {
@@ -1362,7 +1516,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 9.67;
+        const APP_VERSION = 10.00;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
