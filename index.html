@@ -1385,7 +1385,8 @@ window.onunhandledrejection = function(event) {
                 let docs = rows.map(r => ({
                     id: r.id,
                     exists: true,
-                    data: () => (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' ? (r.data !== undefined ? r.data : r) : r)
+                    ref: new SBDocRef(this.col, r.id),
+                    data: () => (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' || this.col === 'config' ? (r.data !== undefined && r.data !== null ? r.data : r) : r)
                 }));
                 return {
                     empty: docs.length === 0,
@@ -1413,7 +1414,8 @@ window.onunhandledrejection = function(event) {
                 return {
                     exists: !!r,
                     id: this.id,
-                    data: () => (r ? (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' ? (r.data !== undefined ? r.data : r) : r) : null)
+                    ref: this,
+                    data: () => (r ? (this.col === 'monthly_summaries' || this.col === 'targets' || this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' || this.col === 'config' ? (r.data !== undefined && r.data !== null ? r.data : r) : r) : null)
                 };
             }
             async set(dataObj, opts) {
@@ -1437,7 +1439,7 @@ window.onunhandledrejection = function(event) {
                         }
                     }
                     payload.updated_at = new Date().toISOString();
-                } else if (this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs') {
+                } else if (this.col === 'surveys' || this.col === 'survey_responses' || this.col === 'audit_logs' || this.col === 'config') {
                     if (opts && opts.merge) {
                         let cur = await this.get();
                         payload = Object.assign({}, cur.exists ? cur.data() : {}, dataObj, { id: this.id });
@@ -1447,7 +1449,12 @@ window.onunhandledrejection = function(event) {
                 } else {
                     payload = Object.assign({}, dataObj, { id: this.id });
                 }
-                return await sbClient.from(this.col).upsert(payload);
+                let res = await sbClient.from(this.col).upsert(payload);
+                if (res.error) {
+                    console.error(`Supabase Upsert Error (${this.col}):`, res.error.message);
+                    throw new Error(res.error.message);
+                }
+                return res;
             }
             async update(dataObj) { return await this.set(dataObj, { merge: true }); }
             async delete() { return await sbClient.from(this.col).delete().eq('id', this.id); }
@@ -1476,8 +1483,23 @@ window.onunhandledrejection = function(event) {
             }
         }
 
+        class SBBatch {
+            constructor() { this.ops = []; }
+            update(ref, data) { this.ops.push({ type: 'update', ref, data }); }
+            set(ref, data, opts) { this.ops.push({ type: 'set', ref, data, opts }); }
+            delete(ref) { this.ops.push({ type: 'delete', ref }); }
+            async commit() {
+                for (let op of this.ops) {
+                    if (op.type === 'update') await op.ref.update(op.data);
+                    else if (op.type === 'set') await op.ref.set(op.data, op.opts);
+                    else if (op.type === 'delete') await op.ref.delete();
+                }
+            }
+        }
+
         const db = {
             collection: (col) => new SBCollectionRef(col),
+            batch: () => new SBBatch(),
             enablePersistence: () => Promise.resolve(),
         };
 
