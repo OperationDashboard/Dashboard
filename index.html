@@ -1366,22 +1366,41 @@ window.onunhandledrejection = function(event) {
                 return new SBQuery(this.col, this.filters, this.orders, n);
             }
             async get() {
-                let q = sbClient.from(this.col).select('*');
-                for (let f of this.filters) {
-                    let fld = f.field === '__name__' || f.field === 'id' ? 'id' : f.field;
-                    if (f.op === '==') q = q.eq(fld, f.val);
-                    else if (f.op === '>=') q = q.gte(fld, f.val);
-                    else if (f.op === '<=') q = q.lte(fld, f.val);
-                    else if (f.op === '>') q = q.gt(fld, f.val);
-                    else if (f.op === '<') q = q.lt(fld, f.val);
-                    else if (f.op === 'in') q = q.in(fld, Array.isArray(f.val) ? f.val : [f.val]);
+                let rows = [];
+                let from = 0;
+                let step = 1000;
+                while (true) {
+                    let q = sbClient.from(this.col).select('*');
+                    for (let f of this.filters) {
+                        let fld = f.field === '__name__' || f.field === 'id' ? 'id' : f.field;
+                        if (f.op === '==') q = q.eq(fld, f.val);
+                        else if (f.op === '>=') q = q.gte(fld, f.val);
+                        else if (f.op === '<=') q = q.lte(fld, f.val);
+                        else if (f.op === '>') q = q.gt(fld, f.val);
+                        else if (f.op === '<') q = q.lt(fld, f.val);
+                        else if (f.op === 'in') q = q.in(fld, Array.isArray(f.val) ? f.val : [f.val]);
+                    }
+                    for (let o of this.orders) {
+                        q = q.order(o.field, { ascending: o.dir !== 'desc' });
+                    }
+                    if (this.lim && this.lim <= 1000) {
+                        q = q.limit(this.lim);
+                        let res = await q;
+                        if (res.data) rows = res.data;
+                        break;
+                    } else {
+                        q = q.range(from, from + step - 1);
+                        let res = await q;
+                        let chunk = res.data || [];
+                        rows.push(...chunk);
+                        if (chunk.length < step) break;
+                        from += step;
+                        if (this.lim && rows.length >= this.lim) {
+                            rows = rows.slice(0, this.lim);
+                            break;
+                        }
+                    }
                 }
-                for (let o of this.orders) {
-                    q = q.order(o.field, { ascending: o.dir !== 'desc' });
-                }
-                if (this.lim) q = q.limit(this.lim);
-                let res = await q;
-                let rows = res.data || [];
                 let docs = rows.map(r => ({
                     id: r.id,
                     exists: true,
@@ -1397,14 +1416,29 @@ window.onunhandledrejection = function(event) {
             }
             onSnapshot(cb, errCb) {
                 let active = true;
-                let doFetch = () => { if (active) this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); }); };
+                let lastHash = "";
+                let doFetch = () => {
+                    if (!active) return;
+                    this.get().then(snap => {
+                        if (!active) return;
+                        let hash = snap.docs.length + "_" + snap.docs.map(d => {
+                            let r = typeof d.data === 'function' ? d.data() : (d || {});
+                            return (r.id || "") + ":" + (r.updated_at || r.sales || r.am || "");
+                        }).join("|");
+                        if (hash !== lastHash || !window._firstSnapDone) {
+                            lastHash = hash;
+                            window._firstSnapDone = true;
+                            cb(snap);
+                        }
+                    }).catch(e => { if (errCb && active) errCb(e); });
+                };
                 doFetch();
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
                 }, 4000);
                 let unsub = () => { active = false; clearInterval(interval); };
-                unsub.refresh = doFetch;
+                unsub.refresh = () => { lastHash = ""; doFetch(); };
                 return unsub;
             }
         }
@@ -1597,7 +1631,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.05;
+        const APP_VERSION = 10.06;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
