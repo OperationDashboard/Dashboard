@@ -1397,12 +1397,15 @@ window.onunhandledrejection = function(event) {
             }
             onSnapshot(cb, errCb) {
                 let active = true;
-                this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); });
+                let doFetch = () => { if (active) this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); }); };
+                doFetch();
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
-                    this.get().then(snap => { if (active) cb(snap); }).catch(() => {});
-                }, 45000);
-                return () => { active = false; clearInterval(interval); };
+                    doFetch();
+                }, 4000);
+                let unsub = () => { active = false; clearInterval(interval); };
+                unsub.refresh = doFetch;
+                return unsub;
             }
         }
 
@@ -1513,12 +1516,15 @@ window.onunhandledrejection = function(event) {
             }
             onSnapshot(cb, errCb) {
                 let active = true;
-                this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); });
+                let doFetch = () => { if (active) this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); }); };
+                doFetch();
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
-                    this.get().then(snap => { if (active) cb(snap); }).catch(() => {});
-                }, 45000);
-                return () => { active = false; clearInterval(interval); };
+                    doFetch();
+                }, 4000);
+                let unsub = () => { active = false; clearInterval(interval); };
+                unsub.refresh = doFetch;
+                return unsub;
             }
         }
 
@@ -1591,7 +1597,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.04;
+        const APP_VERSION = 10.05;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1776,6 +1782,11 @@ function saveGlobalGSUrl() {
                       if (typeof triggerDataSync === 'function') triggerDataSync();
                   }
               });
+              window.addEventListener("focus", () => {
+                  if (!document.hidden && currentUser) {
+                      if (typeof triggerDataSync === 'function') triggerDataSync();
+                  }
+              });
             loadBranchesCache();
             if(document.getElementById('night-date')) document.getElementById('night-date').max = todayStr;
             if(document.getElementById('bank-in-date')) document.getElementById('bank-in-date').max = todayStr;
@@ -1882,29 +1893,44 @@ function saveGlobalGSUrl() {
                         document.getElementById('limit-lorry').value = data.limit_lorry || '';
                     }
 
+                    let lockChanged = false;
                     if (data.past_lock !== undefined) { 
+                        if (pastLock !== data.past_lock) lockChanged = true;
                         pastLock = data.past_lock; 
-                        if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
-                        if(currentUser && currentUser.role === 'branch') {
-                            if(typeof setupBranchView === 'function') setupBranchView();
-                        } else if(typeof refreshCurrentTabView === 'function') {
-                            refreshCurrentTabView();
-                        }
                     } else { 
                         pastLock = true; 
                     }
-                      if (data.global_lock !== undefined) {
-                          masterLock = data.global_lock;
-                          if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
-                          if(currentUser && currentUser.role === 'branch') {
-                              if(typeof setupBranchView === 'function') setupBranchView();
-                          } else if(typeof refreshCurrentTabView === 'function') {
-                              refreshCurrentTabView();
-                          }
-                      }
+                    if (data.global_lock !== undefined) {
+                        if (masterLock !== data.global_lock) lockChanged = true;
+                        masterLock = data.global_lock;
+                    }
+                    if(typeof updateMasterLockUI === 'function') updateMasterLockUI();
+                    if (lockChanged || !window._configLoadedOnce) {
+                        window._configLoadedOnce = true;
+                        if(currentUser && currentUser.role === 'branch') {
+                            if(typeof setupBranchView === 'function') setupBranchView();
+                        } else if(typeof refreshCurrentTabView === 'function') {
+                            refreshCurrentTabView(true);
+                        }
+                    }
                 }
             });
         }
+
+        window.addEventListener('focus', () => {
+            if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
+            if (typeof unsubToday !== 'undefined' && unsubToday && typeof unsubToday.refresh === 'function') unsubToday.refresh();
+            if (typeof unsubNight !== 'undefined' && unsubNight && typeof unsubNight.refresh === 'function') unsubNight.refresh();
+            if (typeof unsubBank !== 'undefined' && unsubBank && typeof unsubBank.refresh === 'function') unsubBank.refresh();
+        });
+        window.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
+                if (typeof unsubToday !== 'undefined' && unsubToday && typeof unsubToday.refresh === 'function') unsubToday.refresh();
+                if (typeof unsubNight !== 'undefined' && unsubNight && typeof unsubNight.refresh === 'function') unsubNight.refresh();
+                if (typeof unsubBank !== 'undefined' && unsubBank && typeof unsubBank.refresh === 'function') unsubBank.refresh();
+            }
+        });
         let unsubNight = null;
         function syncBranchNightData() {
             if(typeof setupBranchView === 'function') setupBranchView();
@@ -1923,6 +1949,11 @@ function saveGlobalGSUrl() {
         let unsubToday = null;
         function syncBranchFromCloud() {
             try { if(typeof setupBranchView === 'function') setupBranchView(); } catch(e){ console.error(e); }
+            if (unsubToday && typeof unsubToday.refresh === 'function') {
+                unsubToday.refresh();
+                if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
+                return;
+            }
             setSyncing(true);
             let docId = todayStr + "_" + currentUser.id;
             if(unsubToday) unsubToday();
@@ -1978,8 +2009,11 @@ function saveGlobalGSUrl() {
         }
 
         function refreshCurrentTabView(force = false) {
-            if (!force && (window.isFillingSurveyActive || (document.activeElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)))) {
-                return; // Prevent screen blink or focus loss when user is actively typing or selecting
+            if (!force && window.isFillingSurveyActive) {
+                return;
+            }
+            if (!force && document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && !['date', 'month', 'checkbox', 'radio'].includes(document.activeElement.type)) {
+                return; // Prevent screen blink or focus loss when user is actively typing in a text field
             }
             if (currentTab === 'dashboard') renderDashboard();
             else if (currentTab === 'comparison') renderComparisonTable();
@@ -2066,6 +2100,12 @@ function saveGlobalGSUrl() {
                 if (mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr) && dateStr <= todayStr) {
                     // Re-fetch if daily date was wiped out from memory by monthly tab
                 } else {
+                    if (window.activeListeners[queryKey] && typeof window.activeListeners[queryKey].refresh === 'function') {
+                        window.activeListeners[queryKey].refresh();
+                    }
+                    if (configListener && typeof configListener.refresh === 'function') {
+                        configListener.refresh();
+                    }
                     refreshCurrentTabView();
                     if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                     return;
@@ -2253,7 +2293,7 @@ function saveGlobalGSUrl() {
             }).catch(e => console.error("Audit log error", e));
         }
 
-        async function updateMonthlySummary(payloadData, bAm) {
+        async function updateMonthlySummary(payloadData, bAm, overrideOldRec = null) {
             if (!payloadData || !payloadData.date || !payloadData.code) return;
             let monthStr = payloadData.date.substring(0, 7);
             let [sy, sm, sd] = payloadData.date.split('-').map(Number);
@@ -2271,7 +2311,7 @@ function saveGlobalGSUrl() {
                 }
             }
 
-            let oldRec = dbSubmissions.find(s => s.code == payloadData.code && s.date === payloadData.date);
+            let oldRec = overrideOldRec || dbSubmissions.find(s => s.code == payloadData.code && s.date === payloadData.date);
             if (!oldRec) {
                 try {
                     let oldRecDoc = await db.collection("submissions").doc(payloadData.date + "_" + payloadData.code).get();
@@ -2380,9 +2420,9 @@ function saveGlobalGSUrl() {
                         let batch = db.batch();
                         let chunk = docs.slice(i, i + 400);
                         chunk.forEach(doc => {
-                              let payload = { sales: 0, transactions: 0, mykasih: 0, lorry: 0, date: payloadData.date, code: doc.data().code };
-                              updateMonthlySummary(payload, doc.data().am);
-                              batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false });
+                              let payload = { sales: 0, transactions: 0, mykasih: 0, lorry: 0, bank1: 0, bank2: 0, date: payloadData.date, code: doc.data().code };
+                              updateMonthlySummary(payload, doc.data().am, doc.data());
+                              batch.update(doc.ref, { sales: 0, transactions: 0, mykasih: 0, lorry: 0, bank1: 0, bank2: 0, night_locked: false, night_submit_time: "", night_unlocked: false, bank1_time: "", bank2_time: "", bank2_unlocked: true });
                         });
                         await batch.commit();
                     }
@@ -2829,7 +2869,7 @@ function saveGlobalGSUrl() {
                 let nightDate = document.getElementById('night-date').value;
                 
                 let updatePayload = {
-                    date: nightDate, code: currentUser.id, name: currentUser.name,
+                    date: nightDate, code: currentUser.id, name: currentUser.name, am: currentUser.am || "",
                     sales: pendingNightData.sales, transactions: pendingNightData.transactions,
                     mykasih: pendingNightData.mykasih, lorry: pendingNightData.lorry,
                     night_locked: true, night_unlocked: false, night_submit_time: getSafeTimeStr()
@@ -2888,7 +2928,7 @@ function saveGlobalGSUrl() {
             let nBank2 = parseFloat(document.getElementById('f-bank2').value) || 0;
             let tStr = getSafeTimeStr();
             
-            let updatePayload = { date: bDate, code: currentUser.id, name: currentUser.name, bank1: nBank1, bank2: nBank2 };
+            let updatePayload = { date: bDate, code: currentUser.id, name: currentUser.name, am: currentUser.am || "", bank1: nBank1, bank2: nBank2 };
             if (nBank1 !== pBank1 || (nBank1 > 0 && !(rec && rec.bank1_time))) updatePayload.bank1_time = tStr;
             if (nBank2 !== pBank2 || (nBank2 > 0 && !(rec && rec.bank2_time))) updatePayload.bank2_time = tStr;
             
@@ -3369,9 +3409,7 @@ function saveGlobalGSUrl() {
                 let diffDays = Math.floor((todayD - salesD) / (1000 * 60 * 60 * 24));
                 
                   let needsUnlockNight = false;
-                  if (date === todayStr) {
-                      needsUnlockNight = isNightLocked || (masterLock && (!sub || !sub.night_unlocked));
-                  } else {
+                  if (date !== todayStr) {
                       needsUnlockNight = isNightLocked || (pastLock && (!sub || !sub.night_unlocked));
                   }
                   let canUnlockRole = (currentUser.role === 'admin' || currentUser.role === 'am' || currentUser.role === 'operation');
@@ -3402,19 +3440,19 @@ function saveGlobalGSUrl() {
 
         function resetNight(date, code) {
             if(confirm(`Reset Night Data for ${code}?\nThis will instruct the server to delete the row's night operations data.`)) {
+                syncToCloud('reset_night', { date: date, code: Number(code), amName: currentUser.name });
                 let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                   if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; dbSubmissions[idx].night_unlocked = false; }
                 renderTrackingTable();
-                syncToCloud('reset_night', { date: date, code: Number(code), amName: currentUser.name });
             }
         }
 
         function resetBank(date, code) {
             if(confirm(`Reset Bank-In Data for ${code}?`)) {
+                syncToCloud('reset_bank', { date: date, code: Number(code), amName: currentUser.name });
                 let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].bank1 = 0; dbSubmissions[idx].bank2 = 0; dbSubmissions[idx].bank_edit_time = ""; }
                 renderTrackingTable();
-                syncToCloud('reset_bank', { date: date, code: Number(code), amName: currentUser.name });
             }
         }
 
@@ -3533,9 +3571,9 @@ function saveGlobalGSUrl() {
                 if (result.isConfirmed) {
                     let hashedPwd = await hashPassword(result.value);
                     if (hashedPwd === PASSWORDS['admin']) {
-                        dbSubmissions.forEach(s => { if(s.date === date) { s.sales = 0; s.transactions = 0; s.mykasih = 0; s.lorry = 0; s.night_locked = false; s.night_submit_time = ""; } });
-                        renderTrackingTable();
                         syncToCloud('master_reset', { date: date, amName: currentUser.name });
+                        dbSubmissions.forEach(s => { if(s.date === date) { s.sales = 0; s.transactions = 0; s.mykasih = 0; s.lorry = 0; s.bank1 = 0; s.bank2 = 0; s.night_locked = false; s.night_submit_time = ""; s.bank1_time = ""; s.bank2_time = ""; s.bank2_unlocked = true; } });
+                        renderTrackingTable();
                         showToast('success', 'Master Reset Executed!');
                     } else {
                         Swal.fire('Error', 'Incorrect Admin Password. Reset Aborted.', 'error');
