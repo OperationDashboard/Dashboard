@@ -295,7 +295,7 @@
                           <button onclick="togglePastLock()" id="btn-past-lock" class="super-admin hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
                           <button onclick="showMissingSales()" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-amber-600/20 text-amber-500 border border-amber-500/50 hover:bg-amber-600 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow"><i class="fa-solid fa-user-xmark mr-1"></i> Missing Sales</button>
                         <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-green-400 border border-green-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
-                        <button onclick="exportData('pdf')" class="super-admin hidden flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
+                        <button onclick="exportData('pdf')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
                     </div>
                 </div>
 
@@ -1631,7 +1631,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.08;
+        const APP_VERSION = 10.09;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3657,66 +3657,95 @@ function saveGlobalGSUrl() {
                     };
                 });
                 let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
-              } else if (type === 'pdf' && currentUser.role === 'admin') {
-                  if (typeof html2pdf === 'undefined') {
-                      alert("PDF Module failed to download. Please check internet and try again.");
-                      let s = document.createElement('script');
-                      s.src = "https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
-                      document.head.appendChild(s);
+        function exportData(type) {
+            let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
+            let date = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
+            let branches = getManagerFilteredBranches();
+            
+            // Group data by branch (supports both daily and monthly)
+            let grouped = {};
+            dbSubmissions.filter(s => mode==='daily' ? s.date === date : s.date.startsWith(date)).forEach(s => {
+                if(!grouped[s.code]) grouped[s.code] = { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time: s.night_submit_time||"", bank1_time: s.bank1_time||"", bank2_time: s.bank2_time||"" };
+                else {
+                    grouped[s.code].sales += s.sales||0; grouped[s.code].trans += s.transactions||0;
+                    grouped[s.code].mykasih += s.mykasih||0; grouped[s.code].lorry += s.lorry||0;
+                    grouped[s.code].bank1 += s.bank1||0; grouped[s.code].bank2 += s.bank2||0;
+                    if(s.night_submit_time) grouped[s.code].night_submit_time = s.night_submit_time;
+                    if(s.bank1_time) grouped[s.code].bank1_time = s.bank1_time;
+                    if(s.bank2_time) grouped[s.code].bank2_time = s.bank2_time;
+                }
+            });
+
+            if (type === 'excel') {
+                if (typeof XLSX === 'undefined') {
+                    alert("Sistem sedang memuat turun modul Excel kerana liputan internet lemah.\nSila tunggu sebentar dan tekan butang EXCEL sekali lagi.");
+                    let s = document.createElement('script');
+                    s.src = "https://unpkg.com/xlsx/dist/xlsx.full.min.js";
+                    document.head.appendChild(s);
+                    return;
+                }
+                showToast('info', `Generating EXCEL...`);
+                let exportArr = branches.map(b => {
+                    let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time:"", bank1_time:"", bank2_time:"" };
+                    let cleanTime = (t) => t ? (String(t).startsWith("'") ? String(t).substring(1) : String(t)) : "-";
+                    return { 
+                        Date: date, Code: b.code, Branch: b.name, AM: b.am, 
+                        Sales: s.sales, Trans: s.trans, MyKasih: s.mykasih, Lorry: s.lorry, 
+                        Bank1: s.bank1, Bank2: s.bank2, Balance: s.sales-(s.bank1+s.bank2),
+                        "Submission Time": cleanTime(s.night_submit_time),
+                        "1st Bank-In Time": cleanTime(s.bank1_time),
+                        "2nd Bank-In Time": cleanTime(s.bank2_time)
+                    };
+                });
+                let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
+              } else if (type === 'pdf') {
+                  if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf?.jsPDF?.API?.autoTable) {
+                      showToast('info', 'Downloading Vector PDF Engine... Please wait 2 seconds.');
+                      let s1 = document.createElement('script');
+                      s1.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+                      document.head.appendChild(s1);
+                      s1.onload = () => {
+                          let s2 = document.createElement('script');
+                          s2.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
+                          document.head.appendChild(s2);
+                          s2.onload = () => exportData('pdf');
+                      };
                       return;
                   }
-                  showToast('info', `Generating PDF... Please wait.`);
+                  showToast('info', `Generating Crisp PDF Report...`);
+                  const { jsPDF } = window.jspdf;
+                  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                  doc.setFontSize(14);
+                  doc.setTextColor(15, 23, 42);
+                  doc.text(`Operations Report (${mode === 'daily' ? 'Daily' : 'Monthly'}: ${date})`, 14, 15);
                   
-                  let printDiv = document.createElement('div');
-                  printDiv.style.cssText = "position:absolute; left:-9999px; top:0; width:1400px; background:#fff; color:#000; padding:20px; font-family:sans-serif;";
-                  let html = `<h1 style="font-size:22px; font-weight:bold; margin-bottom:15px; text-align:center; color:#0f172a;">Operations Report (${date})</h1>
-                  <table style="width:100%; border-collapse:collapse; font-size:11px; text-align:left;">
-                      <thead>
-                          <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; color:#334155;">
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Code</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Branch</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">AM</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Sales</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Trans</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">MyKasih</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Lorry</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Bank-In</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Balance</th>
-                              <th style="padding:8px; border:1px solid #cbd5e1;">Submission Time</th>
-                          </tr>
-                      </thead>
-                      <tbody>`;
-                  branches.forEach(b => {
+                  let bodyData = branches.map(b => {
                       let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time:"" };
                       let totBank = (s.bank1||0) + (s.bank2||0);
                       let bal = (s.sales||0) - totBank;
                       let cleanTime = (t) => t ? (String(t).startsWith("'") ? String(t).substring(1) : String(t)) : "-";
-                      let subTime = cleanTime(s.night_submit_time);
-                      html += `<tr style="border-bottom:1px solid #e2e8f0; color:#0f172a;">
-                          <td style="padding:6px; border:1px solid #cbd5e1; font-weight:bold;">${b.code}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">${b.name}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">${b.am||"-"}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">RM ${(s.sales||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">${(s.trans||0).toLocaleString()}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">RM ${(s.mykasih||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">RM ${(s.lorry||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">RM ${totBank.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1; font-weight:bold; color:${bal!==0?'#dc2626':'#16a34a'};">RM ${bal.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                          <td style="padding:6px; border:1px solid #cbd5e1;">${subTime}</td>
-                      </tr>`;
+                      return [
+                          b.code, b.name, b.am||"-",
+                          "RM " + (s.sales||0).toLocaleString('en-US',{minimumFractionDigits:2}),
+                          (s.trans||0).toLocaleString(),
+                          "RM " + (s.mykasih||0).toLocaleString('en-US',{minimumFractionDigits:2}),
+                          "RM " + (s.lorry||0).toLocaleString('en-US',{minimumFractionDigits:2}),
+                          "RM " + totBank.toLocaleString('en-US',{minimumFractionDigits:2}),
+                          "RM " + bal.toLocaleString('en-US',{minimumFractionDigits:2}),
+                          cleanTime(s.night_submit_time)
+                      ];
                   });
-                  html += `</tbody></table>`;
-                  printDiv.innerHTML = html;
-                  document.body.appendChild(printDiv);
-                  let opt = { margin: 0.3, filename: `Report_${date}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 1.5, useCORS: true }, jsPDF: { unit: 'in', format: 'legal', orientation: 'landscape' } };
-                  setTimeout(() => {
-                      html2pdf().set(opt).from(printDiv).save().then(()=>{
-                          printDiv.remove();
-                      }).catch(e => {
-                          printDiv.remove();
-                          alert("Error generating PDF: " + e.message);
-                      });
-                  }, 300);
+
+                  doc.autoTable({
+                      startY: 22,
+                      head: [['Code', 'Branch', 'AM', 'Sales', 'Trans', 'MyKasih', 'Lorry', 'Bank-In', 'Balance', 'Submission Time']],
+                      body: bodyData,
+                      styles: { fontSize: 8, cellPadding: 2.5, textColor: [51, 65, 85] },
+                      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+                      alternateRowStyles: { fillColor: [248, 250, 252] },
+                      margin: { left: 14, right: 14 }
+                  });
+                  doc.save(`Report_${date}.pdf`);
                 }
         }
 
