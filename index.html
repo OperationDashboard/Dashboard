@@ -1631,7 +1631,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.10;
+        const APP_VERSION = 10.11;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3624,15 +3624,18 @@ function saveGlobalGSUrl() {
             // Group data by branch (supports both daily and monthly)
             let grouped = {};
             dbSubmissions.filter(s => mode==='daily' ? s.date === date : s.date.startsWith(date)).forEach(s => {
-                if(!grouped[s.code]) grouped[s.code] = { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time: s.night_submit_time||"", bank1_time: s.bank1_time||"", bank2_time: s.bank2_time||"" };
-                else {
-                    grouped[s.code].sales += s.sales||0; grouped[s.code].trans += s.transactions||0;
-                    grouped[s.code].mykasih += s.mykasih||0; grouped[s.code].lorry += s.lorry||0;
-                    grouped[s.code].bank1 += s.bank1||0; grouped[s.code].bank2 += s.bank2||0;
-                    if(s.night_submit_time) grouped[s.code].night_submit_time = s.night_submit_time;
-                    if(s.bank1_time) grouped[s.code].bank1_time = s.bank1_time;
-                    if(s.bank2_time) grouped[s.code].bank2_time = s.bank2_time;
+                if(!grouped[s.code]) {
+                    grouped[s.code] = { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time: "", bank1_time: "", bank2_time: "" };
                 }
+                grouped[s.code].sales += Number(s.sales||0); 
+                grouped[s.code].trans += Number(s.transactions||0);
+                grouped[s.code].mykasih += Number(s.mykasih||0); 
+                grouped[s.code].lorry += Number(s.lorry||0);
+                grouped[s.code].bank1 += Number(s.bank1||0); 
+                grouped[s.code].bank2 += Number(s.bank2||0);
+                if(s.night_submit_time) grouped[s.code].night_submit_time = s.night_submit_time;
+                if(s.bank1_time) grouped[s.code].bank1_time = s.bank1_time;
+                if(s.bank2_time) grouped[s.code].bank2_time = s.bank2_time;
             });
 
             if (type === 'excel') {
