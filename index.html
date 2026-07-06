@@ -1631,7 +1631,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.09;
+        const APP_VERSION = 10.10;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3616,47 +3616,6 @@ function saveGlobalGSUrl() {
             });
         }
 
-        function exportData(type) {
-            let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
-            let date = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
-            let branches = getManagerFilteredBranches();
-            
-            // Group data by branch (supports both daily and monthly)
-            let grouped = {};
-            dbSubmissions.filter(s => mode==='daily' ? s.date === date : s.date.startsWith(date)).forEach(s => {
-                if(!grouped[s.code]) grouped[s.code] = { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time: s.night_submit_time||"", bank1_time: s.bank1_time||"", bank2_time: s.bank2_time||"" };
-                else {
-                    grouped[s.code].sales += s.sales||0; grouped[s.code].trans += s.transactions||0;
-                    grouped[s.code].mykasih += s.mykasih||0; grouped[s.code].lorry += s.lorry||0;
-                    grouped[s.code].bank1 += s.bank1||0; grouped[s.code].bank2 += s.bank2||0;
-                    if(s.night_submit_time) grouped[s.code].night_submit_time = s.night_submit_time;
-                    if(s.bank1_time) grouped[s.code].bank1_time = s.bank1_time;
-                    if(s.bank2_time) grouped[s.code].bank2_time = s.bank2_time;
-                }
-            });
-
-            if (type === 'excel') {
-                if (typeof XLSX === 'undefined') {
-                    alert("Sistem sedang memuat turun modul Excel kerana liputan internet lemah.\nSila tunggu sebentar dan tekan butang EXCEL sekali lagi.");
-                    let s = document.createElement('script');
-                    s.src = "https://unpkg.com/xlsx/dist/xlsx.full.min.js";
-                    document.head.appendChild(s);
-                    return;
-                }
-                showToast('info', `Generating EXCEL...`);
-                let exportArr = branches.map(b => {
-                    let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time:"", bank1_time:"", bank2_time:"" };
-                    let cleanTime = (t) => t ? (String(t).startsWith("'") ? String(t).substring(1) : String(t)) : "-";
-                    return { 
-                        Date: date, Code: b.code, Branch: b.name, AM: b.am, 
-                        Sales: s.sales, Trans: s.trans, MyKasih: s.mykasih, Lorry: s.lorry, 
-                        Bank1: s.bank1, Bank2: s.bank2, Balance: s.sales-(s.bank1+s.bank2),
-                        "Submission Time": cleanTime(s.night_submit_time),
-                        "1st Bank-In Time": cleanTime(s.bank1_time),
-                        "2nd Bank-In Time": cleanTime(s.bank2_time)
-                    };
-                });
-                let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
         function exportData(type) {
             let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
             let date = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
