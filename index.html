@@ -1302,11 +1302,11 @@ function doPost(e) {
 
     <script>
 window.onerror = function(msg, url, lineNo, columnNo, error) {
-    alert('JS Error: ' + msg + '\nLine: ' + lineNo);
+    console.error('JS Error:', msg, 'Line:', lineNo);
     return false;
 };
 window.onunhandledrejection = function(event) {
-    let reason = event.reason; let msg = reason ? (reason.stack || reason.message || reason) : 'Unknown'; alert('Promise Error: ' + msg);
+    console.error('Unhandled Promise Rejection:', event.reason);
 };
 
         function formatDecimalInput(el) {
@@ -1750,8 +1750,7 @@ function saveGlobalGSUrl() {
                     }
                 }
             }).catch(e => {
-                alert("Error memuat turun dari Google Sheet: " + e.message + "\nPlease disable ad-blocker or check internet connection.");
-                console.error("Branch fetch error", e);
+                console.warn("Branch fetch error (using fallback/cache):", e.message);
             });
         }
           function getYYYYMMDD(date) {
