@@ -1423,7 +1423,7 @@ window.onunhandledrejection = function(event) {
                         if (!active) return;
                         let hash = snap.docs.length + "_" + snap.docs.map(d => {
                             let r = typeof d.data === 'function' ? d.data() : (d || {});
-                            return (r.id || "") + ":" + (r.updated_at || r.sales || r.am || "");
+                            return (r.id || "") + ":" + (r.updated_at || r.updatedAt || r.status || r.sales || r.am || JSON.stringify(r).length || "");
                         }).join("|");
                         if (hash !== lastHash || !window._firstSnapDone) {
                             lastHash = hash;
@@ -5458,8 +5458,12 @@ function saveGlobalGSUrl() {
         async function closeSurvey(id) {
             if(!confirm('Anda pasti mahu menutup survey ini? AM tidak lagi boleh menghantar maklum balas.')) return;
             try {
+                let s = typeof allSurveys !== 'undefined' ? allSurveys.find(x => x.id === id) : null;
+                if (s) s.status = 'closed';
+                if (typeof updateSurveyUI === 'function') updateSurveyUI();
                 await db.collection('surveys').doc(id).update({ status: 'closed' });
                 showToast('success', 'Survey Ditutup!');
+                if (typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe && typeof surveyUnsubscribe.refresh === 'function') surveyUnsubscribe.refresh();
             } catch(e) {
                 showToast('error', 'Error: ' + e.message);
             }

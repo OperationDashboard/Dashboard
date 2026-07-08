@@ -183,8 +183,12 @@
         async function closeSurvey(id) {
             if(!confirm('Anda pasti mahu menutup survey ini? AM tidak lagi boleh menghantar maklum balas.')) return;
             try {
+                let s = typeof allSurveys !== 'undefined' ? allSurveys.find(x => x.id === id) : null;
+                if (s) s.status = 'closed';
+                if (typeof updateSurveyUI === 'function') updateSurveyUI();
                 await db.collection('surveys').doc(id).update({ status: 'closed' });
                 showToast('success', 'Survey Ditutup!');
+                if (typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe && typeof surveyUnsubscribe.refresh === 'function') surveyUnsubscribe.refresh();
             } catch(e) {
                 showToast('error', 'Ralat: ' + e.message);
             }
