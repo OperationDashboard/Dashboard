@@ -1436,7 +1436,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 30000);
+                }, 300000);
                 let unsub = () => { active = false; clearInterval(interval); };
                 unsub.refresh = () => { lastHash = ""; doFetch(); };
                 return unsub;
@@ -1555,7 +1555,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 30000);
+                }, 300000);
                 let unsub = () => { active = false; clearInterval(interval); };
                 unsub.refresh = doFetch;
                 return unsub;
