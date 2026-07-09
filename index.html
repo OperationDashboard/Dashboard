@@ -1644,7 +1644,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.21;
+        const APP_VERSION = 10.22;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -6020,11 +6020,16 @@ function saveGlobalGSUrl() {
             let amName = (currentUser.name || '').trim().toUpperCase();
             let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
             let sResp = allResponses.filter(r => r.surveyId === id);
+            let isYesNoAM = (q) => q.type === 'yesno' || (sResp && sResp.some(r => {
+                let ansObj = r.answers && r.answers[q.id || q.label || q.text];
+                let val = (typeof ansObj === 'object' && ansObj !== null) ? ansObj.value : ansObj;
+                return val && String(val).startsWith('Tidak - ');
+            }));
             
             let headers = ["Kod Cawangan", "Nama Cawangan", "Area Manager", "Status Hantar"];
             if (s.questions && s.questions.length > 0) {
                 s.questions.forEach((q, i) => {
-                    headers.push(`Soalan ${i+1}: ${q.text || q}`);
+                    headers.push(`Soalan ${i+1}: ${q.label || q.text || q}`);
                     if (isYesNoAM(q)) headers.push(`Sebab / Catatan Soalan ${i+1}`);
                 });
             } else {
@@ -6044,7 +6049,7 @@ function saveGlobalGSUrl() {
                 if (s.questions && s.questions.length > 0) {
                     s.questions.forEach(q => {
                         if (r && r.answers) {
-                            let ansObj = r.answers[q.id || q.text];
+                            let ansObj = r.answers[q.id || q.label || q.text];
                             let ans = (typeof ansObj === 'object' && ansObj !== null) ? ansObj.value : ansObj;
                             if (ans === true) ans = "Ya";
                             if (ans === false) ans = "Tidak";
@@ -6061,8 +6066,8 @@ function saveGlobalGSUrl() {
                                 row.push(`"${ans || '-'}"`);
                             }
                         } else {
-                            row.push('"-""');
-                            if (isYesNoAM(q)) row.push('"-""');
+                            row.push('"-"');
+                            if (isYesNoAM(q)) row.push('"-"');
                         }
                     });
                 } else {
