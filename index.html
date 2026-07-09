@@ -1360,6 +1360,10 @@ window.onunhandledrejection = function(event) {
                 if (typeof field === 'object' && field && field.__isDocId) field = 'id';
                 return new SBQuery(this.col, [...this.filters, {field, op, val}], this.orders, this.lim);
             }
+            like(field, val) {
+                if (typeof field === 'object' && field && field.__isDocId) field = 'id';
+                return new SBQuery(this.col, [...this.filters, {field, op: 'like', val}], this.orders, this.lim);
+            }
             orderBy(field, dir = 'asc') {
                 return new SBQuery(this.col, this.filters, [...this.orders, {field, dir}], this.lim);
             }
@@ -1372,7 +1376,21 @@ window.onunhandledrejection = function(event) {
                 let step = 1000;
                 while (true) {
                     let q = sbClient.from(this.col).select('*');
-                    for (let f of this.filters) {
+                    let processedFilters = [];
+                    for (let i = 0; i < this.filters.length; i++) {
+                        let f = this.filters[i];
+                        if (f.op === '<=' && typeof f.val === 'string' && (f.val.includes('\uf8ff') || f.val.includes('\uffff'))) {
+                            let prefix = f.val.replace(/[\uf8ff\uffff]/g, '');
+                            let startIdx = processedFilters.findIndex(x => x.field === f.field && x.op === '>=' && prefix.startsWith(x.val));
+                            if (startIdx !== -1) {
+                                processedFilters.splice(startIdx, 1);
+                                processedFilters.push({ field: f.field, op: 'like', val: prefix + '%' });
+                                continue;
+                            }
+                        }
+                        processedFilters.push(f);
+                    }
+                    for (let f of processedFilters) {
                         let fld = f.field === '__name__' || f.field === 'id' ? 'id' : f.field;
                         if (f.op === '==') q = q.eq(fld, f.val);
                         else if (f.op === '>=') q = q.gte(fld, f.val);
@@ -1380,6 +1398,7 @@ window.onunhandledrejection = function(event) {
                         else if (f.op === '>') q = q.gt(fld, f.val);
                         else if (f.op === '<') q = q.lt(fld, f.val);
                         else if (f.op === 'in') q = q.in(fld, Array.isArray(f.val) ? f.val : [f.val]);
+                        else if (f.op === 'like' || f.op === 'ilike') q = q.like(fld, f.val);
                     }
                     for (let o of this.orders) {
                         q = q.order(o.field, { ascending: o.dir !== 'desc' });
@@ -1650,7 +1669,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.33;
+        const APP_VERSION = 10.34;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3941,9 +3960,12 @@ function saveGlobalGSUrl() {
             if (missingMonths.length > 0) {
                 let promises = missingMonths.map(mStr => {
                     return db.collection("monthly_summaries")
-                        .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
-                        .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff").get()
-                        .then(snap => ({ mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) }));
+                        .where("id", "like", mStr + "_%").get()
+                        .then(snap => ({ mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) }))
+                        .catch(e => {
+                            console.error("Error loading monthly summaries for " + mStr, e);
+                            return { mStr, docs: [] };
+                        });
                 });
                 let fetched = await Promise.all(promises);
                 fetched.forEach(item => {
@@ -3964,12 +3986,16 @@ function saveGlobalGSUrl() {
                 let docMonth = docObj.id.split('_')[0];
                 if (d.branches) {
                     for (let code in d.branches) {
-                        if (amBranchCodes && !amBranchCodes.has(String(code))) continue;
                         let bData = d.branches[code];
+                        if (filterAm) {
+                            let bAm = String(bData.am || d.am || docObj.id.split('_')[1] || "").trim().toUpperCase();
+                            let isMatch = (bAm === filterAm) || bAm.includes(filterAm) || (amBranchCodes && amBranchCodes.has(String(code)));
+                            if (!isMatch) continue;
+                        }
                         if (bData.daily) {
                             for (let day in bData.daily) {
                                 let daily = bData.daily[day];
-                                let fullDate = (d.month || docMonth) + "-" + String(day).padStart(2, '0');
+                                let fullDate = String(day).includes('-') ? String(day) : (d.month || docMonth) + "-" + String(day).padStart(2, '0');
                                 if (fullDate >= startDate && fullDate <= endDate) {
                                     results.push({
                                         code: String(code),
