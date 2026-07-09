@@ -5055,6 +5055,14 @@ function saveGlobalGSUrl() {
             } catch(e) { return String(val); }
         }
 
+        function triggerLiveSync() {
+            if (window._liveSyncListeners && Array.isArray(window._liveSyncListeners)) {
+                window._liveSyncListeners.forEach(fn => {
+                    try { fn(); } catch(e) {}
+                });
+            }
+        }
+
         function isAMSurveyConfirmed(s, amName) {
             if (!s || !amName) return false;
             amName = amName.trim().toUpperCase();
@@ -5678,13 +5686,7 @@ function saveGlobalGSUrl() {
                     if (bInfo && bInfo.am) {
                         payload.amName = bInfo.am.trim().toUpperCase();
                     }
-                }
-                
-        function triggerLiveSync() {
-            if (window._liveSyncListeners) window._liveSyncListeners.forEach(fn => fn());
-        }
-
-        await db.collection('survey_responses').add(payload);
+                await db.collection('survey_responses').add(payload);
                 window.isFillingSurveyActive = false;
                 triggerLiveSync();
                 showToast('success', 'Maklum balas telah direkodkan!');
