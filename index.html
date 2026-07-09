@@ -4864,10 +4864,9 @@ function saveGlobalGSUrl() {
                         return !allResponses.some(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName);
                     }
                     if (s.targetAudience === 'branch') {
-                        let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
                         let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
                         if (myBranches.length === 0) return false;
-                        return myBranches.some(b => !respondedBranches.includes(String(b.code)));
+                        return !(s.amConfirmations || []).includes(amName);
                     }
                     return false;
                 });
@@ -5115,10 +5114,9 @@ function saveGlobalGSUrl() {
                         return !allResponses.some(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName);
                     }
                     if (s.targetAudience === 'branch') {
-                        let respondedBranches = allResponses.filter(r => r.surveyId === s.id).map(r => String(r.branchCode));
                         let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
                         if (myBranches.length === 0) return false;
-                        return myBranches.some(b => !respondedBranches.includes(String(b.code)));
+                        return !(s.amConfirmations || []).includes(amName);
                     }
                     return false;
                 });
