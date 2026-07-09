@@ -2628,7 +2628,24 @@ function saveGlobalGSUrl() {
             if(aBtn) { aBtn.classList.remove('tab-inactive'); aBtn.classList.add('tab-active'); }
             
             if (tab === 'survey') {
-                renderSurveys();
+                let adV = document.getElementById('survey-admin-view');
+                let amV = document.getElementById('survey-am-view');
+                let brV = document.getElementById('branch-survey-container');
+                let role = currentUser ? currentUser.role : 'admin';
+                if (role === 'branch') {
+                    if (brV) { brV.classList.remove('hidden'); brV.style.display = 'block'; }
+                    if (amV) { amV.classList.add('hidden'); amV.style.display = 'none'; }
+                    if (adV) { adV.classList.add('hidden'); adV.style.display = 'none'; }
+                } else if (role === 'am') {
+                    if (amV) { amV.classList.remove('hidden'); amV.style.display = 'block'; }
+                    if (adV) { adV.classList.add('hidden'); adV.style.display = 'none'; }
+                    if (brV) { brV.classList.add('hidden'); brV.style.display = 'none'; }
+                } else {
+                    if (adV) { adV.classList.remove('hidden'); adV.style.display = 'block'; }
+                    if (amV) { amV.classList.add('hidden'); amV.style.display = 'none'; }
+                    if (brV) { brV.classList.add('hidden'); brV.style.display = 'none'; }
+                }
+                try { renderSurveys(); } catch(err) { console.error("renderSurveys error:", err); }
             } else if (tab === 'target') {
                 loadTargetTracker();
             } else if (tab === 'control') {
@@ -5314,14 +5331,14 @@ function saveGlobalGSUrl() {
                         let rCount = 0;
                         let tCount = 0;
                         if (s.targetAudience === 'branch') {
-                            tCount = (s.selectedBranches && s.selectedBranches.length > 0) ? s.selectedBranches.length : masterBranches.length;
+                            tCount = (s.selectedBranches && s.selectedBranches.length > 0) ? s.selectedBranches.length : (masterBranches ? masterBranches.length : 0);
                             let uniqueBranches = new Set();
                             sResp.forEach(r => { if(r.branchCode) uniqueBranches.add(String(r.branchCode)); });
                             rCount = uniqueBranches.size;
                         } else {
                             let activeAMs = getActiveAMs();
                             if (s.selectedBranches && s.selectedBranches.length > 0) {
-                                activeAMs = activeAMs.filter(a => masterBranches.some(b => (b.am || '').trim().toUpperCase() === a && (s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)))));
+                                activeAMs = activeAMs.filter(a => masterBranches && masterBranches.some(b => (b.am || '').trim().toUpperCase() === a && (s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)))));
                             }
                             tCount = activeAMs.length;
                             let uniqueAMs = new Set();
