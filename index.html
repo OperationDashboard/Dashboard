@@ -4636,7 +4636,7 @@ function saveGlobalGSUrl() {
             responsesLoaded = false;
             hasAlertedSurvey = false;
             
-            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').limit(20).onSnapshot(snap => {
+            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').limit(50).onSnapshot(snap => {
                 allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 surveysLoaded = true;
                 
@@ -4645,13 +4645,13 @@ function saveGlobalGSUrl() {
                     if (responsesUnsubscribe) { responsesUnsubscribe(); responsesUnsubscribe = null; }
                     allResponses = [];
                     responsesLoaded = true;
-                    updateSurveyUI();
+                    updateSurveyUI(true);
                     if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
                     return;
                 }
                 
                 if (responsesUnsubscribe) responsesUnsubscribe();
-                responsesUnsubscribe = db.collection('survey_responses').where('surveyId', 'in', sIds).onSnapshot(rSnap => {
+                responsesUnsubscribe = db.collection('survey_responses').limit(1000).onSnapshot(rSnap => {
                     let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     
                     if (currentUser && currentUser.role === 'branch') {
@@ -4663,9 +4663,18 @@ function saveGlobalGSUrl() {
                     
                     allResponses = rData;
                     responsesLoaded = true;
-                    updateSurveyUI();
+                    updateSurveyUI(true);
                     if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+                }, err => {
+                    console.error("Responses snapshot err:", err);
+                    allResponses = [];
+                    responsesLoaded = true;
+                    updateSurveyUI(true);
                 });
+            }, err => {
+                console.error("Surveys snapshot err:", err);
+                surveysLoaded = true;
+                updateSurveyUI(true);
             });
         }
         
@@ -4908,7 +4917,7 @@ function saveGlobalGSUrl() {
 
         function renderSurveys() {
             // Already listening via listenToSurveyBadge, just update UI
-            updateSurveyUI();
+            updateSurveyUI(true);
         }
 
         async function handleSurveyYesNoChange(selectEl, qLabel) {
@@ -5090,25 +5099,27 @@ function saveGlobalGSUrl() {
             
             // Elak data hilang: Jangan re-render UI jika pengguna sedang mengisi borang survey atau popup Swal aktif
             if (!force && typeof Swal !== 'undefined' && Swal.isVisible()) return;
-            let amListEl = document.getElementById('survey-am-list');
-            if (amListEl && amListEl.innerHTML.trim() !== '') {
-                if (amListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
-                let hasInput = Array.from(amListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
-                    if (el.id && el.id.startsWith('survey-exc-')) return el.value !== '0' && el.value !== '';
-                    if (el.id && el.id.startsWith('survey-code-')) return true; // Pengecualian branch sedang diisi
-                    if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
-                    return el.value !== '' && el.value !== '0' && el.value !== '-';
-                });
-                if (hasInput) return;
-            }
-            let branchListEl = document.getElementById('branch-survey-container');
-            if (branchListEl && branchListEl.innerHTML.trim() !== '') {
-                if (branchListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
-                let hasInput = Array.from(branchListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
-                    if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
-                    return el.value !== '' && el.value !== '0' && el.value !== '-';
-                });
-                if (hasInput) return;
+            if (!force) {
+                let amListEl = document.getElementById('survey-am-list');
+                if (amListEl && amListEl.innerHTML.trim() !== '' && !amListEl.innerHTML.includes('Loading')) {
+                    if (amListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
+                    let hasInput = Array.from(amListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
+                        if (el.id && el.id.startsWith('survey-exc-')) return el.value !== '0' && el.value !== '';
+                        if (el.id && el.id.startsWith('survey-code-')) return true; // Pengecualian branch sedang diisi
+                        if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
+                        return el.value !== '' && el.value !== '0' && el.value !== '-';
+                    });
+                    if (hasInput) return;
+                }
+                let branchListEl = document.getElementById('branch-survey-container');
+                if (branchListEl && branchListEl.innerHTML.trim() !== '') {
+                    if (branchListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
+                    let hasInput = Array.from(branchListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
+                        if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
+                        return el.value !== '' && el.value !== '0' && el.value !== '-';
+                    });
+                    if (hasInput) return;
+                }
             }
             
             if (currentUser.role === 'branch') {
