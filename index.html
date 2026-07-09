@@ -1458,7 +1458,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 20000);
+                }, 120000);
                 let unsub = () => {
                     active = false;
                     clearInterval(interval);
@@ -1646,7 +1646,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.26;
+        const APP_VERSION = 10.27;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2784,6 +2784,8 @@ function saveGlobalGSUrl() {
         
         async function setupBranchView() {
             if(!currentUser) return;
+            todayStr = getYYYYMMDD(new Date());
+            currentMonthStr = todayStr.substring(0, 7);
             document.getElementById('section-welcome').classList.add('hidden');
             document.getElementById('section-branch').classList.remove('hidden');
             
@@ -3086,6 +3088,11 @@ function saveGlobalGSUrl() {
 
         function setupManagerView() {
             try {
+                todayStr = getYYYYMMDD(new Date());
+                currentMonthStr = todayStr.substring(0, 7);
+                if(document.getElementById('dash-date')) document.getElementById('dash-date').value = todayStr;
+                if(document.getElementById('dash-month')) document.getElementById('dash-month').value = currentMonthStr;
+                if(document.getElementById('track-date')) document.getElementById('track-date').value = todayStr;
                 let sw = document.getElementById('section-welcome'); if(sw) sw.classList.add('hidden');
                 let sb = document.getElementById('section-branch'); if(sb) sb.classList.add('hidden');
                 let sm = document.getElementById('section-manager'); if(sm) sm.classList.remove('hidden');
@@ -3166,8 +3173,12 @@ function saveGlobalGSUrl() {
             let subRatioEl = document.getElementById('am-stat-ratio');
             if(subRatioEl) {
                 let submittedCount = new Set(dashData.filter(s => s.night_locked).map(s=>s.code)).size;
-                subRatioEl.innerText = mode==='daily' ? `${submittedCount} / ${branches.length}` : `Monthly`;
-                subRatioEl.className = `text-sm font-black ml-1 ${submittedCount===branches.length && branches.length>0 ? 'text-emerald-400' : 'text-amber-400'}`;
+                let totalBranches = branches.length;
+                if (totalBranches === 0 && currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) {
+                    totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2850;
+                }
+                subRatioEl.innerText = mode==='daily' ? `${submittedCount} / ${totalBranches}` : `Monthly`;
+                subRatioEl.className = `text-sm font-black ml-1 ${submittedCount===totalBranches && totalBranches>0 ? 'text-emerald-400' : 'text-amber-400'}`;
             }
         }
 
@@ -4724,18 +4735,30 @@ function saveGlobalGSUrl() {
             responsesLoaded = false;
             hasAlertedSurvey = false;
 
-            db.collection('surveys').get().then(snap => {
-                allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+            let processSurveys = (docs) => {
+                let fetched = docs.map(doc => ({id: doc.id, ...doc.data()}));
+                if (fetched.length > 0) {
+                    allSurveys = fetched;
+                    try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
+                } else {
+                    let cached = localStorage.getItem('cached_all_surveys');
+                    if (cached) {
+                        try { let p = JSON.parse(cached); if(Array.isArray(p) && p.length > 0) allSurveys = p; else allSurveys = fetched; } catch(e){ allSurveys = fetched; }
+                    } else allSurveys = fetched;
+                }
                 allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
                 surveysLoaded = true;
                 updateSurveyUI(true);
-            }).catch(e => console.error("Initial get surveys err:", e));
+            };
+
+            db.collection('surveys').get().then(snap => processSurveys(snap.docs)).catch(e => {
+                console.error("Initial get surveys err:", e);
+                let cached = localStorage.getItem('cached_all_surveys');
+                if (cached) { try { let p = JSON.parse(cached); if(Array.isArray(p)) { allSurveys = p; surveysLoaded = true; updateSurveyUI(true); } } catch(err){} }
+            });
             
             surveyUnsubscribe = db.collection('surveys').onSnapshot(snap => {
-                allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-                surveysLoaded = true;
-                updateSurveyUI(true);
+                processSurveys(snap.docs);
                 
                 let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
                 if (sIds.length === 0) {
