@@ -1491,14 +1491,18 @@ window.onunhandledrejection = function(event) {
                         if (this.col === 'targets') {
                             payload.month = dataObj.month || this.id.split('_')[0];
                             payload.code = dataObj.code || this.id.split('_')[1];
-                            payload.target = dataObj.target !== undefined ? dataObj.target : (cur.exists ? cur.data().target : 0);
+                            let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : (cur.exists ? (cur.data().target || cur.data().target_sales || 0) : 0));
+                            payload.target = tVal;
+                            payload.target_sales = tVal;
                         }
                     } else {
                         payload.data = dataObj;
                         if (this.col === 'targets') {
                             payload.month = dataObj.month || this.id.split('_')[0];
                             payload.code = dataObj.code || this.id.split('_')[1];
-                            payload.target = dataObj.target || 0;
+                            let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : 0);
+                            payload.target = tVal;
+                            payload.target_sales = tVal;
                         }
                     }
                     payload.updated_at = new Date().toISOString();
@@ -1646,7 +1650,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.32;
+        const APP_VERSION = 10.33;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2159,9 +2163,10 @@ function saveGlobalGSUrl() {
             }
 
             if (!dateStr) return;
-            let queryKey = mode + "_" + dateStr + "_" + (currentUser ? currentUser.id : 'anon');
+            let userKeyPart = currentUser ? (currentUser.role + "_" + (currentUser.name || currentUser.id || "")) : 'anon';
+            let queryKey = mode + "_" + dateStr + "_" + userKeyPart;
 
-            if (window.activeListeners[queryKey] || window.fetchedQueries[queryKey]) {
+            if (!forceRefresh && (window.activeListeners[queryKey] || window.fetchedQueries[queryKey])) {
                 if (mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr) && dateStr <= todayStr) {
                     // Re-fetch if daily date was wiped out from memory by monthly tab
                 } else {
@@ -2185,13 +2190,17 @@ function saveGlobalGSUrl() {
             let processSnap = async (snap) => {
                 let fbData = [];
                 snap.forEach(doc => { let d = doc.data(); if(d && d.date) fbData.push(d); });
-                if (fetchMode === 'daily' && typeof queryMonthlySummariesData === 'function') {
+                if (typeof queryMonthlySummariesData === 'function') {
                     try {
-                        let sumDaily = await queryMonthlySummariesData(fetchDateStr, fetchDateStr);
+                        let startD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-01";
+                        let endD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-31";
+                        let amFilterVal = (currentUser && currentUser.role === 'am') ? currentUser.name : "";
+                        let sumDaily = await queryMonthlySummariesData(startD, endD, amFilterVal, forceRefresh);
                         if (sumDaily && sumDaily.length > 0) {
-                            let existCodes = new Set(fbData.map(s => String(s.code)));
+                            let existSet = new Set(fbData.map(s => String(s.code) + "_" + String(s.date)));
                             sumDaily.forEach(item => {
-                                if (!existCodes.has(String(item.code))) fbData.push(item);
+                                let k = String(item.code) + "_" + String(item.date);
+                                if (!existSet.has(k)) fbData.push(item);
                             });
                         }
                     } catch(e) {}
@@ -3578,7 +3587,7 @@ function saveGlobalGSUrl() {
 
             branches.forEach(b => {
                 if(term && !(b.code.toString().includes(term) || b.name.toLowerCase().includes(term))) return;
-                if(rendered >= 150) return; rendered++;
+                if(!term && rendered >= 1000) return; rendered++;
 
                 let sub = subMap[b.code];
                 let isNightLocked = !!(sub && sub.night_locked);
@@ -3987,17 +3996,26 @@ function saveGlobalGSUrl() {
         async function fetchRangeFromSummaries(startDate, endDate) {
             try {
                 let amFilterVal = currentUser && currentUser.role === 'am' ? currentUser.name : "";
-                let res = await queryMonthlySummariesData(startDate, endDate, amFilterVal);
-                if (res && res.length > 0) {
-                    return res;
-                } else {
-                    let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
-                    if (amFilterVal) query = query.where("am", "==", amFilterVal);
-                    let snap = await query.get();
-                    let rawData = [];
-                    snap.forEach(d => { let val = d.data(); if (val) rawData.push(val); });
-                    return rawData;
+                let sumRes = [];
+                try {
+                    sumRes = await queryMonthlySummariesData(startDate, endDate, amFilterVal);
+                } catch(e) {}
+                let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
+                if (amFilterVal) query = query.where("am", "==", amFilterVal);
+                let snap = await query.get();
+                let subRes = [];
+                snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
+                
+                let map = {};
+                if (Array.isArray(sumRes)) {
+                    sumRes.forEach(r => {
+                        if (r && r.code && r.date) map[String(r.code) + "_" + String(r.date)] = r;
+                    });
                 }
+                subRes.forEach(r => {
+                    if (r && r.code && r.date) map[String(r.code) + "_" + String(r.date)] = r;
+                });
+                return Object.values(map);
             } catch(e) {
                 console.error("Error in fetchRangeFromSummaries:", e);
                 return [];
@@ -4025,7 +4043,8 @@ function saveGlobalGSUrl() {
             let fetchEnd = formatFB(weeks[weeks.length-1].end);
             
             window.fetchedRangeQueries = window.fetchedRangeQueries || {};
-            let cacheKey = 'lorry_' + fetchStart + '_' + fetchEnd;
+            let userKey = currentUser ? (currentUser.role + "_" + (currentUser.name || currentUser.id || "")) : 'anon';
+            let cacheKey = 'lorry_' + fetchStart + '_' + fetchEnd + '_' + userKey;
             if (window.fetchedRangeQueries[cacheKey]) {
                 buildLorryTable(weeks, window.fetchedRangeQueries[cacheKey]);
                 return;
@@ -6882,9 +6901,10 @@ function saveGlobalGSUrl() {
                     if(target > 0) tSales += sales;
                     if(target == 0) noTarget++;
 
-                    let targetInput = (currentUser.role === 'admin' || currentUser.role === 'operation')
-                        ? `<span class="font-bold text-pink-400">RM ${formatRM(target)}</span>`
-                        : `<input type="text" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" data-original="${target ? Number(target).toString() : ''}" value="${target ? Number(target).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}" placeholder="Target RM" oninput="let p=this.value.replace(/[^0-9.]/g,'').split('.'); this.value=p[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g,',')+(p.length>1?'.'+p.slice(1).join(''):'');">`;
+                    let canEditTarget = (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation' || currentUser.role === 'am'));
+                    let targetInput = canEditTarget
+                        ? `<input type="text" class="target-input bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full text-white outline-none focus:border-pink-500" data-code="${b.code}" data-original="${target ? Number(target).toString() : ''}" value="${target ? Number(target).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}" placeholder="Target RM" oninput="let p=this.value.replace(/[^0-9.]/g,'').split('.'); this.value=p[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g,',')+(p.length>1?'.'+p.slice(1).join(''):'');">`
+                        : `<span class="font-bold text-pink-400">RM ${formatRM(target)}</span>`;
 
                     htmlStr += `
                         <tr class="hover:bg-slate-800/50 transition-colors">
@@ -6975,6 +6995,7 @@ function saveGlobalGSUrl() {
                                 code: String(u.code),
                                 am: bInfo ? bInfo.am : currentUser.name,
                                 target_sales: u.target,
+                                target: u.target,
                                 updated_at: firebase.firestore.FieldValue.serverTimestamp()
                             });
                         }
