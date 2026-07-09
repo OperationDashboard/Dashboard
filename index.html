@@ -1644,7 +1644,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.15;
+        const APP_VERSION = 10.16;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2777,7 +2777,17 @@ function saveGlobalGSUrl() {
                 fnMyKasih.disabled = true; fnMyKasih.readOnly = true; fnMyKasih.classList.add('opacity-50', 'cursor-not-allowed');
                 fnLorry.disabled = true; fnLorry.readOnly = true; fnLorry.classList.add('opacity-50', 'cursor-not-allowed');
                 if(btnNight) { btnNight.disabled = true; btnNight.classList.add('hidden'); }
-                if(!nightRec || !nightRec.night_locked) {
+            }
+
+            let activeEl = document.activeElement;
+            let isTypingNight = (activeEl === fnSales || activeEl === fnTrans || activeEl === fnMyKasih || activeEl === fnLorry);
+            if (!isTypingNight) {
+                if (nightRec && (nightRec.sales > 0 || nightRec.transactions > 0 || nightRec.mykasih > 0 || nightRec.lorry > 0 || nightRec.night_locked)) {
+                    fnSales.value = nightRec.sales || ''; 
+                    fnTrans.value = nightRec.transactions || '';
+                    fnMyKasih.value = nightRec.mykasih || ''; 
+                    fnLorry.value = nightRec.lorry || '';
+                } else if (!nightUnlocked) {
                     fnSales.value = ""; fnTrans.value = ""; fnMyKasih.value = ""; fnLorry.value = "";
                     let phText = masterLock ? "SYSTEM LOCKED BY ADMIN" : "Locked (Requires Admin Unlock)";
                     fnSales.placeholder = phText; fnTrans.placeholder = "Locked"; fnMyKasih.placeholder = "Locked"; fnLorry.placeholder = "Locked";
@@ -2786,8 +2796,6 @@ function saveGlobalGSUrl() {
 
             if (nightRec && nightRec.night_locked) {
                 document.getElementById('branch-night-locked').classList.remove('hidden'); document.getElementById('branch-night-locked').classList.add('flex');
-                document.getElementById('f-sales').value = nightRec.sales; document.getElementById('f-trans').value = nightRec.transactions;
-                document.getElementById('f-mykasih').value = nightRec.mykasih; document.getElementById('f-lorry').value = nightRec.lorry;
             } else {
                 document.getElementById('branch-night-locked').classList.add('hidden'); 
             }
@@ -2809,13 +2817,18 @@ function saveGlobalGSUrl() {
                 fBank2.disabled = true; fBank2.readOnly = true; fBank2.classList.add('opacity-50', 'cursor-not-allowed'); fBank2.placeholder = diffDays <= 0 ? "Locked (Key in tomorrow)" : "Locked (Admin Unlock Req)";
             }
 
-            if (bankRec && (bankRec.bank1 > 0 || bankRec.bank2 > 0 || bankRec.bank1_time || bankRec.bank2_time)) {
-                document.getElementById('f-bank1').value = bankRec.bank1 || ''; document.getElementById('f-bank2').value = bankRec.bank2 || '';
-                document.getElementById('bank1-time').innerText = bankRec.bank1_time ? `Updated: ${formatTime(bankRec.bank1_time)}` : '';
-                document.getElementById('bank2-time').innerText = bankRec.bank2_time ? `Updated: ${formatTime(bankRec.bank2_time)}` : '';
-            } else {
-                document.getElementById('f-bank1').value = ''; document.getElementById('f-bank2').value = ''; 
-                document.getElementById('bank1-time').innerText = ''; document.getElementById('bank2-time').innerText = '';
+            let fBank1El = document.getElementById('f-bank1');
+            let fBank2El = document.getElementById('f-bank2');
+            let isTypingBank = (activeEl === fBank1El || activeEl === fBank2El);
+            if (!isTypingBank) {
+                if (bankRec && (bankRec.bank1 > 0 || bankRec.bank2 > 0 || bankRec.bank1_time || bankRec.bank2_time)) {
+                    fBank1El.value = bankRec.bank1 || ''; fBank2El.value = bankRec.bank2 || '';
+                    document.getElementById('bank1-time').innerText = bankRec.bank1_time ? `Updated: ${formatTime(bankRec.bank1_time)}` : '';
+                    document.getElementById('bank2-time').innerText = bankRec.bank2_time ? `Updated: ${formatTime(bankRec.bank2_time)}` : '';
+                } else {
+                    fBank1El.value = ''; fBank2El.value = ''; 
+                    document.getElementById('bank1-time').innerText = ''; document.getElementById('bank2-time').innerText = '';
+                }
             }
 
             // Target Tracker Logic (run asynchronously without blocking UI)
@@ -2825,11 +2838,9 @@ function saveGlobalGSUrl() {
                 
                 if (document.getElementById('branch-target-widget')) {
                     document.getElementById('branch-target-widget').classList.remove('hidden');
-                    document.getElementById('b-target-total').innerText = 'Belum ditetapkan';
-                    document.getElementById('b-target-pct').innerText = '0%';
-                    document.getElementById('b-target-bar').style.width = '0%';
-                    document.getElementById('b-target-req').innerText = '-';
-                    document.getElementById('b-target-current').innerText = 'RM 0.00';
+                    if (window.currentBranchTarget !== undefined) {
+                        renderBranchTargetWidget(window.currentBranchSales || 0);
+                    }
                 }
                 
                 // Live listener for targets
@@ -3509,8 +3520,8 @@ function saveGlobalGSUrl() {
 
         function resetNight(date, code) {
             if(confirm(`Reset Night Data for ${code}?\nThis will instruct the server to delete the row's night operations data.`)) {
-                syncToCloud('reset_night', { date: date, code: Number(code), amName: currentUser.name });
-                let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
+                syncToCloud('reset_night', { date: date, code: String(code), amName: currentUser.name });
+                let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
                   if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; dbSubmissions[idx].night_unlocked = false; }
                 renderTrackingTable();
             }
@@ -3518,8 +3529,8 @@ function saveGlobalGSUrl() {
 
         function resetBank(date, code) {
             if(confirm(`Reset Bank-In Data for ${code}?`)) {
-                syncToCloud('reset_bank', { date: date, code: Number(code), amName: currentUser.name });
-                let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
+                syncToCloud('reset_bank', { date: date, code: String(code), amName: currentUser.name });
+                let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].bank1 = 0; dbSubmissions[idx].bank2 = 0; dbSubmissions[idx].bank_edit_time = ""; }
                 renderTrackingTable();
             }
@@ -3529,20 +3540,20 @@ function saveGlobalGSUrl() {
             Swal.fire({ title: 'Unlock Night Sales?', text: 'Allow branch to edit primary operations data for ' + date + '?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Unlock' })
             .then((result) => { 
                 if (result.isConfirmed) {
-                    let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
+                    let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
                     if(idx > -1) dbSubmissions[idx].night_unlocked = true;
-                    syncToCloud('unlock_night', {date: date, code: Number(code), amName: currentUser.name}, () => { renderTrackingTable(); });
+                    syncToCloud('unlock_night', {date: date, code: String(code), amName: currentUser.name}, () => { renderTrackingTable(); });
                 }
             });
         }
 
         function unlockBank2(date, code) {
             if(confirm(`Unlock 2nd Bank-In for Branch ${code} on ${date}?`)) {
-                let idx = dbSubmissions.findIndex(s => s.code == code && s.date === date);
+                let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
                 if(idx > -1) { dbSubmissions[idx].bank2_unlocked = true; }
-                else { dbSubmissions.push({date: date, code: code, bank2_unlocked: true}); }
+                else { dbSubmissions.push({date: date, code: String(code), bank2_unlocked: true}); }
                 renderTrackingTable();
-                syncToCloud('unlock_bank2', { date: date, code: Number(code), amName: currentUser.name });
+                syncToCloud('unlock_bank2', { date: date, code: String(code), amName: currentUser.name });
             }
         }
 
