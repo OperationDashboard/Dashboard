@@ -1420,11 +1420,14 @@ window.onunhandledrejection = function(event) {
             }
             onSnapshot(cb, errCb) {
                 let active = true;
+                let isFetching = false;
                 let lastHash = "";
                 let firstSnapDone = false;
                 let doFetch = () => {
-                    if (!active) return;
+                    if (!active || isFetching) return;
+                    isFetching = true;
                     this.get().then(snap => {
+                        isFetching = false;
                         if (!active) return;
                         let hash = snap.docs.length + "_" + snap.docs.map(d => {
                             let r = typeof d.data === 'function' ? d.data() : (d || {});
@@ -1435,7 +1438,10 @@ window.onunhandledrejection = function(event) {
                             firstSnapDone = true;
                             cb(snap);
                         }
-                    }).catch(e => { if (errCb && active) errCb(e); });
+                    }).catch(e => {
+                        isFetching = false;
+                        if (errCb && active) errCb(e);
+                    });
                 };
                 doFetch();
                 let syncListener = () => { lastHash = ""; doFetch(); };
@@ -1444,7 +1450,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 3000);
+                }, 20000);
                 let unsub = () => {
                     active = false;
                     clearInterval(interval);
@@ -1560,18 +1566,6 @@ window.onunhandledrejection = function(event) {
                 }
                 return res;
             }
-            onSnapshot(cb, errCb) {
-                let active = true;
-                let doFetch = () => { if (active) this.get().then(snap => { if (active) cb(snap); }).catch(e => { if (errCb && active) errCb(e); }); };
-                doFetch();
-                let interval = setInterval(() => {
-                    if (!active || document.hidden) return;
-                    doFetch();
-                }, 3000);
-                let unsub = () => { active = false; clearInterval(interval); };
-                unsub.refresh = doFetch;
-                return unsub;
-            }
         }
 
         class SBCollectionRef extends SBQuery {
@@ -1644,7 +1638,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.22;
+        const APP_VERSION = 10.23;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -5270,13 +5264,7 @@ function saveGlobalGSUrl() {
                                             <td class="p-2 border border-slate-700 text-center">${statusHtml}</td>`;
                                         
                                         (s.questions || []).forEach(q => {
-                                            let ans = "-";
-                                            if (resp && resp.answers && resp.answers[q.id] !== undefined) {
-                                                let ansObj = resp.answers[q.id];
-                                                ans = (typeof ansObj === 'object' && ansObj !== null) ? ansObj.value : ansObj;
-                                                if (ans === true) ans = "Ya";
-                                                if (ans === false) ans = "Tidak";
-                                            }
+                                            let ans = getSurveyAnswerVal(resp, q);
                                             let colorClass = resp ? "text-white font-medium" : "text-slate-500";
                                             if (isYesNoAM(q)) {
                                                 let mainAns = String(ans);
@@ -5367,7 +5355,27 @@ function saveGlobalGSUrl() {
                     });
                 }
                 if (!html) {
-                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>No active surveys!</div>';
+                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>Tiada survey aktif / pantauan baru!</div>';
+                }
+                let completedAMSurveys = allSurveys.filter(s => !isSurveyForUser(s, currentUser) && isAMSurveyConfirmed(s, amName));
+                if (completedAMSurveys.length > 0) {
+                    html += `<div class="mt-6 border-t border-slate-700 pt-4">
+                        <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i>Sejarah Survey Dihantar / Disahkan</h4>
+                        <div class="space-y-2">`;
+                    completedAMSurveys.forEach(s => {
+                        html += `<div class="bg-slate-900/80 border border-emerald-800/40 rounded-lg p-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <div>
+                                <div class="text-xs font-bold text-emerald-400"><i class="fa-solid fa-check-circle mr-1.5"></i>${s.title}</div>
+                                <div class="text-[10px] text-slate-400">Status: Telah disahkan dan dihantar ke Admin</div>
+                            </div>
+                            <div>
+                                <button onclick="downloadAMSurveyExcel('${s.id}')" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1.5 px-3 rounded text-xs flex items-center gap-1.5 shadow transition-colors">
+                                    <i class="fa-solid fa-file-excel"></i> Muat Turun Data
+                                </button>
+                            </div>
+                        </div>`;
+                    });
+                    html += `</div></div>`;
                 }
                 let amList = document.getElementById('survey-am-list');
                 if (amList) amList.innerHTML = html;
@@ -6125,26 +6133,40 @@ function saveGlobalGSUrl() {
         window.downloadAMSurveyExcel = downloadAMSurveyExcel;
         window.closeAMSurveyCard = closeAMSurveyCard;
 
+        function getSurveyAnswerVal(r, q) {
+            if (!r || !r.answers || !q) return '-';
+            let ansObj = r.answers[q.id] !== undefined ? r.answers[q.id] :
+                         (r.answers[q.label] !== undefined ? r.answers[q.label] :
+                         (r.answers[q.text] !== undefined ? r.answers[q.text] : undefined));
+            if (ansObj === undefined || ansObj === null) return '-';
+            let val = (typeof ansObj === 'object' && ansObj !== null) ? ansObj.value : ansObj;
+            if (val === true) return 'Ya';
+            if (val === false) return 'Tidak';
+            return (val !== undefined && val !== null && val !== '') ? String(val) : '-';
+        }
+        window.getSurveyAnswerVal = getSurveyAnswerVal;
+
         async function viewSurveyReport(id) {
             let s = allSurveys.find(x => x.id === id);
             if(!s) return;
             
+            Swal.fire({ title: 'Memuat data maklum balas...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
             let sResp = [];
-            if (s.status !== 'closed') {
+            try {
+                let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
+                sResp = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                Swal.close();
+            } catch(e) {
+                Swal.close();
+                console.error(e);
                 sResp = allResponses.filter(x => x.surveyId === id);
-            } else {
-                Swal.fire({ title: 'Memuat...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-                try {
-                    let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
-                    sResp = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                    Swal.close();
-                } catch(e) {
-                    Swal.close(); console.error(e); alert("Ralat."); return;
-                }
             }
             
             if (s.type === 'custom') {
-                let isYesNoReport = (q) => q.type === 'yesno' || (sResp && sResp.some(r => r.answers && r.answers[q.id] && String(r.answers[q.id].value).startsWith('Tidak - ')));
+                let isYesNoReport = (q) => q.type === 'yesno' || (sResp && sResp.some(r => {
+                    let val = getSurveyAnswerVal(r, q);
+                    return val && String(val).startsWith('Tidak');
+                }));
                 let totalCols = 5;
                 let theads = `<th class="p-2 border border-slate-700 whitespace-nowrap">Kod</th>`;
                 theads += `<th class="p-2 border border-slate-700 whitespace-nowrap">Branch</th>`;
@@ -6188,7 +6210,7 @@ function saveGlobalGSUrl() {
                     tbodys += `<td class="p-2 border-r border-slate-700 font-bold">${am}</td>`;
                     tbodys += `<td class="p-2 border-r border-slate-700 text-center">${badgeAM}</td>`;
                     (s.questions || []).forEach(q => {
-                        let ans = (r.answers && r.answers[q.id]) ? String(r.answers[q.id].value) : '-';
+                        let ans = getSurveyAnswerVal(r, q);
                         if (isYesNoReport(q)) {
                             let mainAns = ans;
                             let reasonAns = '-';
@@ -6394,23 +6416,24 @@ function saveGlobalGSUrl() {
         async function downloadSurveyExcel(id) {
             let s = allSurveys.find(x => x.id === id);
             
+            Swal.fire({ title: 'Memuat data maklum balas...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
             let sResp = [];
-            if (s.status !== 'closed') {
+            try {
+                let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
+                sResp = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                Swal.close();
+            } catch(e) {
+                Swal.close();
+                console.error(e);
                 sResp = allResponses.filter(x => x.surveyId === id);
-            } else {
-                Swal.fire({ title: 'Memuat...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-                try {
-                    let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
-                    sResp = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                    Swal.close();
-                } catch(e) {
-                    Swal.close(); console.error(e); alert("Ralat."); return;
-                }
             }
             let csv = '';
             
             if (s.type === 'custom') {
-                let isYesNoExport = (q) => q.type === 'yesno' || (sResp && sResp.some(r => r.answers && r.answers[q.id] && String(r.answers[q.id].value).startsWith('Tidak - ')));
+                let isYesNoExport = (q) => q.type === 'yesno' || (sResp && sResp.some(r => {
+                    let val = getSurveyAnswerVal(r, q);
+                    return val && String(val).startsWith('Tidak');
+                }));
                 let headers = ['CODE', 'BRANCH NAME', 'AREA MANAGER'];
                 (s.questions || []).forEach(q => {
                     headers.push(q.label);
@@ -6433,7 +6456,7 @@ function saveGlobalGSUrl() {
                     
                     let row = ['"'+code+'"', '"'+bName.replace(/"/g, '""')+'"', '"'+am.replace(/"/g, '""')+'"'];
                     (s.questions || []).forEach(q => {
-                        let ans = (r.answers && r.answers[q.id]) ? String(r.answers[q.id].value) : '-';
+                        let ans = getSurveyAnswerVal(r, q);
                         if (isYesNoExport(q)) {
                             let mainAns = ans;
                             let reasonAns = '-';
