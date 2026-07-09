@@ -5188,135 +5188,143 @@ function saveGlobalGSUrl() {
                     html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>No active surveys!</div>';
                 } else {
                     pendingSurveys.forEach(s => {
-                        if (s.targetAudience === 'branch') {
-                            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
-                            let responsesForSurvey = allResponses.filter(r => r.surveyId === s.id);
-                            
-                            html += `<div class="bg-slate-800 rounded-lg p-4 border border-blue-500/50 mb-4 shadow-lg shadow-blue-900/20">
-                                <h3 class="text-md font-bold text-blue-400 mb-2"><i class="fa-solid fa-eye mr-2"></i>Pantauan: ${s.title}</h3>
-                                <p class="text-xs text-slate-400 mb-3">Ini adalah survey untuk diisi oleh cawangan. Di bawah adalah status dan maklum balas cawangan anda:</p>`;
+                        try {
+                            if (s.targetAudience === 'branch') {
+                                let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
+                                let responsesForSurvey = allResponses.filter(r => r.surveyId === s.id);
                                 
-                            if (s.questions && s.questions.length > 0) {
-                                html += `<div class="overflow-x-auto mb-2 custom-scrollbar">
-                                    <table class="w-full text-left text-sm text-slate-300">
-                                        <thead class="text-xs text-slate-400 bg-slate-900">
-                                            <tr>
-                                                <th class="p-2 border border-slate-700 whitespace-nowrap">KOD</th>
-                                                <th class="p-2 border border-slate-700 whitespace-nowrap">NAMA CAWANGAN</th>
-                                                <th class="p-2 border border-slate-700 whitespace-nowrap text-center">STATUS</th>`;
-                                let isYesNoAM = (q) => q.type === 'yesno' || (responsesForSurvey && responsesForSurvey.some(r => r.answers && r.answers[q.id] && String(r.answers[q.id].value).startsWith('Tidak - ')));
-                                (s.questions || []).forEach(q => {
-                                    html += `<th class="p-2 border border-slate-700 text-center">${q.label}</th>`;
-                                    if (isYesNoAM(q)) html += `<th class="p-2 border border-slate-700 text-center text-amber-300">Sebab (Jika Tidak)</th>`;
-                                });
-                                html += `</tr></thead><tbody>`;
-                                
-                                myBranches.forEach(b => {
-                                    let resp = responsesForSurvey.find(r => String(r.branchCode) === String(b.code));
-                                    let statusHtml = resp 
-                                        ? `<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>HANTAR</span><button onclick="deleteSurveyResponse('${resp.id}', '${s.id}')" class="text-rose-400 hover:text-rose-300 ml-2" title="Padam jawapan cawangan ini supaya boleh isi semula"><i class="fa-solid fa-trash"></i></button>` 
-                                        : `<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-times mr-1"></i>BELUM</span>`;
+                                html += `<div class="bg-slate-800 rounded-lg p-4 border border-blue-500/50 mb-4 shadow-lg shadow-blue-900/20">
+                                    <h3 class="text-md font-bold text-blue-400 mb-2"><i class="fa-solid fa-eye mr-2"></i>Pantauan: ${s.title}</h3>
+                                    <p class="text-xs text-slate-400 mb-3">Ini adalah survey untuk diisi oleh cawangan. Di bawah adalah status dan maklum balas cawangan anda:</p>`;
                                     
-                                    html += `<tr class="border-b border-slate-700/50 hover:bg-slate-700/30">
-                                        <td class="p-2 border border-slate-700 font-bold">${b.code}</td>
-                                        <td class="p-2 border border-slate-700 whitespace-nowrap">${b.name}</td>
-                                        <td class="p-2 border border-slate-700 text-center">${statusHtml}</td>`;
-                                    
+                                if (s.questions && s.questions.length > 0) {
+                                    html += `<div class="overflow-x-auto mb-2 custom-scrollbar">
+                                        <table class="w-full text-left text-sm text-slate-300">
+                                            <thead class="text-xs text-slate-400 bg-slate-900">
+                                                <tr>
+                                                    <th class="p-2 border border-slate-700 whitespace-nowrap">KOD</th>
+                                                    <th class="p-2 border border-slate-700 whitespace-nowrap">NAMA CAWANGAN</th>
+                                                    <th class="p-2 border border-slate-700 whitespace-nowrap text-center">STATUS</th>`;
+                                    let isYesNoAM = (q) => q.type === 'yesno' || (responsesForSurvey && responsesForSurvey.some(r => r.answers && r.answers[q.id] && String(r.answers[q.id].value).startsWith('Tidak - ')));
                                     (s.questions || []).forEach(q => {
-                                        let ans = "-";
-                                        if (resp && resp.answers && resp.answers[q.id] !== undefined) {
-                                            let ansObj = resp.answers[q.id];
-                                            ans = (typeof ansObj === 'object' && ansObj !== null) ? ansObj.value : ansObj;
-                                            if (ans === true) ans = "Ya";
-                                            if (ans === false) ans = "Tidak";
-                                        }
-                                        let colorClass = resp ? "text-white font-medium" : "text-slate-500";
-                                        if (isYesNoAM(q)) {
-                                            let mainAns = String(ans);
-                                            let reasonAns = '-';
-                                            if (mainAns.startsWith('Tidak - ')) {
-                                                reasonAns = mainAns.substring(8).trim();
-                                                mainAns = 'Tidak';
-                                            } else if (mainAns === 'Tidak') {
-                                                mainAns = 'Tidak';
-                                                reasonAns = '-';
-                                            }
-                                            html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${mainAns}</td>`;
-                                            html += `<td class="p-2 border border-slate-700 text-center text-amber-300 font-semibold">${reasonAns}</td>`;
-                                        } else {
-                                            html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${ans}</td>`;
-                                        }
+                                        html += `<th class="p-2 border border-slate-700 text-center">${q.label}</th>`;
+                                        if (isYesNoAM(q)) html += `<th class="p-2 border border-slate-700 text-center text-amber-300">Sebab (Jika Tidak)</th>`;
                                     });
-                                    html += `</tr>`;
-                                });
-                                html += `</tbody></table></div>`;
-                            } else {
-                                html += `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">`;
-                                myBranches.forEach(b => {
-                                    let hasResponded = responsesForSurvey.some(r => String(r.branchCode) === String(b.code));
-                                    let color = hasResponded ? 'text-emerald-400' : 'text-rose-400';
-                                    let icon = hasResponded ? 'fa-check-circle' : 'fa-times-circle';
-                                    html += `<div class="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between">
-                                        <span class="text-slate-300 font-bold">${b.code} - ${b.name}</span>
-                                        <span class="${color}"><i class="fa-solid ${icon}"></i></span>
-                                    </div>`;
-                                });
-                                html += `</div>`;
-                            }
+                                    html += `</tr></thead><tbody>`;
+                                    
+                                    myBranches.forEach(b => {
+                                        let resp = responsesForSurvey.find(r => String(r.branchCode) === String(b.code));
+                                        let statusHtml = resp 
+                                            ? `<span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>HANTAR</span><button onclick="deleteSurveyResponse('${resp.id}', '${s.id}')" class="text-rose-400 hover:text-rose-300 ml-2" title="Padam jawapan cawangan ini supaya boleh isi semula"><i class="fa-solid fa-trash"></i></button>` 
+                                            : `<span class="bg-rose-500/20 text-rose-400 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-times mr-1"></i>BELUM</span>`;
+                                        
+                                        html += `<tr class="border-b border-slate-700/50 hover:bg-slate-700/30">
+                                            <td class="p-2 border border-slate-700 font-bold">${b.code}</td>
+                                            <td class="p-2 border border-slate-700 whitespace-nowrap">${b.name}</td>
+                                            <td class="p-2 border border-slate-700 text-center">${statusHtml}</td>`;
+                                        
+                                        (s.questions || []).forEach(q => {
+                                            let ans = "-";
+                                            if (resp && resp.answers && resp.answers[q.id] !== undefined) {
+                                                let ansObj = resp.answers[q.id];
+                                                ans = (typeof ansObj === 'object' && ansObj !== null) ? ansObj.value : ansObj;
+                                                if (ans === true) ans = "Ya";
+                                                if (ans === false) ans = "Tidak";
+                                            }
+                                            let colorClass = resp ? "text-white font-medium" : "text-slate-500";
+                                            if (isYesNoAM(q)) {
+                                                let mainAns = String(ans);
+                                                let reasonAns = '-';
+                                                if (mainAns.startsWith('Tidak - ')) {
+                                                    reasonAns = mainAns.substring(8).trim();
+                                                    mainAns = 'Tidak';
+                                                } else if (mainAns === 'Tidak') {
+                                                    mainAns = 'Tidak';
+                                                    reasonAns = '-';
+                                                }
+                                                html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${mainAns}</td>`;
+                                                html += `<td class="p-2 border border-slate-700 text-center text-amber-300 font-semibold">${reasonAns}</td>`;
+                                            } else {
+                                                html += `<td class="p-2 border border-slate-700 text-center ${colorClass}">${ans}</td>`;
+                                            }
+                                        });
+                                        html += `</tr>`;
+                                    });
+                                    html += `</tbody></table></div>`;
+                                } else {
+                                    html += `<div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">`;
+                                    myBranches.forEach(b => {
+                                        let hasResponded = responsesForSurvey.some(r => String(r.branchCode) === String(b.code));
+                                        let color = hasResponded ? 'text-emerald-400' : 'text-rose-400';
+                                        let icon = hasResponded ? 'fa-check-circle' : 'fa-times-circle';
+                                        html += `<div class="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between">
+                                            <span class="text-slate-300 font-bold">${b.code} - ${b.name}</span>
+                                            <span class="${color}"><i class="fa-solid ${icon}"></i></span>
+                                        </div>`;
+                                    });
+                                    html += `</div>`;
+                                }
 
-                            let isConfirmedAM = isAMSurveyConfirmed(s, amName);
-                            if (isConfirmedAM) {
-                                html += `<div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-emerald-950/80 border border-emerald-800 p-3 rounded-lg shadow-lg">
-                                    <div class="flex items-center text-emerald-300 text-xs font-bold">
-                                        <i class="fa-solid fa-check-double text-emerald-400 text-base mr-2.5"></i>
-                                        <div>
-                                            <div>Status Pengesahan AM: <span class="text-emerald-400 font-extrabold">DISAHKAN (BERJAYA HANTAR)</span></div>
-                                            <div class="text-[10px] text-emerald-400/80 font-normal">Data maklum balas cawangan anda telah disahkan dan direkodkan di Admin.</div>
+                                let isConfirmedAM = isAMSurveyConfirmed(s, amName);
+                                if (isConfirmedAM) {
+                                    html += `<div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-emerald-950/80 border border-emerald-800 p-3 rounded-lg shadow-lg">
+                                        <div class="flex items-center text-emerald-300 text-xs font-bold">
+                                            <i class="fa-solid fa-check-double text-emerald-400 text-base mr-2.5"></i>
+                                            <div>
+                                                <div>Status Pengesahan AM: <span class="text-emerald-400 font-extrabold">DISAHKAN (BERJAYA HANTAR)</span></div>
+                                                <div class="text-[10px] text-emerald-400/80 font-normal">Data maklum balas cawangan anda telah disahkan dan direkodkan di Admin.</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <button onclick="downloadAMSurveyExcel('${s.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg shadow text-xs flex items-center gap-1.5 transition-colors">
-                                            <i class="fa-solid fa-file-excel"></i> Muat Turun Data
+                                        <div class="flex items-center gap-2">
+                                            <button onclick="downloadAMSurveyExcel('${s.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg shadow text-xs flex items-center gap-1.5 transition-colors">
+                                                <i class="fa-solid fa-file-excel"></i> Muat Turun Data
+                                            </button>
+                                            <button onclick="closeAMSurveyCard('${s.id}')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg shadow text-xs flex items-center gap-1.5 transition-colors">
+                                                <i class="fa-solid fa-xmark"></i> Keluar / Tutup
+                                            </button>
+                                        </div>
+                                    </div>`;
+                                } else {
+                                    html += `<div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-2 bg-slate-900/90 p-3 rounded-lg border border-slate-700">
+                                        <div class="text-xs text-slate-300">
+                                            Status Pengesahan AM: <span class="text-amber-400 font-bold">Belum Disahkan</span>
+                                            <div class="text-[10px] text-slate-400">Pastikan semua cawangan telah selesai mengisi dengan betul sebelum menekan hantar.</div>
+                                        </div>
+                                        <button onclick="confirmAMSurveySubmission('${s.id}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg text-xs flex items-center justify-center gap-2 transition-colors">
+                                            <i class="fa-solid fa-paper-plane"></i> Sahkan & Hantar ke Admin
                                         </button>
-                                        <button onclick="closeAMSurveyCard('${s.id}')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg shadow text-xs flex items-center gap-1.5 transition-colors">
-                                            <i class="fa-solid fa-xmark"></i> Keluar / Tutup
-                                        </button>
-                                    </div>
-                                </div>`;
+                                    </div>`;
+                                }
+                                html += `</div>`;
+                            } else if (s.type === 'custom') {
+                                let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
+                                let remainingBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName && !respondedBranches.includes(String(b.code)));
+                                html += generateCustomSurveyHTML(s, remainingBranches);
                             } else {
-                                html += `<div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-2 bg-slate-900/90 p-3 rounded-lg border border-slate-700">
-                                    <div class="text-xs text-slate-300">
-                                        Status Pengesahan AM: <span class="text-amber-400 font-bold">Belum Disahkan</span>
-                                        <div class="text-[10px] text-slate-400">Pastikan semua cawangan telah selesai mengisi dengan betul sebelum menekan hantar.</div>
+                                html += `
+                                <div class="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-4" id="survey-box-${s.id}">
+                                    <h3 class="text-md font-bold text-white mb-3">${s.title}</h3>
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <label class="text-xs text-slate-400">Jumlah Pengecualian (Branch Belum Siap):</label>
+                                        <select id="survey-exc-${s.id}" onchange="renderSurveyInputs('${s.id}')" class="bg-slate-900 text-white rounded px-2 py-1 outline-none border border-slate-600">
+                                            ${[...Array(11).keys()].map(i => `<option value="${i}">${i}</option>`).join('')}
+                                        </select>
                                     </div>
-                                    <button onclick="confirmAMSurveySubmission('${s.id}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg text-xs flex items-center justify-center gap-2 transition-colors">
-                                        <i class="fa-solid fa-paper-plane"></i> Sahkan & Hantar ke Admin
-                                    </button>
-                                </div>`;
-                            }
-                            html += `</div>`;
-                        } else if (s.type === 'custom') {
-                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
-                            let remainingBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName && !respondedBranches.includes(String(b.code)));
-                            html += generateCustomSurveyHTML(s, remainingBranches);
-                        } else {
-                            html += `
-                            <div class="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-4" id="survey-box-${s.id}">
-                                <h3 class="text-md font-bold text-white mb-3">${s.title}</h3>
-                                <div class="flex items-center gap-2 mb-3">
-                                    <label class="text-xs text-slate-400">Jumlah Pengecualian (Branch Belum Siap):</label>
-                                    <select id="survey-exc-${s.id}" onchange="renderSurveyInputs('${s.id}')" class="bg-slate-900 text-white rounded px-2 py-1 outline-none border border-slate-600">
-                                        ${[...Array(11).keys()].map(i => `<option value="${i}">${i}</option>`).join('')}
-                                    </select>
+                                    <div id="survey-inputs-${s.id}" class="space-y-2 mb-3"></div>
+                                    <button onclick="submitSurveyResponse('${s.id}')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 px-4 rounded text-sm transition-colors"><i class="fa-solid fa-check mr-2"></i>Hantar Maklum Balas</button>
                                 </div>
-                                <div id="survey-inputs-${s.id}" class="space-y-2 mb-3"></div>
-                                <button onclick="submitSurveyResponse('${s.id}')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 px-4 rounded text-sm transition-colors"><i class="fa-solid fa-check mr-2"></i>Hantar Maklum Balas</button>
-                            </div>
-                            `;
+                                `;
+                            }
+                        } catch(amErr) {
+                            console.error("Error rendering AM survey row:", s, amErr);
                         }
                     });
                 }
-                document.getElementById('survey-am-list').innerHTML = html;
+                if (!html) {
+                    html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>No active surveys!</div>';
+                }
+                let amList = document.getElementById('survey-am-list');
+                if (amList) amList.innerHTML = html;
             } else {
                 // Admin / Operation
                 let adV = document.getElementById('survey-admin-view'); if(adV) { adV.classList.remove('hidden'); adV.style.display = 'block'; }
@@ -5326,53 +5334,62 @@ function saveGlobalGSUrl() {
                     html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">No surveys found.</td></tr>';
                 } else {
                     allSurveys.forEach(s => {
-                        let sResp = allResponses.filter(r => r.surveyId === s.id);
-                        
-                        let rCount = 0;
-                        let tCount = 0;
-                        if (s.targetAudience === 'branch') {
-                            tCount = (s.selectedBranches && s.selectedBranches.length > 0) ? s.selectedBranches.length : (masterBranches ? masterBranches.length : 0);
-                            let uniqueBranches = new Set();
-                            sResp.forEach(r => { if(r.branchCode) uniqueBranches.add(String(r.branchCode)); });
-                            rCount = uniqueBranches.size;
-                        } else {
-                            let activeAMs = getActiveAMs();
-                            if (s.selectedBranches && s.selectedBranches.length > 0) {
-                                activeAMs = activeAMs.filter(a => masterBranches && masterBranches.some(b => (b.am || '').trim().toUpperCase() === a && (s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)))));
+                        try {
+                            let sResp = allResponses.filter(r => r.surveyId === s.id);
+                            
+                            let rCount = 0;
+                            let tCount = 0;
+                            if (s.targetAudience === 'branch') {
+                                tCount = (s.selectedBranches && s.selectedBranches.length > 0) ? s.selectedBranches.length : (masterBranches ? masterBranches.length : 0);
+                                let uniqueBranches = new Set();
+                                sResp.forEach(r => { if(r.branchCode) uniqueBranches.add(String(r.branchCode)); });
+                                rCount = uniqueBranches.size;
+                            } else {
+                                let activeAMs = getActiveAMs();
+                                if (s.selectedBranches && s.selectedBranches.length > 0) {
+                                    activeAMs = activeAMs.filter(a => masterBranches && masterBranches.some(b => (b.am || '').trim().toUpperCase() === a && (s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)))));
+                                }
+                                tCount = activeAMs.length;
+                                let uniqueAMs = new Set();
+                                sResp.forEach(r => { if(r.amName) uniqueAMs.add(String(r.amName).toUpperCase()); });
+                                rCount = uniqueAMs.size;
                             }
-                            tCount = activeAMs.length;
-                            let uniqueAMs = new Set();
-                            sResp.forEach(r => { if(r.amName) uniqueAMs.add(String(r.amName).toUpperCase()); });
-                            rCount = uniqueAMs.size;
+                            
+                            let isClosed = s.status === 'closed';
+                            let isScheduled = s.publishAt && new Date() < new Date(s.publishAt);
+                            let dateStr = formatSafeDate(s.createdAt);
+                            let pubStr = String(s.publishAt || '').replace('T', ' ');
+                            let statusBadgeHtml = isClosed
+                                ? `<span class="text-red-400 font-bold text-xs uppercase bg-slate-900 px-2 py-1 rounded border border-red-500/30">CLOSED</span>`
+                                : (isScheduled
+                                    ? `<span class="text-amber-400 font-bold text-[11px] uppercase bg-slate-900 px-2 py-1 rounded border border-amber-500/30" title="Akan terbit pada ${pubStr}"><i class="fa-solid fa-clock mr-1"></i>TERBIT: ${pubStr}</span>`
+                                    : `<span class="text-green-400 font-bold text-xs uppercase bg-slate-900 px-2 py-1 rounded border border-green-500/30">ACTIVE</span>`);
+                            html += `
+                            <tr class="hover:bg-slate-800/30 transition-colors">
+                                <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50">${dateStr}</td>
+                                <td class="p-3 text-sm text-white font-bold border-b border-slate-800/50">${s.title || 'Untitled Survey'}</td>
+                                <td class="p-3 text-sm border-b border-slate-800/50 text-center">
+                                    ${statusBadgeHtml}
+                                </td>
+                                <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50 text-center font-bold">${isClosed ? '<span class="text-[10px] text-slate-500">CLOSED</span>' : rCount + ' / ' + tCount}</td>
+                                <td class="p-3 text-sm border-b border-slate-800/50 text-right">
+                                    <button onclick="viewSurveyReport('${s.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-chart-pie mr-1"></i> Semak</button>
+                                    <button onclick="cloneSurvey('${s.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1" title="Guna Semula Survey Ini Untuk Hari Ini / Tarikh Baru"><i class="fa-solid fa-copy mr-1"></i> Guna Semula</button>
+                                    ${isClosed ? '' : `<button onclick="closeSurvey('${s.id}')" class="bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1"><i class="fa-solid fa-lock mr-1"></i> Tutup</button>`}
+                                    <button onclick="deleteSurvey('${s.id}')" class="bg-rose-900 hover:bg-rose-700 text-rose-300 text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1"><i class="fa-solid fa-trash mr-1"></i> Padam</button>
+                                </td>
+                            </tr>
+                            `;
+                        } catch(rowErr) {
+                            console.error("Error rendering survey row:", s, rowErr);
                         }
-                        
-                        let isClosed = s.status === 'closed';
-                        let isScheduled = s.publishAt && new Date() < new Date(s.publishAt);
-                        let dateStr = formatSafeDate(s.createdAt);
-                        let statusBadgeHtml = isClosed
-                            ? `<span class="text-red-400 font-bold text-xs uppercase bg-slate-900 px-2 py-1 rounded border border-red-500/30">CLOSED</span>`
-                            : (isScheduled
-                                ? `<span class="text-amber-400 font-bold text-[11px] uppercase bg-slate-900 px-2 py-1 rounded border border-amber-500/30" title="Akan terbit pada ${s.publishAt.replace('T', ' ')}"><i class="fa-solid fa-clock mr-1"></i>TERBIT: ${s.publishAt.replace('T', ' ')}</span>`
-                                : `<span class="text-green-400 font-bold text-xs uppercase bg-slate-900 px-2 py-1 rounded border border-green-500/30">ACTIVE</span>`);
-                        html += `
-                        <tr class="hover:bg-slate-800/30 transition-colors">
-                            <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50">${dateStr}</td>
-                            <td class="p-3 text-sm text-white font-bold border-b border-slate-800/50">${s.title}</td>
-                            <td class="p-3 text-sm border-b border-slate-800/50 text-center">
-                                ${statusBadgeHtml}
-                            </td>
-                            <td class="p-3 text-sm text-slate-300 border-b border-slate-800/50 text-center font-bold">${isClosed ? '<span class="text-[10px] text-slate-500">CLOSED</span>' : rCount + ' / ' + tCount}</td>
-                            <td class="p-3 text-sm border-b border-slate-800/50 text-right">
-                                <button onclick="viewSurveyReport('${s.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors"><i class="fa-solid fa-chart-pie mr-1"></i> Semak</button>
-                                <button onclick="cloneSurvey('${s.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1" title="Guna Semula Survey Ini Untuk Hari Ini / Tarikh Baru"><i class="fa-solid fa-copy mr-1"></i> Guna Semula</button>
-                                ${isClosed ? '' : `<button onclick="closeSurvey('${s.id}')" class="bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1"><i class="fa-solid fa-lock mr-1"></i> Tutup</button>`}
-                                <button onclick="deleteSurvey('${s.id}')" class="bg-rose-900 hover:bg-rose-700 text-rose-300 text-[10px] font-bold py-1 px-3 rounded-md shadow-lg transition-colors ml-1"><i class="fa-solid fa-trash mr-1"></i> Padam</button>
-                            </td>
-                        </tr>
-                        `;
                     });
                 }
-                document.getElementById('survey-admin-list').innerHTML = html;
+                if (!html) {
+                    html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">No surveys found.</td></tr>';
+                }
+                let listEl = document.getElementById('survey-admin-list');
+                if (listEl) listEl.innerHTML = html;
             }
         }
 
