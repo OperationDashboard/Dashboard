@@ -1643,7 +1643,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.11;
+        const APP_VERSION = 20.0;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1912,10 +1912,7 @@ function saveGlobalGSUrl() {
             configListener = db.collection("config").doc("system").onSnapshot(doc => {
                 if(doc.exists) {
                     let data = doc.data();
-                    if(data.app_version && data.app_version > APP_VERSION) {
-                        window.location.href = window.location.pathname + '?v=' + new Date().getTime();
-                    }
-                    if(currentUser && currentUser.role === 'admin' && (!data.app_version || data.app_version < APP_VERSION)) {
+                    if(currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) {
                         db.collection("config").doc("system").set({app_version: APP_VERSION}, {merge: true}).catch(e => {});
                     }
                     
