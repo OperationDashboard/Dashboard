@@ -4652,6 +4652,13 @@ function saveGlobalGSUrl() {
             surveysLoaded = false;
             responsesLoaded = false;
             hasAlertedSurvey = false;
+
+            db.collection('surveys').get().then(snap => {
+                allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                surveysLoaded = true;
+                updateSurveyUI(true);
+            }).catch(e => console.error("Initial get surveys err:", e));
             
             surveyUnsubscribe = db.collection('surveys').onSnapshot(snap => {
                 allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
@@ -5467,13 +5474,17 @@ function saveGlobalGSUrl() {
         let builderQuestions = [];
 
         function toggleSurveyTypeUI() {
-            let type = document.getElementById('survey-new-type').value;
+            let typeEl = document.getElementById('survey-new-type');
             let area = document.getElementById('survey-builder-area');
+            if (!typeEl || !area) return;
+            let type = typeEl.value;
             if (type === 'custom') {
                 area.classList.remove('hidden');
+                area.style.display = 'block';
                 renderBuilderQuestions();
             } else {
                 area.classList.add('hidden');
+                area.style.display = 'none';
             }
         }
 
