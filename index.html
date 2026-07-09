@@ -1646,7 +1646,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.30;
+        const APP_VERSION = 10.31;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2182,9 +2182,20 @@ function saveGlobalGSUrl() {
             let fetchMode = mode;
             let fetchDateStr = dateStr;
 
-            let processSnap = (snap) => {
+            let processSnap = async (snap) => {
                 let fbData = [];
                 snap.forEach(doc => { let d = doc.data(); if(d && d.date) fbData.push(d); });
+                if (fetchMode === 'daily' && typeof queryMonthlySummariesData === 'function') {
+                    try {
+                        let sumDaily = await queryMonthlySummariesData(fetchDateStr, fetchDateStr);
+                        if (sumDaily && sumDaily.length > 0) {
+                            let existCodes = new Set(fbData.map(s => String(s.code)));
+                            sumDaily.forEach(item => {
+                                if (!existCodes.has(String(item.code))) fbData.push(item);
+                            });
+                        }
+                    } catch(e) {}
+                }
                 if (fbData.length > 0) {
                     try { localStorage.setItem('cache_sub_' + queryKey, JSON.stringify(fbData)); } catch(e){}
                 } else {
@@ -3206,7 +3217,7 @@ function saveGlobalGSUrl() {
                 let submittedCount = new Set(dashData.filter(s => s.night_locked).map(s=>s.code)).size;
                 let totalBranches = branches.length;
                 if (totalBranches === 0 && currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) {
-                    totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2850;
+                    totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2855;
                 }
                 subRatioEl.innerText = mode==='daily' ? `${submittedCount} / ${totalBranches}` : `Monthly`;
                 subRatioEl.className = `text-sm font-black ml-1 ${submittedCount===totalBranches && totalBranches>0 ? 'text-emerald-400' : 'text-amber-400'}`;
