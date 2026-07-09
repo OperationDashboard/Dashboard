@@ -1421,28 +1421,36 @@ window.onunhandledrejection = function(event) {
             onSnapshot(cb, errCb) {
                 let active = true;
                 let lastHash = "";
+                let firstSnapDone = false;
                 let doFetch = () => {
                     if (!active) return;
                     this.get().then(snap => {
                         if (!active) return;
                         let hash = snap.docs.length + "_" + snap.docs.map(d => {
                             let r = typeof d.data === 'function' ? d.data() : (d || {});
-                            return (r.id || "") + ":" + (r.updated_at || r.updatedAt || r.status || r.sales || r.am || JSON.stringify(r).length || "");
+                            return (r.id || "") + ":" + (r.updated_at || r.updatedAt || r.status || r.sales || r.am || JSON.stringify(r));
                         }).join("|");
-                        if (hash !== lastHash || !window._firstSnapDone) {
+                        if (hash !== lastHash || !firstSnapDone) {
                             lastHash = hash;
-                            window._firstSnapDone = true;
+                            firstSnapDone = true;
                             cb(snap);
                         }
                     }).catch(e => { if (errCb && active) errCb(e); });
                 };
                 doFetch();
+                let syncListener = () => { lastHash = ""; doFetch(); };
+                if (!window._liveSyncListeners) window._liveSyncListeners = [];
+                window._liveSyncListeners.push(syncListener);
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 15000);
-                let unsub = () => { active = false; clearInterval(interval); };
-                unsub.refresh = () => { lastHash = ""; doFetch(); };
+                }, 3000);
+                let unsub = () => {
+                    active = false;
+                    clearInterval(interval);
+                    if (window._liveSyncListeners) window._liveSyncListeners = window._liveSyncListeners.filter(x => x !== syncListener);
+                };
+                unsub.refresh = syncListener;
                 return unsub;
             }
         }
@@ -1559,7 +1567,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 15000);
+                }, 3000);
                 let unsub = () => { active = false; clearInterval(interval); };
                 unsub.refresh = doFetch;
                 return unsub;
@@ -5643,8 +5651,13 @@ function saveGlobalGSUrl() {
                     }
                 }
                 
-                await db.collection('survey_responses').add(payload);
+        function triggerLiveSync() {
+            if (window._liveSyncListeners) window._liveSyncListeners.forEach(fn => fn());
+        }
+
+        await db.collection('survey_responses').add(payload);
                 window.isFillingSurveyActive = false;
+                triggerLiveSync();
                 showToast('success', 'Maklum balas telah direkodkan!');
                 let box = document.getElementById(`survey-box-${id}`);
                 if (box) {
@@ -5767,6 +5780,7 @@ function saveGlobalGSUrl() {
                     exceptions: exceptions
                 });
                 window.isFillingSurveyActive = false;
+                triggerLiveSync();
                 showToast('success', 'Terima kasih! Maklum balas berjaya dihantar.');
                 let box = document.getElementById(`survey-box-${id}`);
                 if (box) {
