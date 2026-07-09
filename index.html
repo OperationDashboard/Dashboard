@@ -2645,7 +2645,7 @@ function saveGlobalGSUrl() {
                     if (amV) { amV.classList.add('hidden'); amV.style.display = 'none'; }
                     if (brV) { brV.classList.add('hidden'); brV.style.display = 'none'; }
                 }
-                try { renderSurveys(); } catch(err) { console.error("renderSurveys error:", err); }
+                try { renderSurveys(); toggleSurveyTypeUI(); } catch(err) { console.error("renderSurveys error:", err); }
             } else if (tab === 'target') {
                 loadTargetTracker();
             } else if (tab === 'control') {
@@ -4951,8 +4951,11 @@ function saveGlobalGSUrl() {
         }
 
         function renderSurveys() {
-            // Already listening via listenToSurveyBadge, just update UI
+            if (!surveysLoaded && typeof listenToSurveyBadge === 'function') {
+                listenToSurveyBadge();
+            }
             updateSurveyUI(true);
+            try { toggleSurveyTypeUI(); } catch(e) {}
         }
 
         async function handleSurveyYesNoChange(selectEl, qLabel) {
