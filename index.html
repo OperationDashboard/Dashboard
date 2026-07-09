@@ -1912,10 +1912,7 @@ function saveGlobalGSUrl() {
             configListener = db.collection("config").doc("system").onSnapshot(doc => {
                 if(doc.exists) {
                     let data = doc.data();
-                    if(currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) {
-                        db.collection("config").doc("system").set({app_version: APP_VERSION}, {merge: true}).catch(e => {});
-                    }
-                    
+
                     window.globalConfig = data;
 
                     if(document.getElementById('btn-toggle-3days')) {
@@ -2997,9 +2994,6 @@ function saveGlobalGSUrl() {
             if (currentUser.role === 'admin') {
                 let btnPatch = document.getElementById('btn-patch-db');
                 if(btnPatch) btnPatch.classList.remove('hidden');
-                if (window.globalConfig && (!window.globalConfig.app_version || window.globalConfig.app_version < APP_VERSION)) {
-                    db.collection("config").doc("system").set({app_version: APP_VERSION}, {merge: true});
-                }
             }
             
             if (typeof surveysLoaded !== 'undefined' && surveysLoaded && responsesLoaded) {
