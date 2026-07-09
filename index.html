@@ -4866,7 +4866,7 @@ function saveGlobalGSUrl() {
                     if (s.targetAudience === 'branch') {
                         let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
                         if (myBranches.length === 0) return false;
-                        return !(s.amConfirmations || []).includes(amName);
+                        return !(s.amClosed || []).includes(amName);
                     }
                     return false;
                 });
@@ -5116,7 +5116,7 @@ function saveGlobalGSUrl() {
                     if (s.targetAudience === 'branch') {
                         let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
                         if (myBranches.length === 0) return false;
-                        return !(s.amConfirmations || []).includes(amName);
+                        return !(s.amClosed || []).includes(amName);
                     }
                     return false;
                 });
@@ -5204,9 +5204,22 @@ function saveGlobalGSUrl() {
 
                             let isConfirmedAM = (s.amConfirmations || []).includes(amName);
                             if (isConfirmedAM) {
-                                html += `<div class="mt-3 bg-emerald-950/80 border border-emerald-800 text-emerald-300 px-4 py-2.5 rounded-lg text-xs font-bold flex items-center justify-between">
-                                    <span><i class="fa-solid fa-check-double text-emerald-400 mr-2"></i>Anda Telah Mengesahkan & Menghantar Survey Ini ke Admin</span>
-                                    <span class="text-[10px] text-emerald-400">DISAHKAN</span>
+                                html += `<div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-emerald-950/80 border border-emerald-800 p-3 rounded-lg shadow-lg">
+                                    <div class="flex items-center text-emerald-300 text-xs font-bold">
+                                        <i class="fa-solid fa-check-double text-emerald-400 text-base mr-2.5"></i>
+                                        <div>
+                                            <div>Status Pengesahan AM: <span class="text-emerald-400 font-extrabold">DISAHKAN (BERJAYA HANTAR)</span></div>
+                                            <div class="text-[10px] text-emerald-400/80 font-normal">Data maklum balas cawangan anda telah disahkan dan direkodkan di Admin.</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="downloadAMSurveyExcel('${s.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg shadow text-xs flex items-center gap-1.5 transition-colors">
+                                            <i class="fa-solid fa-file-excel"></i> Muat Turun Data
+                                        </button>
+                                        <button onclick="closeAMSurveyCard('${s.id}')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-lg shadow text-xs flex items-center gap-1.5 transition-colors">
+                                            <i class="fa-solid fa-xmark"></i> Keluar / Tutup
+                                        </button>
+                                    </div>
                                 </div>`;
                             } else {
                                 html += `<div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-2 bg-slate-900/90 p-3 rounded-lg border border-slate-700">
@@ -5855,11 +5868,115 @@ function saveGlobalGSUrl() {
                 }
                 s.amConfirmations = list;
                 await db.collection('surveys').doc(id).update({ amConfirmations: list });
+                triggerLiveSync();
                 showToast('success', 'Pengesahan AM berjaya dihantar ke Admin!');
-                updateSurveyUI();
+                updateSurveyUI(true);
+                setTimeout(() => updateSurveyUI(true), 350);
             } catch(e) {
                 showToast('error', 'Ralat menghantar pengesahan: ' + e.message);
             }
+        }
+
+        function downloadAMSurveyExcel(id) {
+            let s = allSurveys.find(x => x.id === id);
+            if (!s || !currentUser) return;
+            let amName = (currentUser.name || '').trim().toUpperCase();
+            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
+            let sResp = allResponses.filter(r => r.surveyId === id);
+            
+            let headers = ["Kod Cawangan", "Nama Cawangan", "Area Manager", "Status Hantar"];
+            if (s.questions && s.questions.length > 0) {
+                s.questions.forEach((q, i) => {
+                    headers.push(`Soalan ${i+1}: ${q.text || q}`);
+                    if (isYesNoAM(q)) headers.push(`Sebab / Catatan Soalan ${i+1}`);
+                });
+            } else {
+                headers.push("Pengecualian / Catatan");
+            }
+            headers.push("Masa Hantar");
+            
+            let rows = [];
+            myBranches.forEach(b => {
+                let r = sResp.find(x => String(x.branchCode) === String(b.code));
+                let row = [
+                    `"${b.code}"`,
+                    `"${b.name}"`,
+                    `"${amName}"`,
+                    r ? '"SUDAH HANTAR"' : '"BELUM HANTAR"'
+                ];
+                if (s.questions && s.questions.length > 0) {
+                    s.questions.forEach(q => {
+                        if (r && r.answers) {
+                            let ans = r.answers[q.id || q.text];
+                            if (ans === true) ans = "Ya";
+                            if (ans === false) ans = "Tidak";
+                            if (isYesNoAM(q)) {
+                                let mainAns = String(ans || '-');
+                                let reasonAns = '-';
+                                if (mainAns.startsWith('Tidak - ')) {
+                                    reasonAns = mainAns.substring(8).trim();
+                                    mainAns = 'Tidak';
+                                }
+                                row.push(`"${mainAns}"`);
+                                row.push(`"${reasonAns}"`);
+                            } else {
+                                row.push(`"${ans || '-'}"`);
+                            }
+                        } else {
+                            row.push('"-""');
+                            if (isYesNoAM(q)) row.push('"-""');
+                        }
+                    });
+                } else {
+                    row.push(`"${r ? (r.exceptions || []).join('; ') : '-'}"`);
+                }
+                let timeStr = '-';
+                if (r && r.submittedAt) {
+                    let d = r.submittedAt.toDate ? r.submittedAt.toDate() : new Date(r.submittedAt);
+                    timeStr = d.toLocaleString('en-GB');
+                }
+                row.push(`"${timeStr}"`);
+                rows.push(row);
+            });
+            
+            let csvContent = "\uFEFF" + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            let url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Data_Survey_${s.title.replace(/[^a-zA-Z0-9]/g, '_')}_${amName}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('success', 'Fail data berjaya dimuat turun!');
+        }
+
+        async function closeAMSurveyCard(id) {
+            let s = allSurveys.find(x => x.id === id);
+            if (!s || !currentUser || currentUser.role !== 'am') return;
+            let amName = (currentUser.name || '').trim().toUpperCase();
+            let res = await Swal.fire({
+                title: 'Tutup & Keluar Survey Ini?',
+                text: 'Survey ini akan ditutup dari paparan anda.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Tutup Sekarang',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#4f46e5'
+            });
+            if (!res.isConfirmed) return;
+            
+            let list = s.amClosed || [];
+            if (!list.includes(amName)) {
+                list.push(amName);
+                s.amClosed = list;
+                try {
+                    await db.collection('surveys').doc(id).update({ amClosed: list });
+                } catch(e) {}
+            }
+            triggerLiveSync();
+            showToast('success', 'Survey telah ditutup dari senarai anda.');
+            updateSurveyUI(true);
         }
 
         async function viewSurveyReport(id) {
