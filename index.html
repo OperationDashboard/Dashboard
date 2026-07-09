@@ -1387,14 +1387,25 @@ window.onunhandledrejection = function(event) {
                     for (let o of this.orders) {
                         q = q.order(o.field, { ascending: o.dir !== 'desc' });
                     }
+                    let runQuery = async (queryObj) => {
+                        for (let attempt = 1; attempt <= 3; attempt++) {
+                            let res = await queryObj;
+                            if (!res.error && res.data) return res;
+                            if (attempt === 3) {
+                                if (res.error) throw new Error(res.error.message || 'Supabase Query Error');
+                                return res;
+                            }
+                            await new Promise(r => setTimeout(r, 600 * attempt));
+                        }
+                    };
                     if (this.lim && this.lim <= 1000) {
                         q = q.limit(this.lim);
-                        let res = await q;
+                        let res = await runQuery(q);
                         if (res.data) rows = res.data;
                         break;
                     } else {
                         q = q.range(from, from + step - 1);
-                        let res = await q;
+                        let res = await runQuery(q);
                         let chunk = res.data || [];
                         rows.push(...chunk);
                         if (chunk.length < step) break;
@@ -1638,7 +1649,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.23;
+        const APP_VERSION = 10.24;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2162,6 +2173,9 @@ function saveGlobalGSUrl() {
             let processSnap = (snap) => {
                 let fbData = [];
                 snap.forEach(doc => { let d = doc.data(); if(d && d.date) fbData.push(d); });
+                if (fbData.length > 0) {
+                    try { localStorage.setItem('cache_sub_' + queryKey, JSON.stringify(fbData)); } catch(e){}
+                }
                 dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
                 dbSubmissions = dbSubmissions.concat(fbData);
                 window.fetchedQueries[queryKey] = true;
@@ -2169,6 +2183,20 @@ function saveGlobalGSUrl() {
                 if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                 setSyncing(false);
             };
+
+            if (!window.fetchedQueries[queryKey]) {
+                try {
+                    let cached = localStorage.getItem('cache_sub_' + queryKey);
+                    if (cached) {
+                        let parsed = JSON.parse(cached);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
+                            dbSubmissions = dbSubmissions.concat(parsed);
+                            refreshCurrentTabView();
+                        }
+                    }
+                } catch(e){}
+            }
 
             // Clear previous listener if exists
             if (window.activeListeners[queryKey]) {
