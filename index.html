@@ -5055,6 +5055,24 @@ function saveGlobalGSUrl() {
             } catch(e) { return String(val); }
         }
 
+        function isAMSurveyConfirmed(s, amName) {
+            if (!s || !amName) return false;
+            amName = amName.trim().toUpperCase();
+            if (!(s.amConfirmations || []).includes(amName)) return false;
+            let resps = allResponses.filter(r => r.surveyId === s.id);
+            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
+            if (myBranches.length > 0) {
+                let hasAtLeastOneResp = myBranches.some(b => resps.some(r => String(r.branchCode) === String(b.code)));
+                if (!hasAtLeastOneResp) {
+                    s.amConfirmations = (s.amConfirmations || []).filter(x => x !== amName);
+                    s.amClosed = (s.amClosed || []).filter(x => x !== amName);
+                    try { db.collection('surveys').doc(s.id).update({ amConfirmations: s.amConfirmations, amClosed: s.amClosed }); } catch(e) {}
+                    return false;
+                }
+            }
+            return true;
+        }
+
         function updateSurveyUI(force = false) {
             if(!currentUser) return;
             
@@ -5202,7 +5220,7 @@ function saveGlobalGSUrl() {
                                 html += `</div>`;
                             }
 
-                            let isConfirmedAM = (s.amConfirmations || []).includes(amName);
+                            let isConfirmedAM = isAMSurveyConfirmed(s, amName);
                             if (isConfirmedAM) {
                                 html += `<div class="mt-3 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-emerald-950/80 border border-emerald-800 p-3 rounded-lg shadow-lg">
                                     <div class="flex items-center text-emerald-300 text-xs font-bold">
@@ -6030,7 +6048,7 @@ function saveGlobalGSUrl() {
                         if(bInfo) bName = bInfo.name;
                     }
                     
-                    let isAmConfirmed = (s.amConfirmations || []).includes((am || '').trim().toUpperCase());
+                    let isAmConfirmed = isAMSurveyConfirmed(s, am);
                     let badgeAM = isAmConfirmed
                         ? `<span class="bg-emerald-950 border border-emerald-800 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>YES</span>`
                         : `<span class="bg-rose-950 border border-rose-800 text-rose-400 px-2 py-0.5 rounded text-[10px] font-bold">NO</span>`;
@@ -6089,7 +6107,7 @@ function saveGlobalGSUrl() {
                     let d = amStatusMap[am];
                     if (d.total === 0) return;
                     totalAMCount++;
-                    let isAmConfirmed = (s.amConfirmations || []).includes(am);
+                    let isAmConfirmed = isAMSurveyConfirmed(s, am);
                     if (!isAmConfirmed) {
                         pendingAMCount++;
                         missingAMsHtml += `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
