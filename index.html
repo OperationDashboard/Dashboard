@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-950 text-slate-100">
 <head>
-<!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
-<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1649,7 +1646,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.24;
+        const APP_VERSION = 10.25;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1759,6 +1756,11 @@ function saveGlobalGSUrl() {
                     masterBranches = normalizeBranchData(data);
                     ams = [...new Set(masterBranches.map(b => b.am))].filter(Boolean);
                     localStorage.setItem('master_branches_cache', JSON.stringify(data));
+                    let authModal = document.getElementById('auth-modal');
+                    if (authModal && !authModal.classList.contains('hidden')) {
+                        let sInput = document.getElementById('auth-search');
+                        if (sInput) handleAuthSearch(sInput.value || "");
+                    }
                     if(document.getElementById('am-select') && ams.length > 0) {
                         let html = '<option value="" disabled selected data-i18n="am_select">-- Select Area Manager --</option>';
                         ams.forEach(am => html += `<option value="${am}">${am}</option>`);
@@ -1834,6 +1836,16 @@ function saveGlobalGSUrl() {
 
         document.addEventListener("DOMContentLoaded", () => {
               let vd = document.getElementById('version-display'); if(vd) vd.innerText = APP_VERSION;
+              setTimeout(() => {
+                  fetch(window.location.pathname + "?t=" + Date.now(), { cache: "no-store" })
+                      .then(r => r.text())
+                      .then(html => {
+                          let m = html.match(/const APP_VERSION = ([0-9.]+);/);
+                          if (m && parseFloat(m[1]) > APP_VERSION) {
+                              window.location.replace(window.location.pathname + "?v=" + m[1]);
+                          }
+                      }).catch(e => {});
+              }, 2000);
               listenToFirebaseConfig();
               document.addEventListener("visibilitychange", () => {
                   if (!document.hidden && currentUser) {
@@ -2548,7 +2560,14 @@ function saveGlobalGSUrl() {
             document.getElementById('auth-search-container').classList.add('hidden');
             document.getElementById('auth-search').value = ""; document.getElementById('auth-selected-id').value = ""; document.getElementById('auth-pwd').value = "";
             document.getElementById('auth-title').innerText = role==='branch'?(currentLang==='EN'?"Branch Login":"Log Masuk Branch"):role==='am'?(currentLang==='EN'?"AM Login":"Log Masuk AM"):role==='operation'?(currentLang==='EN'?"Operation Login":"Log Masuk Operasi"):(currentLang==='EN'?"Admin Login":"Log Masuk Admin");
-            if (role === 'branch' || role === 'am') document.getElementById('auth-search-container').classList.remove('hidden');
+            if (role === 'branch' || role === 'am') {
+                document.getElementById('auth-search-container').classList.remove('hidden');
+                if (!masterBranches || masterBranches.length === 0) {
+                    loadBranchesCache();
+                    fetchBranchesFromCloud();
+                }
+                setTimeout(() => handleAuthSearch(""), 50);
+            }
             document.getElementById('auth-modal').classList.remove('hidden'); document.getElementById('auth-modal').classList.add('flex');
         }
 
@@ -2557,14 +2576,21 @@ function saveGlobalGSUrl() {
         function handleAuthSearch(val) {
             let pop = document.getElementById('auth-popup'); let role = document.getElementById('auth-role').value;
             let term = val ? val.toLowerCase() : ""; let html = "";
+            if (role === 'branch' || role === 'am') {
+                if (!masterBranches || masterBranches.length === 0) {
+                    pop.innerHTML = '<div class="p-4 text-xs font-bold text-cyan-400 flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> Memuat senarai cawangan & AM...</div>';
+                    pop.classList.remove('hidden');
+                    return;
+                }
+            }
             if (role === 'branch') {
                 let filtered = masterBranches;
-                if(term) filtered = masterBranches.filter(b => String(b.code).includes(term) || b.name.toLowerCase().includes(term));
-                html = filtered.slice(0, 50).map(b => `<div onclick="selectAuth(&quot;${b.code}&quot;, &quot;${b.name.replace(/"/g, '&quot;')}&quot;)" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
+                if(term) filtered = masterBranches.filter(b => String(b.code).toLowerCase().includes(term) || String(b.name).toLowerCase().includes(term));
+                html = filtered.slice(0, 50).map(b => `<div onclick="selectAuth(&quot;${b.code}&quot;, &quot;${String(b.name).replace(/"/g, '&quot;')}&quot;)" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><span class="text-cyan-400 mr-2">${b.code}</span> ${b.name}</div>`).join('');
             } else if (role === 'am') {
                 let filtered = [...new Set(masterBranches.map(b=>b.am).filter(Boolean))];
-                if(term) filtered = filtered.filter(a => a.toLowerCase().includes(term));
-                html = filtered.slice(0, 50).map(a => `<div onclick="selectAuth(&quot;${a.replace(/"/g, '&quot;')}&quot;, &quot;${a.replace(/"/g, '&quot;')}&quot;)" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
+                if(term) filtered = filtered.filter(a => String(a).toLowerCase().includes(term));
+                html = filtered.slice(0, 50).map(a => `<div onclick="selectAuth(&quot;${String(a).replace(/"/g, '&quot;')}&quot;, &quot;${String(a).replace(/"/g, '&quot;')}&quot;)" class="p-3 text-xs font-bold text-white cursor-pointer hover:bg-slate-800"><i class="fa-solid fa-user-tie text-emerald-500 mr-2"></i> ${a}</div>`).join('');
             }
             if(html) { pop.innerHTML = html; pop.classList.remove('hidden'); } else pop.classList.add('hidden');
         }
