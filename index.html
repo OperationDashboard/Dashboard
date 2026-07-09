@@ -2542,42 +2542,51 @@ function saveGlobalGSUrl() {
 
         async function handleLogin(e) {
             e.preventDefault();
-            let role = document.getElementById('auth-role').value, pwd = document.getElementById('auth-pwd').value, selId = document.getElementById('auth-selected-id').value;
-            let hashedPwd = await hashPassword(pwd);
-            if (hashedPwd !== PASSWORDS[role]) { showToast('error', currentLang==='EN'?'Invalid Password!':'Password Salah!'); return; }
-            if ((role === 'branch' || role === 'am') && !selId) { showToast('error', 'Please select from search!'); return; }
-            
-            closeModal('auth-modal');
-            currentUser = { role: role };
-            
-            
-                      document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
-                      document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
-                      document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
-                      document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
+            try {
+                let role = document.getElementById('auth-role').value, pwd = document.getElementById('auth-pwd').value, selId = document.getElementById('auth-selected-id').value;
+                let hashedPwd = await hashPassword(pwd);
+                if (hashedPwd !== PASSWORDS[role]) { showToast('error', currentLang==='EN'?'Invalid Password!':'Password Salah!'); return; }
+                if ((role === 'branch' || role === 'am') && !selId) { showToast('error', 'Please select from search!'); return; }
+                
+                closeModal('auth-modal');
+                currentUser = { role: role };
+                
+                document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
+                document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
+                document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
+                document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
 
-            document.getElementById('header-subtitle').classList.add('hidden');
-            
-            if (role === 'branch') {
-                currentUser.id = selId; let b = masterBranches.find(x => String(x.code) === String(currentUser.id));
-                if(b) {
-                    currentUser.name = b.name; currentUser.am = b.am;
+                document.getElementById('header-subtitle').classList.add('hidden');
+                document.getElementById('nav-buttons').classList.add('hidden');
+                document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
+                
+                if (role === 'branch') {
+                    currentUser.id = selId; let b = masterBranches.find(x => String(x.code) === String(currentUser.id));
+                    if(b) {
+                        currentUser.name = b.name; currentUser.am = b.am;
+                    } else {
+                        currentUser.name = "Unknown Branch"; currentUser.am = "";
+                    }
+                    localStorage.setItem('pbi_user', JSON.stringify(currentUser));
+                    document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
+                    if(typeof setupBranchView === 'function') setupBranchView();
+                    try { listenToSurveyBadge(); } catch(err) {}
+                    try { syncBranchFromCloud(); } catch(err) {}
+                } else if (role === 'am') {
+                    currentUser.name = selId; localStorage.setItem('pbi_user', JSON.stringify(currentUser));
+                    document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
+                    setupManagerView();
+                    try { listenToSurveyBadge(); } catch(err) {}
                 } else {
-                    currentUser.name = "Unknown Branch"; currentUser.am = "";
+                    currentUser.name = "System Administrator"; localStorage.setItem('pbi_user', JSON.stringify(currentUser));
+                    document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
+                    setupManagerView();
+                    try { listenToSurveyBadge(); } catch(err) {}
                 }
-                localStorage.setItem('pbi_user', JSON.stringify(currentUser));
-                listenToSurveyBadge();
-                if(typeof setupBranchView === 'function') setupBranchView();
-                syncBranchFromCloud(); // Trigger sync after showing branch view immediately
-            } else if (role === 'am') {
-                currentUser.name = selId; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); listenToSurveyBadge(); setupManagerView();
-            } else {
-                currentUser.name = "System Administrator"; localStorage.setItem('pbi_user', JSON.stringify(currentUser)); listenToSurveyBadge(); setupManagerView();
+            } catch(error) {
+                console.error("Login exception:", error);
+                showToast('error', 'Error logging in: ' + error.message);
             }
-
-            document.getElementById('nav-buttons').classList.add('hidden');
-            document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
-            document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
         }
 
         function logout() {
@@ -2983,22 +2992,26 @@ function saveGlobalGSUrl() {
         let trendChartObj = null, barChartObj = null;
 
         function setupManagerView() {
-            document.getElementById('section-welcome').classList.add('hidden');
-            document.getElementById('section-manager').classList.remove('hidden');
-            populateFilters();
-            switchTab('dashboard');
-            updateMasterLockUI();
-            // listenToSurveyBadge() is now called globally upon login
-            
-            initTargetTracker();
-            if (currentUser.role === 'admin') {
-                let btnPatch = document.getElementById('btn-patch-db');
-                if(btnPatch) btnPatch.classList.remove('hidden');
-            }
-            
-            if (typeof surveysLoaded !== 'undefined' && surveysLoaded && responsesLoaded) {
-                checkSurveyAlerts();
-            }
+            try {
+                let sw = document.getElementById('section-welcome'); if(sw) sw.classList.add('hidden');
+                let sb = document.getElementById('section-branch'); if(sb) sb.classList.add('hidden');
+                let sm = document.getElementById('section-manager'); if(sm) sm.classList.remove('hidden');
+            } catch(e) {}
+            try { populateFilters(); } catch(e) {}
+            try { switchTab('dashboard'); } catch(e) {}
+            try { updateMasterLockUI(); } catch(e) {}
+            try { initTargetTracker(); } catch(e) {}
+            try {
+                if (currentUser && currentUser.role === 'admin') {
+                    let btnPatch = document.getElementById('btn-patch-db');
+                    if(btnPatch) btnPatch.classList.remove('hidden');
+                }
+            } catch(e) {}
+            try {
+                if (typeof surveysLoaded !== 'undefined' && surveysLoaded && responsesLoaded) {
+                    checkSurveyAlerts();
+                }
+            } catch(e) {}
         }
 
         function getManagerFilteredBranches() {
