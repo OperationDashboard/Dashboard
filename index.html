@@ -1440,7 +1440,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 300000);
+                }, 15000);
                 let unsub = () => { active = false; clearInterval(interval); };
                 unsub.refresh = () => { lastHash = ""; doFetch(); };
                 return unsub;
@@ -1559,7 +1559,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 300000);
+                }, 15000);
                 let unsub = () => { active = false; clearInterval(interval); };
                 unsub.refresh = doFetch;
                 return unsub;
@@ -5048,11 +5048,11 @@ function saveGlobalGSUrl() {
             } catch(e) { return String(val); }
         }
 
-        function updateSurveyUI() {
+        function updateSurveyUI(force = false) {
             if(!currentUser) return;
             
             // Elak data hilang: Jangan re-render UI jika pengguna sedang mengisi borang survey atau popup Swal aktif
-            if (typeof Swal !== 'undefined' && Swal.isVisible()) return;
+            if (!force && typeof Swal !== 'undefined' && Swal.isVisible()) return;
             let amListEl = document.getElementById('survey-am-list');
             if (amListEl && amListEl.innerHTML.trim() !== '') {
                 if (amListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
@@ -6106,7 +6106,8 @@ function saveGlobalGSUrl() {
                         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation') && Swal.isVisible()) {
                             setTimeout(() => viewSurveyReport(surveyId), 300);
                         } else {
-                            updateSurveyUI();
+                            updateSurveyUI(true);
+                            setTimeout(() => updateSurveyUI(true), 350);
                         }
                     } catch(e) {
                         showToast('error', 'Failed to delete data.');
