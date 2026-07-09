@@ -1646,7 +1646,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.29;
+        const APP_VERSION = 10.30;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2551,9 +2551,17 @@ function saveGlobalGSUrl() {
                 el.value = v;
             }
             if(id === 'dash-month') {
-                let dArr = v.split('-'); if(dArr.length===2) {
+                let modeEl = document.getElementById('dash-mode');
+                if (modeEl && modeEl.value === 'monthly') {
+                    let dArr = v.split('-'); if(dArr.length===2) {
+                        let disp = document.getElementById('dash-date-display');
+                        if (disp) disp.innerText = `${dArr[1]}/${dArr[0]}`;
+                    }
+                }
+            } else if (id === 'dash-date') {
+                let dArr = v.split('-'); if(dArr.length===3) {
                     let disp = document.getElementById('dash-date-display');
-                    if (disp) disp.innerText = `${dArr[1]}/${dArr[0]}`;
+                    if (disp) disp.innerText = `${dArr[2]}/${dArr[1]}/${dArr[0]}`;
                 }
             } else {
                 let dArr = v.split('-'); if(dArr.length===3) {
@@ -3104,13 +3112,13 @@ function saveGlobalGSUrl() {
             try {
                 todayStr = getYYYYMMDD(new Date());
                 currentMonthStr = todayStr.substring(0, 7);
-                if(document.getElementById('dash-date')) {
-                    document.getElementById('dash-date').value = todayStr;
-                    updateDateDisplay('dash-date');
-                }
                 if(document.getElementById('dash-month')) {
                     document.getElementById('dash-month').value = currentMonthStr;
                     updateDateDisplay('dash-month');
+                }
+                if(document.getElementById('dash-date')) {
+                    document.getElementById('dash-date').value = todayStr;
+                    updateDateDisplay('dash-date');
                 }
                 if(document.getElementById('track-date')) {
                     document.getElementById('track-date').value = todayStr;
