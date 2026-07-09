@@ -1646,7 +1646,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.28;
+        const APP_VERSION = 10.29;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2543,11 +2543,23 @@ function saveGlobalGSUrl() {
 
         // --- 3. UI/Routing ---
         function updateDateDisplay(id) { 
-            let v = document.getElementById(id).value; 
+            let el = document.getElementById(id);
+            if (!el) return;
+            let v = el.value;
+            if (!v) {
+                v = (id === 'dash-month' || id === 'compare-month') ? getYYYYMMDD(new Date()).substring(0, 7) : getYYYYMMDD(new Date());
+                el.value = v;
+            }
             if(id === 'dash-month') {
-                let dArr = v.split('-'); if(dArr.length===2) document.getElementById('dash-date-display').innerText = `${dArr[1]}/${dArr[0]}`;
+                let dArr = v.split('-'); if(dArr.length===2) {
+                    let disp = document.getElementById('dash-date-display');
+                    if (disp) disp.innerText = `${dArr[1]}/${dArr[0]}`;
+                }
             } else {
-                let dArr = v.split('-'); if(dArr.length===3) document.getElementById(id+'-display').innerText = `${dArr[2]}/${dArr[1]}/${dArr[0]}`; 
+                let dArr = v.split('-'); if(dArr.length===3) {
+                    let disp = document.getElementById(id+'-display');
+                    if (disp) disp.innerText = `${dArr[2]}/${dArr[1]}/${dArr[0]}`;
+                }
             }
         }
         
