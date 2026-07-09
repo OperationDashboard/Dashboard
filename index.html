@@ -1643,7 +1643,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.11;
+        const APP_VERSION = 10.12;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -1863,14 +1863,16 @@ function saveGlobalGSUrl() {
                     document.getElementById('nav-buttons').classList.add('hidden');
                     document.getElementById('logged-in-controls').classList.remove('hidden'); document.getElementById('logged-in-controls').classList.add('flex');
                     document.getElementById('current-user-name').innerText = currentUser.name; document.getElementById('current-user-role').innerText = role;
-                    listenToSurveyBadge();
+                    try { listenToSurveyBadge(); } catch(errSurvey) { console.error("Auto login listenToSurveyBadge err:", errSurvey); }
                     if(role === 'branch') {
-                        if(typeof setupBranchView === 'function') setupBranchView();
-                        syncBranchFromCloud();
+                        try { if(typeof setupBranchView === 'function') setupBranchView(); } catch(e){}
+                        try { syncBranchFromCloud(); } catch(e){}
                     } else {
-                        setupManagerView();
+                        try { setupManagerView(); } catch(errManager) { console.error("Auto login setupManagerView err:", errManager); }
                     }
-                } catch(e) { localStorage.removeItem('pbi_user'); }
+                } catch(e) {
+                    console.error("Auto-login error:", e);
+                }
             }
         });
         
@@ -4646,8 +4648,8 @@ function saveGlobalGSUrl() {
         }
 
         function listenToSurveyBadge() {
-            if (surveyUnsubscribe) surveyUnsubscribe();
-            if (responsesUnsubscribe) responsesUnsubscribe();
+            if (typeof surveyUnsubscribe === 'function') surveyUnsubscribe();
+            if (typeof responsesUnsubscribe === 'function') responsesUnsubscribe();
             
             surveysLoaded = false;
             responsesLoaded = false;
