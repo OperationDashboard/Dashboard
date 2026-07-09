@@ -1329,7 +1329,22 @@ window.onunhandledrejection = function(event) {
         // --- Supabase Database Bridge (v10.00 Merdeka Edition) ---
         const SUPABASE_URL = "https://jolrtaqlpqqydncacqza.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbHJ0YXFscHFxeWRuY2FjcXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTM5OTYsImV4cCI6MjA5ODc2OTk5Nn0.09IP62_5lE5mMziTeBlYfVhydZeCXHuxwMSvnZBQD6E";
-        const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let _sbClientInstance = null;
+        function getSbClient() {
+            if (_sbClientInstance) return _sbClientInstance;
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                _sbClientInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                return _sbClientInstance;
+            }
+            return null;
+        }
+        const sbClient = {
+            from: (col) => {
+                let client = getSbClient();
+                if (!client) throw new Error("Supabase client not initialized yet");
+                return client.from(col);
+            }
+        };
 
         function applyDotUpdates(target, updateObj) {
             target = target || {};
@@ -1669,7 +1684,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.34;
+        const APP_VERSION = 10.35;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3186,7 +3201,25 @@ function saveGlobalGSUrl() {
 
         function getManagerFilteredBranches() {
             if(!currentUser) return [];
-            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') ? masterBranches : masterBranches.filter(b => (b.am || '').trim().toUpperCase() === (currentUser.name || '').trim().toUpperCase());
+            let cName = (currentUser.name || '').trim().toUpperCase();
+            let base = (currentUser.role === 'admin' || currentUser.role === 'operation') 
+                ? [...masterBranches] 
+                : masterBranches.filter(b => {
+                      let bAm = (b.am || '').trim().toUpperCase();
+                      return bAm === cName || bAm.includes(cName) || cName.includes(bAm);
+                  });
+            if (base.length === 0 && Array.isArray(dbSubmissions) && dbSubmissions.length > 0) {
+                let seenCode = new Set();
+                dbSubmissions.forEach(s => {
+                    if (s && s.code && !seenCode.has(String(s.code))) {
+                        let sAm = (s.am || '').trim().toUpperCase();
+                        if (currentUser.role === 'admin' || currentUser.role === 'operation' || sAm === cName || sAm.includes(cName) || cName.includes(sAm)) {
+                            seenCode.add(String(s.code));
+                            base.push({ code: String(s.code), name: s.name || String(s.code), am: s.am || cName, state: s.state || '', warehouse: s.warehouse || '' });
+                        }
+                    }
+                });
+            }
             let fAM = document.getElementById('filter-am') ? document.getElementById('filter-am').value : '';
             let fState = document.getElementById('filter-state') ? document.getElementById('filter-state').value : '';
             let fWH = document.getElementById('filter-warehouse') ? document.getElementById('filter-warehouse').value : '';
@@ -3238,14 +3271,26 @@ function saveGlobalGSUrl() {
             let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily') : 'daily';
             let targetDate = mode === 'daily' ? document.getElementById(currentTab === 'dashboard' ? 'dash-date' : 'track-date').value : document.getElementById('dash-month').value;
             let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>String(b.code));
-            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(String(s.code)));
+            let cName = currentUser ? (currentUser.name || '').trim().toUpperCase() : '';
+            let dashData = dbSubmissions.filter(s => {
+                let matchDate = (mode === 'daily' ? s.date === targetDate : s.date.startsWith(targetDate));
+                if (!matchDate) return false;
+                if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) return true;
+                if (bCodes.includes(String(s.code))) return true;
+                let sAm = (s.am || '').trim().toUpperCase();
+                return sAm === cName || sAm.includes(cName) || (cName && cName.includes(sAm));
+            });
             
             let subRatioEl = document.getElementById('am-stat-ratio');
             if(subRatioEl) {
                 let submittedCount = new Set(dashData.filter(s => s.night_locked).map(s=>s.code)).size;
                 let totalBranches = branches.length;
-                if (totalBranches === 0 && currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) {
-                    totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2855;
+                if (totalBranches === 0) {
+                    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) {
+                        totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2855;
+                    } else {
+                        totalBranches = submittedCount;
+                    }
                 }
                 subRatioEl.innerText = mode==='daily' ? `${submittedCount} / ${totalBranches}` : `Monthly`;
                 subRatioEl.className = `text-sm font-black ml-1 ${submittedCount===totalBranches && totalBranches>0 ? 'text-emerald-400' : 'text-amber-400'}`;
@@ -4099,7 +4144,13 @@ function saveGlobalGSUrl() {
             });
             
             subData.forEach(s => {
-                if(!grouped[s.code]) return;
+                if(!s || !s.code) return;
+                if(!grouped[s.code]) {
+                    grouped[s.code] = {
+                        code: s.code, name: s.name || s.code, am: s.am || 'Unknown',
+                        totalSales: 0, totalLorry: 0, weeksCount: weeks.map(() => 0)
+                    };
+                }
                 let sNum = parseFloat(s.sales)||0;
                 let lNum = parseFloat(s.lorry)||0;
                 if(sNum > 0) grouped[s.code].totalSales += sNum;
@@ -6854,9 +6905,19 @@ function saveGlobalGSUrl() {
             }
             
             try {
-                let branches = masterBranches || [];
-                if (amFilter) branches = branches.filter(b => (b.am || '').trim().toUpperCase() === String(amFilter).trim().toUpperCase());
-                else if (!isAdminOrOp) branches = branches.filter(b => (b.am || '').trim().toUpperCase() === (currentUser.name || '').trim().toUpperCase());
+                let branches = [...(masterBranches || [])];
+                let cAM = amFilter ? String(amFilter).trim().toUpperCase() : '';
+                if (cAM && !isAdminOrOp) {
+                    branches = branches.filter(b => {
+                        let bAm = (b.am || '').trim().toUpperCase();
+                        return bAm === cAM || bAm.includes(cAM) || cAM.includes(bAm);
+                    });
+                } else if (cAM && isAdminOrOp) {
+                    branches = branches.filter(b => {
+                        let bAm = (b.am || '').trim().toUpperCase();
+                        return bAm === cAM || bAm.includes(cAM) || cAM.includes(bAm);
+                    });
+                }
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 2 (targets)...</td></tr>';
                 let targetSnap;
@@ -6871,7 +6932,8 @@ function saveGlobalGSUrl() {
                 if (targetSnap && targetSnap.docs) {
                     targetSnap.docs.forEach(d => {
                         let tData = d.data();
-                        if (!amFilter || (tData.am || '').trim().toUpperCase() === String(amFilter).trim().toUpperCase()) {
+                        let tAm = (tData.am || '').trim().toUpperCase();
+                        if (!cAM || isAdminOrOp || tAm === cAM || tAm.includes(cAM) || cAM.includes(tAm)) {
                             targets[tData.code] = tData.target_sales;
                         }
                     });
@@ -6894,6 +6956,19 @@ function saveGlobalGSUrl() {
                 } catch(e) {
                     console.error("Error loading submissions for target tracker:", e);
                 }
+                let seenCode = new Set(branches.map(b => String(b.code)));
+                Object.keys(targets).forEach(code => {
+                    if (!seenCode.has(String(code))) {
+                        seenCode.add(String(code));
+                        branches.push({ code: String(code), name: String(code), am: cAM || 'Unknown' });
+                    }
+                });
+                Object.keys(currentSales).forEach(code => {
+                    if (!seenCode.has(String(code))) {
+                        seenCode.add(String(code));
+                        branches.push({ code: String(code), name: String(code), am: cAM || 'Unknown' });
+                    }
+                });
                 branches.forEach(b => {
                     let subSales = 0;
                     dbSubmissions.forEach(sub => {
