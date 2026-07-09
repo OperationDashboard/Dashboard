@@ -4653,8 +4653,9 @@ function saveGlobalGSUrl() {
             responsesLoaded = false;
             hasAlertedSurvey = false;
             
-            surveyUnsubscribe = db.collection('surveys').orderBy('createdAt', 'desc').limit(50).onSnapshot(snap => {
+            surveyUnsubscribe = db.collection('surveys').onSnapshot(snap => {
                 allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
                 surveysLoaded = true;
                 
                 let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
@@ -4690,8 +4691,15 @@ function saveGlobalGSUrl() {
                 });
             }, err => {
                 console.error("Surveys snapshot err:", err);
-                surveysLoaded = true;
-                updateSurveyUI(true);
+                db.collection('surveys').get().then(snap => {
+                    allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                    allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                    surveysLoaded = true;
+                    updateSurveyUI(true);
+                }).catch(e => {
+                    surveysLoaded = true;
+                    updateSurveyUI(true);
+                });
             });
         }
         
