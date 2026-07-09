@@ -1161,7 +1161,7 @@ function doPost(e) {
                                     <input type="datetime-local" id="survey-new-publish-at" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500 text-xs" title="Kosongkan jika mahu diterbitkan terus">
                                 </div>
                                 <div class="flex items-end">
-                                    <button onclick="createSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap"><i class="fa-solid fa-paper-plane mr-2"></i> Publish Survey</button>
+                                    <button type="button" onclick="createSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap"><i class="fa-solid fa-paper-plane mr-2"></i> Publish Survey</button>
                                 </div>
                             </div>
                             <div class="mt-4 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
@@ -1191,7 +1191,7 @@ function doPost(e) {
                                         <option value="yesno">Option (Yes/No)</option>
                                         <option value="text">Teks Pendek</option>
                                     </select>
-                                    <button onclick="addCustomQuestion()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold py-1.5 px-3 rounded-lg"><i class="fa-solid fa-plus"></i> Add</button>
+                                    <button type="button" onclick="addCustomQuestion()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold py-1.5 px-3 rounded-lg"><i class="fa-solid fa-plus"></i> Add</button>
                                 </div>
                                 <div id="survey-builder-reason-container" class="hidden mt-2">
                                     <input type="text" id="survey-builder-qreasons" class="w-full bg-slate-950 text-indigo-200 rounded-lg px-3 py-1.5 border border-indigo-700/50 text-xs placeholder-slate-500" placeholder="Senarai Sebab jika jawab 'Tidak' (asingkan dengan koma, cth: Outlet Type D, Tiada Rak, Lain-lain)">
@@ -1201,7 +1201,7 @@ function doPost(e) {
                                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Bulk Add Items (Paste list of items)</label>
                                     <div class="flex gap-2">
                                         <textarea id="survey-builder-bulk" rows="3" class="w-full bg-slate-950 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm" placeholder="Paste item list here (one per line). All will be added as 'Kuantiti (Nombor)' type."></textarea>
-                                        <button onclick="bulkAddQuestions()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold py-2 px-4 rounded-lg self-end"><i class="fa-solid fa-upload"></i> Process</button>
+                                        <button type="button" onclick="bulkAddQuestions()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold py-2 px-4 rounded-lg self-end"><i class="fa-solid fa-upload"></i> Process</button>
                                     </div>
                                 </div>
                             </div>
@@ -1644,7 +1644,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.17;
+        const APP_VERSION = 10.18;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -5545,7 +5545,7 @@ function saveGlobalGSUrl() {
                         <div class="text-sm text-white"><i class="fa-solid ${icon} text-indigo-400 w-5"></i> ${q.label} <span class="text-xs text-slate-500 ml-2">(${typeName})</span></div>
                         ${reasonsBadge}
                     </div>
-                    <button onclick="removeCustomQuestion(${idx})" class="text-rose-500 hover:text-rose-400"><i class="fa-solid fa-times"></i></button>
+                    <button type="button" onclick="removeCustomQuestion(${idx})" class="text-rose-500 hover:text-rose-400"><i class="fa-solid fa-times"></i></button>
                 </div>
                 `;
             });
