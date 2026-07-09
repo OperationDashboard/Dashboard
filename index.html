@@ -5583,21 +5583,13 @@ function saveGlobalGSUrl() {
                         allResponses = allResponses.filter(r => r.surveyId !== id);
                         updateSurveyUI();
                         
-                        // Query Firestore directly for ALL responses belonging to this survey (active or closed)
-                        let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
-                        let docs = snap.docs;
-                        let chunkSize = 400;
-                        for (let i = 0; i < docs.length; i += chunkSize) {
-                            let chunk = docs.slice(i, i + chunkSize);
-                            let batch = db.batch();
-                            chunk.forEach(d => {
-                                batch.delete(d.ref);
-                            });
-                            await batch.commit();
+                        // Fast bulk delete in Supabase for all responses belonging to this survey
+                        if (typeof sbClient !== 'undefined' && sbClient) {
+                            await sbClient.from('survey_responses').delete().eq('surveyId', id);
                         }
                         
                         await db.collection('surveys').doc(id).delete();
-                        showToast('success', `Survey dan ${docs.length} rekod maklum balas berjaya dipadam bersih.`);
+                        showToast('success', `Survey dan semua rekod maklum balas berjaya dipadam bersih.`);
                     } catch(e) {
                         console.error(e);
                         showToast('error', 'Error memadam survey: ' + e.message);
@@ -6109,8 +6101,13 @@ function saveGlobalGSUrl() {
                 if(result.isConfirmed) {
                     try {
                         await db.collection('survey_responses').doc(responseId).delete();
-                        showToast('success', 'Data dipadam.');
-                        setTimeout(() => viewSurveyReport(surveyId), 300);
+                        allResponses = allResponses.filter(r => r.id !== responseId);
+                        showToast('success', 'Data cawangan berjaya dipadam dan boleh diisi semula.');
+                        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation') && Swal.isVisible()) {
+                            setTimeout(() => viewSurveyReport(surveyId), 300);
+                        } else {
+                            updateSurveyUI();
+                        }
                     } catch(e) {
                         showToast('error', 'Failed to delete data.');
                     }
