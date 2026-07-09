@@ -4696,10 +4696,13 @@ function saveGlobalGSUrl() {
                 if (user.role === 'branch') {
                     return s.selectedBranches.includes(String(user.id)) || s.selectedBranches.includes(Number(user.id));
                 } else if (user.role === 'am') {
+                    if (!masterBranches || masterBranches.length === 0) return true;
                     let amName = (user.name || '').trim().toUpperCase();
                     let myBranches = masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName);
-                    let hasTarget = myBranches.some(b => s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)));
-                    if (!hasTarget) return false;
+                    if (myBranches.length > 0) {
+                        let hasTarget = myBranches.some(b => s.selectedBranches.includes(String(b.code)) || s.selectedBranches.includes(Number(b.code)));
+                        if (!hasTarget) return false;
+                    }
                 }
             }
             return true;
@@ -5095,7 +5098,28 @@ function saveGlobalGSUrl() {
         }
 
         function updateSurveyUI(force = false) {
+            if (!currentUser) {
+                let saved = localStorage.getItem('pbi_user');
+                if (saved) { try { currentUser = JSON.parse(saved); } catch(e){} }
+            }
             if(!currentUser) return;
+
+            let adV = document.getElementById('survey-admin-view');
+            let amV = document.getElementById('survey-am-view');
+            let brV = document.getElementById('branch-survey-container');
+            if (currentUser.role === 'branch') {
+                if (brV) { brV.classList.remove('hidden'); brV.style.display = 'block'; }
+                if (amV) { amV.classList.add('hidden'); amV.style.display = 'none'; }
+                if (adV) { adV.classList.add('hidden'); adV.style.display = 'none'; }
+            } else if (currentUser.role === 'am') {
+                if (amV) { amV.classList.remove('hidden'); amV.style.display = 'block'; }
+                if (adV) { adV.classList.add('hidden'); adV.style.display = 'none'; }
+                if (brV) { brV.classList.add('hidden'); brV.style.display = 'none'; }
+            } else {
+                if (adV) { adV.classList.remove('hidden'); adV.style.display = 'block'; }
+                if (amV) { amV.classList.add('hidden'); amV.style.display = 'none'; }
+                if (brV) { brV.classList.add('hidden'); brV.style.display = 'none'; }
+            }
             
             // Elak data hilang: Jangan re-render UI jika pengguna sedang mengisi borang survey atau popup Swal aktif
             if (!force && typeof Swal !== 'undefined' && Swal.isVisible()) return;
@@ -5139,28 +5163,8 @@ function saveGlobalGSUrl() {
             }
 
             if (currentUser.role === 'am') {
-                let amV = document.getElementById('survey-am-view'); if(amV) { amV.classList.remove('hidden'); amV.style.display = 'block'; }
-                let adV = document.getElementById('survey-admin-view'); if(adV) { adV.classList.add('hidden'); adV.style.display = 'none'; }
-                
                 let amName = (currentUser.name || '').trim().toUpperCase();
-                let pendingSurveys = allSurveys.filter(s => {
-                    if (!isSurveyForUser(s, currentUser)) return false;
-                    if (!s.targetAudience || s.targetAudience === 'am') {
-                        if (s.type === 'custom') {
-                            let respondedBranches = allResponses.filter(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName).map(r => String(r.branchCode));
-                            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
-                            if (myBranches.length === 0) return false;
-                            return myBranches.some(b => !respondedBranches.includes(String(b.code)));
-                        }
-                        return !allResponses.some(r => r.surveyId === s.id && (r.amName || '').trim().toUpperCase() === amName);
-                    }
-                    if (s.targetAudience === 'branch') {
-                        let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
-                        if (myBranches.length === 0) return false;
-                        return !(s.amClosed || []).includes(amName);
-                    }
-                    return false;
-                });
+                let pendingSurveys = allSurveys.filter(s => isSurveyForUser(s, currentUser));
                 
                 let html = '';
                 if (pendingSurveys.length === 0) {
