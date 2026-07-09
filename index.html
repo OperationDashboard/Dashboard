@@ -282,7 +282,7 @@
                             <input type="date" id="dash-date" onchange="updateDateDisplay('dash-date'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer">
                             <input type="month" id="dash-month" onchange="updateDateDisplay('dash-month'); triggerDataSync();" class="absolute inset-0 opacity-0 cursor-pointer hidden">
                         </div>
-                        <button onclick="clearCacheAndRefresh()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg px-4 py-2.5 shadow-lg transition-colors border border-indigo-500 flex items-center gap-2">
+                        <button onclick="clearCacheAndRefresh()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg px-4 py-2.5 shadow-lg transition-colors border border-indigo-400 flex items-center gap-2">
                             <i class="fa-solid fa-arrows-rotate"></i> Reload Data
                         </button>
                     </div>
@@ -290,9 +290,9 @@
                     <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                         <button onclick="toggleMasterLock()" id="btn-master-lock" class="super-admin hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
                           <button onclick="togglePastLock()" id="btn-past-lock" class="super-admin hidden flex-1 sm:flex-none cursor-pointer px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow border"></button>
-                          <button onclick="showMissingSales()" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-amber-600/20 text-amber-500 border border-amber-500/50 hover:bg-amber-600 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow"><i class="fa-solid fa-user-xmark mr-1"></i> Missing Sales</button>
-                        <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-green-400 border border-green-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
-                        <button onclick="exportData('pdf')" class="flex-1 sm:flex-none cursor-pointer bg-slate-800 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-slate-700 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
+                          <button onclick="showMissingSales()" class="admin-only hidden flex-1 sm:flex-none cursor-pointer bg-amber-600 text-white border border-amber-400 hover:bg-amber-500 px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow"><i class="fa-solid fa-user-xmark mr-1"></i> Missing Sales</button>
+                        <button onclick="exportData('excel')" class="flex-1 sm:flex-none cursor-pointer bg-emerald-700 text-white border border-emerald-400 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-emerald-600 shadow transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+                        <button onclick="exportData('pdf')" class="flex-1 sm:flex-none cursor-pointer bg-rose-700 text-white border border-rose-400 px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-rose-600 shadow transition-colors"><i class="fa-solid fa-file-pdf mr-1"></i> PDF Data</button>
                     </div>
                 </div>
 
@@ -1684,7 +1684,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.35;
+        const APP_VERSION = 10.36;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2201,8 +2201,12 @@ function saveGlobalGSUrl() {
             let queryKey = mode + "_" + dateStr + "_" + userKeyPart;
 
             if (!forceRefresh && (window.activeListeners[queryKey] || window.fetchedQueries[queryKey])) {
-                if (mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr) && dateStr <= todayStr) {
-                    // Re-fetch if daily date was wiped out from memory by monthly tab
+                if (mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr)) {
+                    delete window.fetchedQueries[queryKey];
+                    if (window.activeListeners[queryKey]) {
+                        try { window.activeListeners[queryKey](); } catch(e){}
+                        delete window.activeListeners[queryKey];
+                    }
                 } else {
                     if (window.activeListeners[queryKey] && typeof window.activeListeners[queryKey].refresh === 'function') {
                         window.activeListeners[queryKey].refresh();
@@ -3283,15 +3287,12 @@ function saveGlobalGSUrl() {
             
             let subRatioEl = document.getElementById('am-stat-ratio');
             if(subRatioEl) {
-                let submittedCount = new Set(dashData.filter(s => s.night_locked).map(s=>s.code)).size;
+                let submittedCount = new Set(dashData.map(s=>String(s.code))).size;
                 let totalBranches = branches.length;
-                if (totalBranches === 0) {
-                    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) {
-                        totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2855;
-                    } else {
-                        totalBranches = submittedCount;
-                    }
+                if (totalBranches === 0 || (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation')) {
+                    totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2855;
                 }
+                if (totalBranches < submittedCount) totalBranches = submittedCount;
                 subRatioEl.innerText = mode==='daily' ? `${submittedCount} / ${totalBranches}` : `Monthly`;
                 subRatioEl.className = `text-sm font-black ml-1 ${submittedCount===totalBranches && totalBranches>0 ? 'text-emerald-400' : 'text-amber-400'}`;
             }
@@ -3302,20 +3303,20 @@ function saveGlobalGSUrl() {
               let btnPast = document.getElementById('btn-past-lock');
               if(!btn) return;
               if(masterLock) {
-                btn.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                btn.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-rose-700 text-white border border-rose-400 hover:bg-rose-600 px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                 btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked (Today)`;
             } else {
-                btn.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                btn.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-emerald-700 text-white border border-emerald-400 hover:bg-emerald-600 px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                 btn.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked (Today)`;
               }
               if(currentUser && currentUser.role === 'admin') btn.classList.remove('hidden');
 
               if(btnPast) {
                   if(pastLock) {
-                      btnPast.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                      btnPast.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-rose-700 text-white border border-rose-400 hover:bg-rose-600 px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                       btnPast.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> System Locked (Past)`;
                   } else {
-                      btnPast.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-emerald-950/80 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900 hover:text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
+                      btnPast.className = "super-admin hidden flex-1 sm:flex-none cursor-pointer bg-emerald-700 text-white border border-emerald-400 hover:bg-emerald-600 px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow";
                       btnPast.innerHTML = `<i class="fa-solid fa-lock-open mr-1"></i> System Unlocked (Past)`;
                   }
                   if(currentUser && currentUser.role === 'admin') btnPast.classList.remove('hidden');
@@ -3362,7 +3363,15 @@ function saveGlobalGSUrl() {
             let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
             let targetDate = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
             let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>String(b.code));
-            let dashData = dbSubmissions.filter(s => (mode==='daily' ? s.date === targetDate : s.date.startsWith(targetDate)) && bCodes.includes(String(s.code)));
+            let cName = currentUser ? (currentUser.name || '').trim().toUpperCase() : '';
+            let dashData = dbSubmissions.filter(s => {
+                let matchDate = (mode === 'daily' ? s.date === targetDate : s.date.startsWith(targetDate));
+                if (!matchDate) return false;
+                if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation' || bCodes.length === 0) return true;
+                if (bCodes.includes(String(s.code))) return true;
+                let sAm = (s.am || '').trim().toUpperCase();
+                return sAm === cName || sAm.includes(cName) || (cName && cName.includes(sAm));
+            });
             
             updateSubmissionRatio();
 
