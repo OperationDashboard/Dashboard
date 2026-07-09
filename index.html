@@ -1646,7 +1646,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.27;
+        const APP_VERSION = 10.28;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2786,6 +2786,8 @@ function saveGlobalGSUrl() {
             if(!currentUser) return;
             todayStr = getYYYYMMDD(new Date());
             currentMonthStr = todayStr.substring(0, 7);
+            if (document.getElementById('night-date')) document.getElementById('night-date').value = todayStr;
+            if (document.getElementById('bank-in-date')) document.getElementById('bank-in-date').value = todayStr;
             document.getElementById('section-welcome').classList.add('hidden');
             document.getElementById('section-branch').classList.remove('hidden');
             
@@ -3090,15 +3092,24 @@ function saveGlobalGSUrl() {
             try {
                 todayStr = getYYYYMMDD(new Date());
                 currentMonthStr = todayStr.substring(0, 7);
-                if(document.getElementById('dash-date')) document.getElementById('dash-date').value = todayStr;
-                if(document.getElementById('dash-month')) document.getElementById('dash-month').value = currentMonthStr;
-                if(document.getElementById('track-date')) document.getElementById('track-date').value = todayStr;
+                if(document.getElementById('dash-date')) {
+                    document.getElementById('dash-date').value = todayStr;
+                    updateDateDisplay('dash-date');
+                }
+                if(document.getElementById('dash-month')) {
+                    document.getElementById('dash-month').value = currentMonthStr;
+                    updateDateDisplay('dash-month');
+                }
+                if(document.getElementById('track-date')) {
+                    document.getElementById('track-date').value = todayStr;
+                    updateDateDisplay('track-date');
+                }
                 let sw = document.getElementById('section-welcome'); if(sw) sw.classList.add('hidden');
                 let sb = document.getElementById('section-branch'); if(sb) sb.classList.add('hidden');
                 let sm = document.getElementById('section-manager'); if(sm) sm.classList.remove('hidden');
             } catch(e) {}
             try { populateFilters(); } catch(e) {}
-            try { switchTab('dashboard'); } catch(e) {}
+            try { switchTab('dashboard'); triggerDataSync(); } catch(e) {}
             try { updateMasterLockUI(); } catch(e) {}
             try { initTargetTracker(); } catch(e) {}
             try {
