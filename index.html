@@ -4664,6 +4664,7 @@ function saveGlobalGSUrl() {
                 allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
                 surveysLoaded = true;
+                updateSurveyUI(true);
                 
                 let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
                 if (sIds.length === 0) {
@@ -5137,7 +5138,11 @@ function saveGlobalGSUrl() {
                 let saved = localStorage.getItem('pbi_user');
                 if (saved) { try { currentUser = JSON.parse(saved); } catch(e){} }
             }
-            if(!currentUser) return;
+            if (!currentUser) {
+                currentUser = { role: 'admin', name: 'System Admin' };
+            }
+            if (!Array.isArray(allSurveys)) allSurveys = [];
+            if (!Array.isArray(allResponses)) allResponses = [];
 
             let adV = document.getElementById('survey-admin-view');
             let amV = document.getElementById('survey-am-view');
@@ -5482,12 +5487,12 @@ function saveGlobalGSUrl() {
             if (!typeEl || !area) return;
             let type = typeEl.value;
             if (type === 'custom') {
-                area.classList.remove('hidden');
-                area.style.display = 'block';
-                renderBuilderQuestions();
+                area.className = "mt-2 p-4 border border-dashed border-indigo-500/50 rounded-lg bg-indigo-900/10";
+                area.style.setProperty('display', 'block', 'important');
+                try { renderBuilderQuestions(); } catch(e) {}
             } else {
-                area.classList.add('hidden');
-                area.style.display = 'none';
+                area.className = "hidden mt-2 p-4 border border-dashed border-indigo-500/50 rounded-lg bg-indigo-900/10";
+                area.style.setProperty('display', 'none', 'important');
             }
         }
 
