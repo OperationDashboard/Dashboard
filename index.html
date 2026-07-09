@@ -1646,7 +1646,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.31;
+        const APP_VERSION = 10.32;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3899,6 +3899,14 @@ function saveGlobalGSUrl() {
 
         window._monthlySummaryCache = window._monthlySummaryCache || {};
         async function queryMonthlySummariesData(startDate, endDate, amFilter = "", forceRefresh = false) {
+            let normDate = (str) => {
+                if (!str) return str;
+                let parts = str.split('-');
+                if (parts.length === 3) return `${parts[0]}-${String(parts[1]).padStart(2,'0')}-${String(parts[2]).padStart(2,'0')}`;
+                return str;
+            };
+            startDate = normDate(startDate);
+            endDate = normDate(endDate);
             let sDate = new Date(startDate);
             let eDate = new Date(endDate);
             let monthsToFetch = new Set();
@@ -3952,7 +3960,7 @@ function saveGlobalGSUrl() {
                         if (bData.daily) {
                             for (let day in bData.daily) {
                                 let daily = bData.daily[day];
-                                let fullDate = (d.month || docMonth) + "-" + day;
+                                let fullDate = (d.month || docMonth) + "-" + String(day).padStart(2, '0');
                                 if (fullDate >= startDate && fullDate <= endDate) {
                                     results.push({
                                         code: String(code),
