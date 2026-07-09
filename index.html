@@ -1636,14 +1636,15 @@ window.onunhandledrejection = function(event) {
                         alert(arg1 + (arg2 ? '\n\n' + arg2 : ''));
                         return Promise.resolve({ isConfirmed: true });
                     }
-                }
+                },
+                isVisible: function() { return false; }
             };
             console.warn('SweetAlert2 failed to load. Using native fallback.');
         }
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.12;
+        const APP_VERSION = 10.15;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -5164,7 +5165,7 @@ function saveGlobalGSUrl() {
             }
             
             // Elak data hilang: Jangan re-render UI jika pengguna sedang mengisi borang survey atau popup Swal aktif
-            if (!force && typeof Swal !== 'undefined' && Swal.isVisible()) return;
+            if (!force && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) return;
             if (!force) {
                 let amListEl = document.getElementById('survey-am-list');
                 if (amListEl && amListEl.innerHTML.trim() !== '' && !amListEl.innerHTML.includes('Loading')) {
@@ -5416,6 +5417,7 @@ function saveGlobalGSUrl() {
                 let listEl = document.getElementById('survey-admin-list');
                 if (listEl) listEl.innerHTML = html;
             }
+            try { toggleSurveyTypeUI(); } catch(e) {}
         }
 
         function renderSurveyInputs(id) {
@@ -5489,11 +5491,13 @@ function saveGlobalGSUrl() {
             if (!typeEl || !area) return;
             let type = typeEl.value;
             if (type === 'custom') {
-                area.className = "mt-2 p-4 border border-dashed border-indigo-500/50 rounded-lg bg-indigo-900/10";
+                area.classList.remove('hidden');
+                area.style.display = 'block';
                 area.style.setProperty('display', 'block', 'important');
                 try { renderBuilderQuestions(); } catch(e) {}
             } else {
-                area.className = "hidden mt-2 p-4 border border-dashed border-indigo-500/50 rounded-lg bg-indigo-900/10";
+                area.classList.add('hidden');
+                area.style.display = 'none';
                 area.style.setProperty('display', 'none', 'important');
             }
         }
@@ -6334,7 +6338,7 @@ function saveGlobalGSUrl() {
                         await db.collection('survey_responses').doc(responseId).delete();
                         allResponses = allResponses.filter(r => r.id !== responseId);
                         showToast('success', 'Data cawangan berjaya dipadam dan boleh diisi semula.');
-                        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation') && Swal.isVisible()) {
+                        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation') && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
                             setTimeout(() => viewSurveyReport(surveyId), 300);
                         } else {
                             updateSurveyUI(true);
