@@ -2055,6 +2055,13 @@ function saveGlobalGSUrl() {
                     }
                 }
             });
+            if (!window._configHeartbeat) {
+                window._configHeartbeat = setInterval(() => {
+                    if (!document.hidden && configListener && typeof configListener.refresh === 'function') {
+                        configListener.refresh();
+                    }
+                }, 5000);
+            }
         }
 
         window.addEventListener('focus', () => {
@@ -2190,7 +2197,6 @@ function saveGlobalGSUrl() {
 
             try {
                 let q = db.collection("submissions").where("date", ">=", monthStr + "-01").where("date", "<=", monthStr + "-31");
-                if (amName) q = q.where("am", "==", amName);
                 let snap = await q.get();
                 snap.forEach(doc => {
                     if (doc.exists) {
@@ -6971,19 +6977,8 @@ function saveGlobalGSUrl() {
             }
             
             try {
-                let branches = [...(masterBranches || [])];
-                let cAM = amFilter ? String(amFilter).trim().toUpperCase() : '';
-                if (cAM && !isAdminOrOp) {
-                    branches = branches.filter(b => {
-                        let bAm = (b.am || '').trim().toUpperCase();
-                        return bAm === cAM || bAm.includes(cAM) || cAM.includes(bAm);
-                    });
-                } else if (cAM && isAdminOrOp) {
-                    branches = branches.filter(b => {
-                        let bAm = (b.am || '').trim().toUpperCase();
-                        return bAm === cAM || bAm.includes(cAM) || cAM.includes(bAm);
-                    });
-                }
+                let branches = getManagerFilteredBranches();
+                let allowedCodes = new Set(branches.map(b => String(b.code)));
 
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 2 (targets)...</td></tr>';
                 let targetSnap;
@@ -6998,8 +6993,7 @@ function saveGlobalGSUrl() {
                 if (targetSnap && targetSnap.docs) {
                     targetSnap.docs.forEach(d => {
                         let tData = d.data();
-                        let tAm = (tData.am || '').trim().toUpperCase();
-                        if (!cAM || isAdminOrOp || tAm === cAM || tAm.includes(cAM) || cAM.includes(tAm)) {
+                        if (allowedCodes.has(String(tData.code))) {
                             targets[tData.code] = tData.target_sales;
                         }
                     });
@@ -7008,13 +7002,10 @@ function saveGlobalGSUrl() {
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 3 (sales)...</td></tr>';
                 let currentSales = {};
                 try {
-                    let startDate = month + "-01";
-                    let endDate = month + "-31";
-                    let amFilterVal = currentUser && currentUser.role === 'am' ? currentUser.name : null;
-                    let combinedDocs = await fetchSubmissionsChunked(month, amFilterVal);
+                    let combinedDocs = await fetchSubmissionsChunked(month, null);
                     combinedDocs.forEach(doc => {
                         let d = doc.data();
-                        if (d && d.code && d.date && d.date.startsWith(month)) {
+                        if (d && d.code && d.date && d.date.startsWith(month) && allowedCodes.has(String(d.code))) {
                             let c = String(d.code);
                             currentSales[c] = (currentSales[c] || 0) + (parseFloat(d.sales) || 0);
                         }
@@ -7022,19 +7013,6 @@ function saveGlobalGSUrl() {
                 } catch(e) {
                     console.error("Error loading submissions for target tracker:", e);
                 }
-                let seenCode = new Set(branches.map(b => String(b.code)));
-                Object.keys(targets).forEach(code => {
-                    if (!seenCode.has(String(code))) {
-                        seenCode.add(String(code));
-                        branches.push({ code: String(code), name: String(code), am: cAM || 'Unknown' });
-                    }
-                });
-                Object.keys(currentSales).forEach(code => {
-                    if (!seenCode.has(String(code))) {
-                        seenCode.add(String(code));
-                        branches.push({ code: String(code), name: String(code), am: cAM || 'Unknown' });
-                    }
-                });
                 branches.forEach(b => {
                     let subSales = 0;
                     dbSubmissions.forEach(sub => {
