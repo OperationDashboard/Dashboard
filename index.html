@@ -3427,10 +3427,13 @@ function saveGlobalGSUrl() {
             let dashData = dbSubmissions.filter(s => {
                 let matchDate = (mode === 'daily' ? s.date === targetDate : s.date.startsWith(targetDate));
                 if (!matchDate) return false;
-                if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation' || bCodes.length === 0) return true;
-                if (bCodes.includes(String(s.code))) return true;
-                let sAm = (s.am || '').trim().toUpperCase();
-                return sAm === cName || sAm.includes(cName) || (cName && cName.includes(sAm));
+                if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation') return true;
+                if (currentUser.role === 'am') {
+                    if (bCodes.length > 0) return bCodes.includes(String(s.code));
+                    let sAm = (s.am || '').trim().toUpperCase();
+                    return sAm && cName && sAm === cName;
+                }
+                return bCodes.includes(String(s.code));
             });
             
             updateSubmissionRatio();
@@ -3467,7 +3470,7 @@ function saveGlobalGSUrl() {
             let sorted = Object.values(grouped).sort((a,b) => b.sales - a.sales);
             let top10 = sorted.slice(0, 10), bot10 = sorted.slice(-10).reverse();
             let rowTempl = (s, idx, isTop) => {
-                let b = branches.find(x=>x.code==s.code) || {name: s.name || 'Unknown', am: 'NO AM'};
+                let b = branches.find(x=>String(x.code)===String(s.code)) || (masterBranches && masterBranches.find(x=>String(x.code)===String(s.code))) || {name: s.name || 'Unknown', am: s.am || 'NO AM'};
                 return `<div class="flex items-center justify-between bg-slate-900/50 p-2 rounded-lg border border-slate-800 shadow-sm"><div class="flex items-center gap-3"><span class="w-5 text-center text-xs font-black text-slate-500 bg-slate-950 rounded py-0.5 border border-slate-800">${idx+1}</span><div><p class="text-[11px] font-bold text-white">${b.name}</p><div class="flex items-center gap-1.5"><p class="text-[9px] text-slate-500 uppercase tracking-widest">${s.code}</p><span class="text-[8px] text-cyan-500 font-semibold uppercase"><i class="fa-solid fa-user-tie mr-0.5"></i>${b.am}</span></div></div></div><span class="text-xs font-bold ${isTop?'text-emerald-400':'text-rose-400'}">RM ${formatRM(s.sales)}</span></div>`;
             };
             document.getElementById('board-top').innerHTML = top10.length > 0 ? top10.map((s, i) => rowTempl(s, i, true)).join('') : '<p class="text-xs text-slate-500">No data</p>';
