@@ -1490,13 +1490,29 @@ window.onunhandledrejection = function(event) {
                 let syncListener = () => { lastHash = ""; doFetch(); };
                 if (!window._liveSyncListeners) window._liveSyncListeners = [];
                 window._liveSyncListeners.push(syncListener);
+                
+                let rtChannel = null;
+                try {
+                    rtChannel = sbClient.channel('rt_' + this.col + '_' + Math.random().toString(36).substring(2))
+                        .on('postgres_changes', { event: '*', schema: 'public', table: this.col }, () => {
+                            if (active) doFetch();
+                        }).subscribe();
+                } catch(e) {}
+
+                let onVisChange = () => { if (active && !document.hidden) doFetch(); };
+                document.addEventListener('visibilitychange', onVisChange);
+                window.addEventListener('focus', onVisChange);
+
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 120000);
+                }, 15000);
                 let unsub = () => {
                     active = false;
                     clearInterval(interval);
+                    document.removeEventListener('visibilitychange', onVisChange);
+                    window.removeEventListener('focus', onVisChange);
+                    if (rtChannel) { try { sbClient.removeChannel(rtChannel); } catch(e){} }
                     if (window._liveSyncListeners) window._liveSyncListeners = window._liveSyncListeners.filter(x => x !== syncListener);
                 };
                 unsub.refresh = syncListener;
