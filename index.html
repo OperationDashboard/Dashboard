@@ -2335,9 +2335,6 @@ function saveGlobalGSUrl() {
                     });
             } else {
                 let query = db.collection("submissions").where("date", "==", fetchDateStr);
-                if (currentUser && currentUser.role === 'am') {
-                    query = query.where("am", "==", currentUser.name);
-                }
                 let snapTimer = null;
                 window.activeListeners[queryKey] = query.onSnapshot(snap => {
                     if (snapTimer) clearTimeout(snapTimer);
@@ -3717,21 +3714,22 @@ function saveGlobalGSUrl() {
 
                 let sub = subMap[b.code];
                 let isNightLocked = !!(sub && sub.night_locked);
-                let hasBankIn = sub && ((sub.bank1||0)>0 || (sub.bank2||0)>0);
+                let hasNightData = !!(sub && ((sub.sales||0)>0 || (sub.transactions||0)>0 || (sub.mykasih||0)>0 || (sub.lorry||0)>0 || isNightLocked));
+                let hasBankIn = !!(sub && ((sub.bank1||0)>0 || (sub.bank2||0)>0));
                 
-                let tSales = isNightLocked ? sub.sales||0 : 0; let tTrans = isNightLocked ? sub.transactions||0 : 0;
-                let tMy = isNightLocked ? sub.mykasih||0 : 0; let tLor = isNightLocked ? sub.lorry||0 : 0;
+                let tSales = hasNightData ? sub.sales||0 : 0; let tTrans = hasNightData ? sub.transactions||0 : 0;
+                let tMy = hasNightData ? sub.mykasih||0 : 0; let tLor = hasNightData ? sub.lorry||0 : 0;
                 let bank1 = hasBankIn ? sub.bank1||0 : 0; let bank2 = hasBankIn ? sub.bank2||0 : 0;
                 let tBank = bank1 + bank2; let bal = tSales - tBank;
                 
-                let lorryCol = tLor === 0 && isNightLocked ? `<span class="text-rose-500 font-bold">RM 0.00</span>` : `RM ${formatRM(tLor)}`;
+                let lorryCol = tLor === 0 && hasNightData ? `<span class="text-rose-500 font-bold">RM 0.00</span>` : `RM ${formatRM(tLor)}`;
                 let bank1Col = bank1 === 0 && hasBankIn ? `<span class="text-rose-500 font-bold">RM 0.00</span>` : `RM ${formatRM(bank1)}`;
                 let bank2Col = bank2 === 0 && hasBankIn ? `<span class="text-rose-500 font-bold">RM 0.00</span>` : `RM ${formatRM(bank2)}`;
 
                 let balCol = `<span class="${bal === 0 ? 'text-emerald-500' : 'text-rose-500'} font-bold">RM ${formatRM(bal)}</span>`;
-                let statusBadge = isNightLocked ? `<span class="bg-emerald-950/60 text-emerald-400 border border-emerald-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Sent</span>` : `<span class="bg-amber-950/60 text-amber-500 border border-amber-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Pending</span>`;
+                let statusBadge = isNightLocked ? `<span class="bg-emerald-950/60 text-emerald-400 border border-emerald-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Sent</span>` : (hasNightData ? `<span class="bg-cyan-950/60 text-cyan-400 border border-cyan-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Keyed In</span>` : `<span class="bg-amber-950/60 text-amber-500 border border-amber-900/40 px-2 py-0.5 rounded text-[9px] font-bold uppercase">Pending</span>`);
                 
-                let actNight = isNightLocked ? `<button onclick="resetNight('${date}', '${b.code}')" class="flex-1 bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST SALES</button>` : `<div class="flex-1"></div>`;
+                let actNight = hasNightData ? `<button onclick="resetNight('${date}', '${b.code}')" class="flex-1 bg-rose-950/80 text-rose-400 border border-rose-900/50 hover:bg-rose-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST SALES</button>` : `<div class="flex-1"></div>`;
                 let actBank = hasBankIn ? `<button onclick="resetBank('${date}', '${b.code}')" class="flex-1 bg-amber-950/80 text-amber-400 border border-amber-900/50 hover:bg-amber-900 hover:text-white px-1 py-2 rounded shadow transition-all text-[9px] font-bold text-center">RST BANK</button>` : `<div class="flex-1"></div>`;
                 
                 let adminAct = "";
