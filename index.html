@@ -1482,6 +1482,7 @@ window.onunhandledrejection = function(event) {
                         }
                     }).catch(e => {
                         isFetching = false;
+                        console.error("SBQuery.onSnapshot error:", this.col, e);
                         if (errCb && active) errCb(e);
                     });
                 };
@@ -1612,6 +1613,38 @@ window.onunhandledrejection = function(event) {
                 }
                 return res;
             }
+            onSnapshot(cb, errCb) {
+                let active = true;
+                let isFetching = false;
+                let lastHash = "";
+                let firstSnapDone = false;
+                let doFetch = () => {
+                    if (!active || isFetching) return;
+                    isFetching = true;
+                    this.get().then(docSnap => {
+                        isFetching = false;
+                        if (!active) return;
+                        let r = docSnap.exists ? docSnap.data() : {};
+                        let hash = JSON.stringify(r);
+                        if (hash !== lastHash || !firstSnapDone) {
+                            lastHash = hash;
+                            firstSnapDone = true;
+                            cb(docSnap);
+                        }
+                    }).catch(e => {
+                        isFetching = false;
+                        if (errCb && active) errCb(e);
+                    });
+                };
+                doFetch();
+                let interval = setInterval(() => {
+                    if (!active || document.hidden) return;
+                    doFetch();
+                }, 30000);
+                let unsub = () => { active = false; clearInterval(interval); };
+                unsub.refresh = doFetch;
+                return unsub;
+            }
         }
 
         class SBCollectionRef extends SBQuery {
@@ -1684,7 +1717,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.36;
+        const APP_VERSION = 10.37;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2170,7 +2203,7 @@ function saveGlobalGSUrl() {
             return combined;
         }
 
-        function syncManagerFromCloud() {
+        function syncManagerFromCloud(forceRefresh = false) {
             let mode = 'daily';
             let dateStr = todayStr;
             
@@ -2201,19 +2234,13 @@ function saveGlobalGSUrl() {
             let queryKey = mode + "_" + dateStr + "_" + userKeyPart;
 
             if (!forceRefresh && (window.activeListeners[queryKey] || window.fetchedQueries[queryKey])) {
-                if (mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr)) {
+                if (window.fetchedQueries[queryKey] && mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr)) {
                     delete window.fetchedQueries[queryKey];
                     if (window.activeListeners[queryKey]) {
                         try { window.activeListeners[queryKey](); } catch(e){}
                         delete window.activeListeners[queryKey];
                     }
                 } else {
-                    if (window.activeListeners[queryKey] && typeof window.activeListeners[queryKey].refresh === 'function') {
-                        window.activeListeners[queryKey].refresh();
-                    }
-                    if (configListener && typeof configListener.refresh === 'function') {
-                        configListener.refresh();
-                    }
                     refreshCurrentTabView();
                     if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                     return;
@@ -3187,7 +3214,7 @@ function saveGlobalGSUrl() {
                 let sm = document.getElementById('section-manager'); if(sm) sm.classList.remove('hidden');
             } catch(e) {}
             try { populateFilters(); } catch(e) {}
-            try { switchTab('dashboard'); triggerDataSync(); } catch(e) {}
+            try { switchTab('dashboard'); } catch(e) {}
             try { updateMasterLockUI(); } catch(e) {}
             try { initTargetTracker(); } catch(e) {}
             try {
