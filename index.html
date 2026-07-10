@@ -2255,7 +2255,7 @@ function saveGlobalGSUrl() {
             let processSnap = async (snap) => {
                 let fbData = [];
                 snap.forEach(doc => { let d = doc.data(); if(d && d.date) fbData.push(d); });
-                if (typeof queryMonthlySummariesData === 'function') {
+                if (typeof queryMonthlySummariesData === 'function' && fetchMode !== 'daily') {
                     try {
                         let startD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-01";
                         let endD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-31";
@@ -2321,7 +2321,11 @@ function saveGlobalGSUrl() {
                 if (currentUser && currentUser.role === 'am') {
                     query = query.where("am", "==", currentUser.name);
                 }
-                window.activeListeners[queryKey] = query.onSnapshot(processSnap, e => {
+                let snapTimer = null;
+                window.activeListeners[queryKey] = query.onSnapshot(snap => {
+                    if (snapTimer) clearTimeout(snapTimer);
+                    snapTimer = setTimeout(() => { processSnap(snap); }, 800);
+                }, e => {
                     console.error("Live sync failed", e);
                     setSyncing(false);
                 });
