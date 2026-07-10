@@ -1988,6 +1988,7 @@ function saveGlobalGSUrl() {
         }
 
         function triggerDataSync() {
+            if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
             if(!currentUser) return;
             if(currentUser.role === 'branch') syncBranchFromCloud();
             else {
@@ -2069,7 +2070,6 @@ function saveGlobalGSUrl() {
         });
         let unsubNight = null;
         function syncBranchNightData() {
-            if(typeof setupBranchView === 'function') setupBranchView();
             let ndate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
             setSyncing(true);
             let docId = ndate + "_" + currentUser.id;
@@ -2584,7 +2584,7 @@ function saveGlobalGSUrl() {
                 }, {merge: true});
             } else if (action === 'unlock_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
-                fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, night_unlocked: true, am: bAm }, {merge: true});
+                fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, night_unlocked: true, night_locked: false, am: bAm }, {merge: true});
             } else if (action === 'unlock_bank2' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, bank2_unlocked: true, am: bAm }, {merge: true});
@@ -2891,8 +2891,8 @@ function saveGlobalGSUrl() {
             if(!currentUser) return;
             todayStr = getYYYYMMDD(new Date());
             currentMonthStr = todayStr.substring(0, 7);
-            if (document.getElementById('night-date')) document.getElementById('night-date').value = todayStr;
-            if (document.getElementById('bank-in-date')) document.getElementById('bank-in-date').value = todayStr;
+            if (document.getElementById('night-date') && !document.getElementById('night-date').value) document.getElementById('night-date').value = todayStr;
+            if (document.getElementById('bank-in-date') && !document.getElementById('bank-in-date').value) document.getElementById('bank-in-date').value = todayStr;
             document.getElementById('section-welcome').classList.add('hidden');
             document.getElementById('section-branch').classList.remove('hidden');
             
@@ -3237,14 +3237,14 @@ function saveGlobalGSUrl() {
                 ? [...masterBranches] 
                 : masterBranches.filter(b => {
                       let bAm = (b.am || '').trim().toUpperCase();
-                      return bAm === cName || bAm.includes(cName) || cName.includes(bAm);
+                      return bAm === cName;
                   });
             if (base.length === 0 && Array.isArray(dbSubmissions) && dbSubmissions.length > 0) {
                 let seenCode = new Set();
                 dbSubmissions.forEach(s => {
                     if (s && s.code && !seenCode.has(String(s.code))) {
                         let sAm = (s.am || '').trim().toUpperCase();
-                        if (currentUser.role === 'admin' || currentUser.role === 'operation' || sAm === cName || sAm.includes(cName) || cName.includes(sAm)) {
+                        if (currentUser.role === 'admin' || currentUser.role === 'operation' || sAm === cName) {
                             seenCode.add(String(s.code));
                             base.push({ code: String(s.code), name: s.name || String(s.code), am: s.am || cName, state: s.state || '', warehouse: s.warehouse || '' });
                         }
@@ -3306,10 +3306,9 @@ function saveGlobalGSUrl() {
             let dashData = dbSubmissions.filter(s => {
                 let matchDate = (mode === 'daily' ? s.date === targetDate : s.date.startsWith(targetDate));
                 if (!matchDate) return false;
-                if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) return true;
-                if (bCodes.includes(String(s.code))) return true;
-                let sAm = (s.am || '').trim().toUpperCase();
-                return sAm === cName || sAm.includes(cName) || (cName && cName.includes(sAm));
+                if (!s.night_locked && !(parseFloat(s.sales) > 0)) return false;
+                if (bCodes.length > 0 && !bCodes.includes(String(s.code))) return false;
+                return true;
             });
             
             let subRatioEl = document.getElementById('am-stat-ratio');
@@ -3712,10 +3711,7 @@ function saveGlobalGSUrl() {
                 let todayD = new Date(todayStr); let salesD = new Date(date);
                 let diffDays = Math.floor((todayD - salesD) / (1000 * 60 * 60 * 24));
                 
-                  let needsUnlockNight = false;
-                  if (date !== todayStr) {
-                      needsUnlockNight = isNightLocked || (pastLock && (!sub || !sub.night_unlocked));
-                  }
+                  let needsUnlockNight = isNightLocked || (date !== todayStr && pastLock && (!sub || !sub.night_unlocked)) || (date === todayStr && masterLock && (!sub || !sub.night_unlocked));
                   let canUnlockRole = (currentUser.role === 'admin' || currentUser.role === 'am' || currentUser.role === 'operation');
                   let adminUnlockNight = (canUnlockRole && needsUnlockNight) ? `<button onclick="unlockNight('${date}', '${b.code}')" class="w-full mt-1 bg-indigo-950/80 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900 hover:text-white px-2 py-1.5 rounded shadow transition-all text-[9px] font-bold text-center tracking-wider"><i class="fa-solid fa-key mr-1 text-[8px]"></i> UNLOCK NIGHT</button>` : '';
                 
@@ -3746,8 +3742,10 @@ function saveGlobalGSUrl() {
             if(confirm(`Reset Night Data for ${code}?\nThis will instruct the server to delete the row's night operations data.`)) {
                 syncToCloud('reset_night', { date: date, code: String(code), amName: currentUser.name });
                 let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
-                  if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; dbSubmissions[idx].night_unlocked = false; }
+                if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; dbSubmissions[idx].night_unlocked = false; }
                 renderTrackingTable();
+                updateSubmissionRatio();
+                calculateTotals();
             }
         }
 
@@ -3765,8 +3763,17 @@ function saveGlobalGSUrl() {
             .then((result) => { 
                 if (result.isConfirmed) {
                     let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
-                    if(idx > -1) dbSubmissions[idx].night_unlocked = true;
-                    syncToCloud('unlock_night', {date: date, code: String(code), amName: currentUser.name}, () => { renderTrackingTable(); });
+                    if(idx > -1) {
+                        dbSubmissions[idx].night_unlocked = true;
+                        dbSubmissions[idx].night_locked = false;
+                    } else {
+                        dbSubmissions.push({ date: date, code: String(code), night_unlocked: true, night_locked: false });
+                    }
+                    syncToCloud('unlock_night', {date: date, code: String(code), amName: currentUser.name}, () => { 
+                        renderTrackingTable(); 
+                        updateSubmissionRatio();
+                        calculateTotals();
+                    });
                 }
             });
         }
