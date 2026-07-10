@@ -1928,6 +1928,9 @@ function saveGlobalGSUrl() {
                       if (typeof triggerDataSync === 'function') triggerDataSync();
                   }
               });
+              window.addEventListener("pageshow", () => {
+                  if (currentUser && typeof triggerDataSync === 'function') triggerDataSync();
+              });
             loadBranchesCache();
             if(document.getElementById('night-date')) document.getElementById('night-date').max = todayStr;
             if(document.getElementById('bank-in-date')) document.getElementById('bank-in-date').max = todayStr;
@@ -2169,37 +2172,45 @@ function saveGlobalGSUrl() {
         }
 
         async function fetchSubmissionsChunked(monthStr, amName, forceRaw = false) {
+            let recordMap = new Map();
+
             if (!forceRaw && typeof queryMonthlySummariesData === 'function') {
                 try {
                     let sumData = await queryMonthlySummariesData(monthStr + "-01", monthStr + "-31", amName);
                     if (sumData && sumData.length > 0) {
-                        return sumData.map(item => ({
-                            exists: true,
-                            data: () => item
-                        }));
+                        sumData.forEach(item => {
+                            let k = String(item.code) + "_" + String(item.date);
+                            recordMap.set(k, item);
+                        });
                     }
                 } catch (e) {
-                    console.error("Failed monthly summaries read, falling back to raw:", e);
+                    console.error("Failed monthly summaries read:", e);
                 }
             }
-            let [y, m] = monthStr.split('-');
-            let daysInMonth = new Date(y, m, 0).getDate();
-            let days = [];
-            for (let d = 1; d <= daysInMonth; d++) {
-                let dStr = d < 10 ? '0' + d : '' + d;
-                days.push(`${monthStr}-${dStr}`);
-            }
-            let chunks = [];
-            for (let i = 0; i < days.length; i += 10) chunks.push(days.slice(i, i + 10));
-            
-            let promises = chunks.map(chunk => {
-                let q = db.collection("submissions").where("date", "in", chunk);
+
+            try {
+                let q = db.collection("submissions").where("date", ">=", monthStr + "-01").where("date", "<=", monthStr + "-31");
                 if (amName) q = q.where("am", "==", amName);
-                return q.get();
-            });
-            let snaps = await Promise.all(promises);
+                let snap = await q.get();
+                snap.forEach(doc => {
+                    if (doc.exists) {
+                        let d = doc.data();
+                        if (d && d.code && d.date) {
+                            recordMap.set(String(d.code) + "_" + String(d.date), d);
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Direct submissions query failed:", e);
+            }
+
             let combined = [];
-            snaps.forEach(snap => snap.forEach(doc => { if (doc.exists) combined.push(doc); }));
+            recordMap.forEach(val => {
+                combined.push({
+                    exists: true,
+                    data: () => val
+                });
+            });
             return combined;
         }
 
@@ -3498,6 +3509,12 @@ function saveGlobalGSUrl() {
 
         function renderComparisonTable() {
             let monthStr = document.getElementById('compare-month').value;
+            if(!monthStr) {
+                let now = new Date();
+                let m = now.getMonth()+1;
+                document.getElementById('compare-month').value = `${now.getFullYear()}-${m<10?'0'+m:m}`;
+                monthStr = document.getElementById('compare-month').value;
+            }
             if(!monthStr) return;
             
             let [y, m] = monthStr.split('-');
@@ -3567,7 +3584,7 @@ function saveGlobalGSUrl() {
             
             let trendTitle = document.getElementById('trend-title-suffix');
             let logisticsTrendTitle = document.getElementById('logistics-trend-title-suffix');
-            let titleText = currentUser.role === 'admin' ? '(Total Company)' : `(Area: ${currentUser.id})`;
+            let titleText = (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation')) ? '(Total Company)' : `(Area: ${currentUser.name || currentUser.id || 'Manager'})`;
             if(trendTitle) trendTitle.innerText = titleText;
             if(logisticsTrendTitle) logisticsTrendTitle.innerText = titleText;
             
@@ -4182,6 +4199,7 @@ function saveGlobalGSUrl() {
 
         function buildLorryTable(weeks, subData) {
             let branches = getManagerFilteredBranches();
+            let allowedCodes = new Set(branches.map(b => String(b.code)));
             let grouped = {};
             branches.forEach(b => {
                 grouped[b.code] = {
@@ -4192,6 +4210,7 @@ function saveGlobalGSUrl() {
             
             subData.forEach(s => {
                 if(!s || !s.code) return;
+                if(!allowedCodes.has(String(s.code))) return;
                 if(!grouped[s.code]) {
                     grouped[s.code] = {
                         code: s.code, name: s.name || s.code, am: s.am || 'Unknown',
