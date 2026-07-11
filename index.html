@@ -30,6 +30,19 @@
         .tab-inactive:hover { color: #cbd5e1; }
         .spinner { border: 3px solid rgba(255,255,255,0.1); width: 20px; height: 20px; border-radius: 50%; border-left-color: #06b6d4; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Light Putih-Oren (99 Speed Mart Corporate Theme) */
+        body.theme-light { background-color: #fffaf5 !important; color: #1e293b !important; }
+        body.theme-light .bg-slate-950, body.theme-light .bg-slate-900 { background-color: #ffffff !important; border-color: #fed7aa !important; color: #1e293b !important; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.08) !important; }
+        body.theme-light .bg-slate-900\/50, body.theme-light .bg-slate-900\/80, body.theme-light .bg-slate-900\/90 { background-color: #fff8f0 !important; border-color: #ffedd5 !important; }
+        body.theme-light .bg-slate-800, body.theme-light .bg-slate-800\/50 { background-color: #ffedd5 !important; border-color: #fed7aa !important; color: #1e293b !important; }
+        body.theme-light .border-slate-800, body.theme-light .border-slate-700 { border-color: #fed7aa !important; }
+        body.theme-light .text-white { color: #0f172a !important; }
+        body.theme-light .text-slate-300, body.theme-light .text-slate-400 { color: #475569 !important; }
+        body.theme-light .text-cyan-400, body.theme-light .text-cyan-500 { color: #ea580c !important; }
+        body.theme-light .text-indigo-400 { color: #ea580c !important; }
+        body.theme-light input, body.theme-light select, body.theme-light textarea { background-color: #ffffff !important; color: #0f172a !important; border-color: #fdba74 !important; }
+        body.theme-light table th { background-color: #fff7ed !important; color: #9a3412 !important; border-color: #fed7aa !important; }
+        body.theme-light table td { border-color: #fed7aa !important; }
     </style>
 </head>
 <body class="h-full font-sans antialiased selection:bg-cyan-500 selection:text-slate-900" id="app-root">
@@ -57,6 +70,10 @@
             <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700">
                 <button onclick="toggleLang()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors">
                     <i class="fa-solid fa-language mr-1"></i> <span id="lang-indicator">EN</span>
+                </button>
+                <div class="w-px h-4 bg-slate-600"></div>
+                <button onclick="toggleTheme()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-orange-400 transition-colors" title="Tukar Tema (Putih-Oren / Hitam-Biru)">
+                    <i id="theme-icon" class="fa-solid fa-sun mr-1 text-amber-400"></i> <span id="theme-label" class="hidden sm:inline">Theme</span>
                 </button>
                 <div class="w-px h-4 bg-slate-600"></div>
                 <button onclick="sessionStorage.clear(); location.reload()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors" title="Refresh App">
@@ -1761,6 +1778,27 @@ window.onunhandledrejection = function(event) {
             document.querySelectorAll('[data-i18n]').forEach(el => { let key = el.getAttribute('data-i18n'); if (DICT[currentLang][key]) el.innerText = DICT[currentLang][key]; });
         }
 
+        function toggleTheme() {
+            let cur = localStorage.getItem('app_theme') || 'dark';
+            let next = cur === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+        }
+
+        function applyTheme(t) {
+            localStorage.setItem('app_theme', t);
+            let icon = document.getElementById('theme-icon');
+            let label = document.getElementById('theme-label');
+            if (t === 'light') {
+                document.body.classList.add('theme-light');
+                if (icon) icon.className = 'fa-solid fa-moon mr-1 text-slate-300';
+                if (label) label.innerText = 'Dark';
+            } else {
+                document.body.classList.remove('theme-light');
+                if (icon) icon.className = 'fa-solid fa-sun mr-1 text-amber-400';
+                if (label) label.innerText = 'Light';
+            }
+        }
+
         setInterval(() => {
             let now = new Date();
             let clockEl = document.getElementById('live-clock'), dateEl = document.getElementById('live-date');
@@ -1922,6 +1960,7 @@ function saveGlobalGSUrl() {
         }
 
         document.addEventListener("DOMContentLoaded", () => {
+              if (typeof applyTheme === 'function') applyTheme(localStorage.getItem('app_theme') || 'dark');
               let vd = document.getElementById('version-display'); if(vd) vd.innerText = APP_VERSION;
               setTimeout(() => {
                   fetch(window.location.pathname + "?t=" + Date.now(), { cache: "no-store" })
