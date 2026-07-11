@@ -71,8 +71,8 @@
                 <button onclick="toggleLang()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors">
                     <i class="fa-solid fa-language mr-1"></i> <span id="lang-indicator">EN</span>
                 </button>
-                <div class="w-px h-4 bg-slate-600"></div>
-                <button onclick="toggleTheme()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-orange-400 transition-colors" title="Tukar Tema (Putih-Oren / Hitam-Biru)">
+                <div class="admin-only-theme hidden w-px h-4 bg-slate-600"></div>
+                <button onclick="toggleTheme()" class="admin-only-theme hidden h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-orange-400 transition-colors" title="Tukar Tema (Putih-Oren / Hitam-Biru - Admin Sahaja)">
                     <i id="theme-icon" class="fa-solid fa-sun mr-1 text-amber-400"></i> <span id="theme-label" class="hidden sm:inline">Theme</span>
                 </button>
                 <div class="w-px h-4 bg-slate-600"></div>
@@ -1797,6 +1797,14 @@ window.onunhandledrejection = function(event) {
                 if (icon) icon.className = 'fa-solid fa-sun mr-1 text-amber-400';
                 if (label) label.innerText = 'Light';
             }
+            updateThemeBtnVisibility();
+        }
+
+        function updateThemeBtnVisibility() {
+            let isAdmin = (currentUser && currentUser.role === 'admin');
+            document.querySelectorAll('.admin-only-theme').forEach(el => {
+                if (el) el.style.display = isAdmin ? 'flex' : 'none';
+            });
         }
 
         setInterval(() => {
@@ -2012,6 +2020,8 @@ function saveGlobalGSUrl() {
                       document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
                       document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
                       document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
+                      if (typeof updateThemeBtnVisibility === 'function') updateThemeBtnVisibility();
+
 
             document.getElementById('header-subtitle').classList.add('hidden');
                     document.getElementById('nav-buttons').classList.add('hidden');
@@ -2798,6 +2808,8 @@ function saveGlobalGSUrl() {
                 document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
                 document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
                 document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
+                if (typeof updateThemeBtnVisibility === 'function') updateThemeBtnVisibility();
+
 
                 document.getElementById('header-subtitle').classList.add('hidden');
                 document.getElementById('nav-buttons').classList.add('hidden');
@@ -2856,6 +2868,7 @@ function saveGlobalGSUrl() {
             document.getElementById('logged-in-controls').classList.add('hidden'); document.getElementById('logged-in-controls').classList.remove('flex');
             document.getElementById('nav-buttons').classList.remove('hidden'); document.getElementById('section-branch').classList.add('hidden');
             document.getElementById('section-manager').classList.add('hidden'); document.getElementById('section-welcome').classList.remove('hidden');
+            if (typeof updateThemeBtnVisibility === 'function') updateThemeBtnVisibility();
         }
 
                 function switchTab(tab) {
