@@ -30,19 +30,6 @@
         .tab-inactive:hover { color: #cbd5e1; }
         .spinner { border: 3px solid rgba(255,255,255,0.1); width: 20px; height: 20px; border-radius: 50%; border-left-color: #06b6d4; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Light Putih-Oren (99 Speed Mart Corporate Theme) */
-        body.theme-light { background-color: #fffaf5 !important; color: #1e293b !important; }
-        body.theme-light .bg-slate-950, body.theme-light .bg-slate-900 { background-color: #ffffff !important; border-color: #fed7aa !important; color: #1e293b !important; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.08) !important; }
-        body.theme-light .bg-slate-900\/50, body.theme-light .bg-slate-900\/80, body.theme-light .bg-slate-900\/90 { background-color: #fff8f0 !important; border-color: #ffedd5 !important; }
-        body.theme-light .bg-slate-800, body.theme-light .bg-slate-800\/50 { background-color: #ffedd5 !important; border-color: #fed7aa !important; color: #1e293b !important; }
-        body.theme-light .border-slate-800, body.theme-light .border-slate-700 { border-color: #fed7aa !important; }
-        body.theme-light .text-white { color: #0f172a !important; }
-        body.theme-light .text-slate-300, body.theme-light .text-slate-400 { color: #475569 !important; }
-        body.theme-light .text-cyan-400, body.theme-light .text-cyan-500 { color: #ea580c !important; }
-        body.theme-light .text-indigo-400 { color: #ea580c !important; }
-        body.theme-light input, body.theme-light select, body.theme-light textarea { background-color: #ffffff !important; color: #0f172a !important; border-color: #fdba74 !important; }
-        body.theme-light table th { background-color: #fff7ed !important; color: #9a3412 !important; border-color: #fed7aa !important; }
-        body.theme-light table td { border-color: #fed7aa !important; }
     </style>
 </head>
 <body class="h-full font-sans antialiased selection:bg-cyan-500 selection:text-slate-900" id="app-root">
@@ -70,10 +57,6 @@
             <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700">
                 <button onclick="toggleLang()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors">
                     <i class="fa-solid fa-language mr-1"></i> <span id="lang-indicator">EN</span>
-                </button>
-                <div class="admin-only-theme hidden w-px h-4 bg-slate-600"></div>
-                <button onclick="toggleTheme()" class="admin-only-theme hidden h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-orange-400 transition-colors" title="Tukar Tema (Putih-Oren / Hitam-Biru - Admin Sahaja)">
-                    <i id="theme-icon" class="fa-solid fa-sun mr-1 text-amber-400"></i> <span id="theme-label" class="hidden sm:inline">Theme</span>
                 </button>
                 <div class="w-px h-4 bg-slate-600"></div>
                 <button onclick="sessionStorage.clear(); location.reload()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors" title="Refresh App">
@@ -1778,34 +1761,7 @@ window.onunhandledrejection = function(event) {
             document.querySelectorAll('[data-i18n]').forEach(el => { let key = el.getAttribute('data-i18n'); if (DICT[currentLang][key]) el.innerText = DICT[currentLang][key]; });
         }
 
-        function toggleTheme() {
-            let cur = localStorage.getItem('app_theme') || 'dark';
-            let next = cur === 'dark' ? 'light' : 'dark';
-            applyTheme(next);
-        }
-
-        function applyTheme(t) {
-            localStorage.setItem('app_theme', t);
-            let icon = document.getElementById('theme-icon');
-            let label = document.getElementById('theme-label');
-            if (t === 'light') {
-                document.body.classList.add('theme-light');
-                if (icon) icon.className = 'fa-solid fa-moon mr-1 text-slate-300';
-                if (label) label.innerText = 'Dark';
-            } else {
-                document.body.classList.remove('theme-light');
-                if (icon) icon.className = 'fa-solid fa-sun mr-1 text-amber-400';
-                if (label) label.innerText = 'Light';
-            }
-            updateThemeBtnVisibility();
-        }
-
-        function updateThemeBtnVisibility() {
-            let isAdmin = (currentUser && currentUser.role === 'admin');
-            document.querySelectorAll('.admin-only-theme').forEach(el => {
-                if (el) el.style.display = isAdmin ? 'flex' : 'none';
-            });
-        }
+        function updateThemeBtnVisibility() {}
 
         setInterval(() => {
             let now = new Date();
@@ -3494,7 +3450,7 @@ function saveGlobalGSUrl() {
                 sales: acc.sales + (curr.sales||0), trans: acc.trans + (curr.transactions||0), mykasih: acc.mykasih + (curr.mykasih||0), lorry: acc.lorry + (curr.lorry||0), bank: acc.bank + (curr.bank1||0) + (curr.bank2||0)
             }), {sales:0, trans:0, mykasih:0, lorry:0, bank:0});
 
-            let tKPI = calcKPI(dashData.filter(s => s.night_locked || (s.bank1>0 || s.bank2>0))); 
+            let tKPI = calcKPI(dashData.filter(s => s.night_locked || (parseFloat(s.sales)||0)>0 || (parseFloat(s.transactions)||0)>0 || (parseFloat(s.bank1)||0)>0 || (parseFloat(s.bank2)||0)>0)); 
 
             document.getElementById('kpi-sales').innerText = `RM ${formatRM(tKPI.sales)}`; document.getElementById('kpi-mykasih').innerText = `RM ${formatRM(tKPI.mykasih)}`;
             document.getElementById('kpi-lorry').innerText = `RM ${formatRM(tKPI.lorry)}`; document.getElementById('kpi-trans').innerText = formatNum(tKPI.trans);
@@ -3514,7 +3470,7 @@ function saveGlobalGSUrl() {
             }
 
             let grouped = {};
-            dashData.filter(s=>s.night_locked).forEach(s => {
+            dashData.filter(s => s.night_locked || (parseFloat(s.sales)||0)>0 || (parseFloat(s.transactions)||0)>0).forEach(s => {
                 if(!grouped[s.code]) grouped[s.code] = { code: s.code, sales: 0, lorry: 0 };
                 grouped[s.code].sales += (s.sales || 0);
                 grouped[s.code].lorry += (s.lorry || 0);
@@ -3885,19 +3841,14 @@ function saveGlobalGSUrl() {
         }
 
           function showMissingSales() {
-              let mdate = document.getElementById('dash-mode').value === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
+              let mdate = currentTab === 'tracking' && document.getElementById('track-date') 
+                  ? document.getElementById('track-date').value 
+                  : (document.getElementById('dash-date') ? document.getElementById('dash-date').value : getYYYYMMDD(new Date()));
               document.getElementById('missing-date-display').innerText = mdate;
               let branches = getManagerFilteredBranches();
               let missing = [];
-              if(document.getElementById('dash-mode').value === 'daily') {
-                  let submittedCodes = dbSubmissions.filter(s => s.date === mdate && s.night_locked).map(s => String(s.code));
-                  missing = branches.filter(b => !submittedCodes.includes(String(b.code)));
-              } else {
-                  document.getElementById('missing-sales-list').innerHTML = '<p class="text-sm text-amber-500 p-4">Missing Sales Tracker is only available in Daily Mode.</p>';
-                  document.getElementById('missing-sales-modal').classList.remove('hidden');
-                  document.getElementById('missing-sales-modal').classList.add('flex');
-                  return;
-              }
+              let submittedCodes = dbSubmissions.filter(s => s.date === mdate && (s.night_locked || (parseFloat(s.sales)||0)>0 || (parseFloat(s.transactions)||0)>0 || (parseFloat(s.bank1)||0)>0 || (parseFloat(s.bank2)||0)>0)).map(s => String(s.code));
+              missing = branches.filter(b => !submittedCodes.includes(String(b.code)));
               let html = '';
               if(missing.length === 0) {
                   html = '<p class="text-sm text-emerald-400 font-bold p-4 text-center bg-emerald-500/10 rounded-lg border border-emerald-500/20"><i class="fa-solid fa-check-circle mr-2"></i>All branches have submitted!</p>';
