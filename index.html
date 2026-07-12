@@ -3340,6 +3340,11 @@ function saveGlobalGSUrl() {
             }
         }
 
+        function isSubmissionCountable(s) {
+            if (!s) return false;
+            return Boolean(s.night_locked || (parseFloat(s.sales) || 0) > 0);
+        }
+
         function updateSubmissionRatio() {
             let mode = currentTab === 'dashboard' ? (document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily') : 'daily';
             let targetDate = mode === 'daily' ? document.getElementById(currentTab === 'dashboard' ? 'dash-date' : 'track-date').value : document.getElementById('dash-month').value;
@@ -3348,7 +3353,7 @@ function saveGlobalGSUrl() {
             let dashData = dbSubmissions.filter(s => {
                 let matchDate = (mode === 'daily' ? s.date === targetDate : s.date.startsWith(targetDate));
                 if (!matchDate) return false;
-                if (!s.night_locked && !(parseFloat(s.sales) > 0)) return false;
+                if (!isSubmissionCountable(s)) return false;
                 if (bCodes.length > 0 && !bCodes.includes(String(s.code))) return false;
                 return true;
             });
@@ -3844,11 +3849,11 @@ function saveGlobalGSUrl() {
               let mdate = currentTab === 'tracking' && document.getElementById('track-date') 
                   ? document.getElementById('track-date').value 
                   : (document.getElementById('dash-date') ? document.getElementById('dash-date').value : getYYYYMMDD(new Date()));
-              document.getElementById('missing-date-display').innerText = mdate;
               let branches = getManagerFilteredBranches();
               let missing = [];
-              let submittedCodes = dbSubmissions.filter(s => s.date === mdate && (s.night_locked || (parseFloat(s.sales)||0)>0 || (parseFloat(s.transactions)||0)>0 || (parseFloat(s.bank1)||0)>0 || (parseFloat(s.bank2)||0)>0)).map(s => String(s.code));
+              let submittedCodes = dbSubmissions.filter(s => s.date === mdate && isSubmissionCountable(s)).map(s => String(s.code));
               missing = branches.filter(b => !submittedCodes.includes(String(b.code)));
+              document.getElementById('missing-date-display').innerHTML = `${mdate} <span class="bg-rose-600 text-white px-2 py-0.5 rounded text-xs ml-1">${missing.length} Cawangan Missing</span>`;
               let html = '';
               if(missing.length === 0) {
                   html = '<p class="text-sm text-emerald-400 font-bold p-4 text-center bg-emerald-500/10 rounded-lg border border-emerald-500/20"><i class="fa-solid fa-check-circle mr-2"></i>All branches have submitted!</p>';
