@@ -2490,19 +2490,23 @@ function saveGlobalGSUrl() {
 
         function logAuditAction(actionType, payloadData) {
             let docId = Date.now().toString() + "_" + Math.random().toString(36).substring(7);
-            let bAm = "";
+                        let bAm = "";
             if (payloadData && payloadData.code) {
                 let b = masterBranches.find(x => x.code == payloadData.code);
                 if (b && b.am) bAm = b.am;
             }
+            let actionName = actionType;
+            if (actionType === 'set_global_lock') actionName = (payloadData && payloadData.locked) ? 'LOCK SYSTEM (TODAY)' : 'UNLOCK SYSTEM (TODAY)';
+            if (actionType === 'set_past_lock') actionName = (payloadData && payloadData.locked) ? 'LOCK SYSTEM (PAST)' : 'UNLOCK SYSTEM (PAST)';
+
             db.collection('audit_logs').doc(docId).set({
                 timestamp: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' }),
                 timestamp_ms: Date.now(),
                 user: currentUser ? currentUser.name : "Unknown",
                 role: currentUser ? currentUser.role : "Unknown",
-                action: actionType,
-                target_code: (payloadData && payloadData.code) ? String(payloadData.code) : "-",
-                target_date: (payloadData && payloadData.date) ? payloadData.date : "-",
+                action: actionName,
+                target_code: (payloadData && payloadData.code) ? String(payloadData.code) : "ALL BRANCHES",
+                target_date: (payloadData && payloadData.date) ? payloadData.date : "GLOBAL",
                 target_am: bAm
             }).catch(e => console.error("Audit log error", e));
         }
@@ -2871,29 +2875,35 @@ function saveGlobalGSUrl() {
             let tbody = document.getElementById('audit-log-tbody');
             if(!tbody) return;
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">Loading logs...</td></tr>';
-            db.collection('audit_logs').orderBy('timestamp_ms', 'desc').limit(100).get().then(snap => {
+            db.collection('audit_logs').limit(200).get().then(snap => {
                 let html = '';
                 if(snap.empty) {
                     html = '<tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">No audit logs found.</td></tr>';
                 } else {
-                    snap.docs.forEach(doc => {
-                        let d = doc.data();
+                    let logs = [];
+                    snap.docs.forEach(doc => logs.push(doc.data()));
+                    logs.sort((a, b) => {
+                        let tA = a.timestamp_ms || (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+                        let tB = b.timestamp_ms || (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+                        return (tB || 0) - (tA || 0);
+                    });
+                    logs.forEach(d => {
                         let actionColor = 'text-white';
-                        if(d.action === 'reset_night' || d.action === 'reset_bank') actionColor = 'text-rose-400';
-                        if(d.action === 'unlock_night' || d.action === 'unlock_bank2') actionColor = 'text-indigo-400';
+                        if(d.action && (d.action.includes('reset') || d.action.includes('LOCK'))) actionColor = 'text-rose-400';
+                        if(d.action && (d.action.includes('unlock') || d.action.includes('UNLOCK'))) actionColor = 'text-emerald-400';
                         html += `<tr class="border-b border-slate-800 hover:bg-slate-800/50">
-                            <td class="p-3 text-[10px] text-slate-400 whitespace-nowrap">${d.timestamp || new Date(d.timestamp_ms).toLocaleString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'})}</td>
-                            <td class="p-3 text-[11px] font-bold text-cyan-400">${d.user}</td>
-                            <td class="p-3 text-[11px] font-bold uppercase ${actionColor}">${d.action.replace(/_/g, ' ')}</td>
-                            <td class="p-3 text-[11px] text-white">${d.target_code}</td>
-                            <td class="p-3 text-[11px] text-slate-300">${d.target_date}</td>
+                            <td class="p-3 text-[10px] text-slate-400 whitespace-nowrap">${d.timestamp || (d.timestamp_ms ? new Date(d.timestamp_ms).toLocaleString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}) : '-')}</td>
+                            <td class="p-3 text-[11px] font-bold text-cyan-400">${d.user || '-'}</td>
+                            <td class="p-3 text-[11px] font-bold uppercase ${actionColor}">${(d.action || '-').replace(/_/g, ' ')}</td>
+                            <td class="p-3 text-[11px] text-white">${d.target_code || '-'}</td>
+                            <td class="p-3 text-[11px] text-slate-300">${d.target_date || '-'}</td>
                         </tr>`;
                     });
                 }
                 tbody.innerHTML = html;
             }).catch(e => {
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-rose-500 text-xs">Failed to load logs. You may need to create a Firestore Index.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-rose-500 text-xs">Failed to load logs.</td></tr>';
             });
         }
 
@@ -3108,6 +3118,29 @@ function saveGlobalGSUrl() {
         function confirmNightSubmit(e) {
             e.preventDefault();
 
+            let nightDateEl = document.getElementById('night-date');
+            let nightDate = nightDateEl ? nightDateEl.value : todayStr;
+            let nightRec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
+            let isIndividualUnlocked = (nightRec && nightRec.night_unlocked === true);
+            let isTodaySubmit = (nightDate === todayStr);
+
+            if (isTodaySubmit && masterLock && !isIndividualUnlocked) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'System Locked / Sistem Dikunci',
+                    text: 'Penghantaran data jualan untuk hari ini telah dikunci oleh Ibu Pejabat (Admin). Anda tidak dibenarkan menghantar data.'
+                });
+                return;
+            }
+            if (!isTodaySubmit && pastLock && !isIndividualUnlocked) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'System Locked / Sistem Dikunci',
+                    text: 'Penghantaran data bagi tarikh lepas telah dikunci oleh Admin.'
+                });
+                return;
+            }
+
             let sVal = document.getElementById('f-sales').value.replace(/,/g, '');
             let mVal = document.getElementById('f-mykasih').value.replace(/,/g, '');
             let transVal = document.getElementById('f-trans').value.replace(/,/g, '');
@@ -3147,6 +3180,21 @@ function saveGlobalGSUrl() {
         function executeNightSubmit() {
             closeModal('confirm-modal');
             
+            let nightDateEl = document.getElementById('night-date');
+            let nightDate = nightDateEl ? nightDateEl.value : todayStr;
+            let nightRec = dbSubmissions.find(s => s.code == currentUser.id && s.date === nightDate);
+            let isIndividualUnlocked = (nightRec && nightRec.night_unlocked === true);
+            let isTodaySubmit = (nightDate === todayStr);
+
+            if (isTodaySubmit && masterLock && !isIndividualUnlocked) {
+                Swal.fire({ icon: 'error', title: 'System Locked / Sistem Dikunci', text: 'Penghantaran data jualan dikunci oleh Admin.' });
+                return;
+            }
+            if (!isTodaySubmit && pastLock && !isIndividualUnlocked) {
+                Swal.fire({ icon: 'error', title: 'System Locked / Sistem Dikunci', text: 'Penghantaran data tarikh lepas dikunci oleh Admin.' });
+                return;
+            }
+
             let pSales = pendingNightData.sales;
             let pMyKasih = pendingNightData.mykasih;
             let pLorry = pendingNightData.lorry;
