@@ -1584,11 +1584,10 @@ window.onunhandledrejection = function(event) {
                         if (merged.limit_mykasih !== undefined) payload.limit_mykasih = merged.limit_mykasih;
                         if (merged.limit_lorry !== undefined) payload.limit_lorry = merged.limit_lorry;
                     } else if (this.col === 'audit_logs') {
-                        if (merged.action !== undefined) payload.action = merged.action;
-                        if (merged.user !== undefined) payload.user = merged.user;
-                        if (merged.details !== undefined) payload.details = merged.details;
-                        if (merged.timestamp !== undefined) payload.timestamp = merged.timestamp;
-                        if (merged.ip !== undefined) payload.ip = merged.ip;
+                        payload.id = this.id;
+                        payload.timestamp_ms = merged.timestamp_ms || Date.now();
+                        payload.action = merged.action || '';
+                        payload.details = merged;
                     }
                 } else {
                     let curData = {};
@@ -2871,40 +2870,69 @@ function saveGlobalGSUrl() {
             }
         }
 
-        function renderAuditLogs() {
+        async function renderAuditLogs() {
             let tbody = document.getElementById('audit-log-tbody');
             if(!tbody) return;
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">Loading logs...</td></tr>';
-            db.collection('audit_logs').limit(200).get().then(snap => {
-                let html = '';
-                if(snap.empty) {
-                    html = '<tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">No audit logs found.</td></tr>';
-                } else {
-                    let logs = [];
-                    snap.docs.forEach(doc => logs.push(doc.data()));
-                    logs.sort((a, b) => {
-                        let tA = a.timestamp_ms || (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-                        let tB = b.timestamp_ms || (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-                        return (tB || 0) - (tA || 0);
+            try {
+                let logs = [];
+                // 1. Fetch directly from Supabase REST API
+                try {
+                    let sbRes = await fetch('https://jolrtaqlpqqydncacqza.supabase.co/rest/v1/audit_logs?select=*&order=timestamp_ms.desc&limit=200', {
+                        headers: {
+                            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbHJ0YXFscHFxeWRuY2FjcXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTM5OTYsImV4cCI6MjA5ODc2OTk5Nn0.09IP62_5lE5mMziTeBlYfVhydZeCXHuxwMSvnZBQD6E',
+                            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbHJ0YXFscHFxeWRuY2FjcXphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTM5OTYsImV4cCI6MjA5ODc2OTk5Nn0.09IP62_5lE5mMziTeBlYfVhydZeCXHuxwMSvnZBQD6E'
+                        }
                     });
-                    logs.forEach(d => {
-                        let actionColor = 'text-white';
-                        if(d.action && (d.action.includes('reset') || d.action.includes('LOCK'))) actionColor = 'text-rose-400';
-                        if(d.action && (d.action.includes('unlock') || d.action.includes('UNLOCK'))) actionColor = 'text-emerald-400';
-                        html += `<tr class="border-b border-slate-800 hover:bg-slate-800/50">
-                            <td class="p-3 text-[10px] text-slate-400 whitespace-nowrap">${d.timestamp || (d.timestamp_ms ? new Date(d.timestamp_ms).toLocaleString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}) : '-')}</td>
-                            <td class="p-3 text-[11px] font-bold text-cyan-400">${d.user || '-'}</td>
-                            <td class="p-3 text-[11px] font-bold uppercase ${actionColor}">${(d.action || '-').replace(/_/g, ' ')}</td>
-                            <td class="p-3 text-[11px] text-white">${d.target_code || '-'}</td>
-                            <td class="p-3 text-[11px] text-slate-300">${d.target_date || '-'}</td>
-                        </tr>`;
-                    });
+                    if (sbRes.ok) {
+                        let sbData = await sbRes.json();
+                        sbData.forEach(item => {
+                            logs.push(Object.assign({}, item, item.details || {}, item.data || {}));
+                        });
+                    }
+                } catch(e) { console.error("SB Audit fetch error", e); }
+
+                // Fallback to db wrapper if direct fetch yielded nothing
+                if (logs.length === 0) {
+                    let snap = await db.collection('audit_logs').limit(200).get();
+                    if (!snap.empty) {
+                        snap.docs.forEach(doc => {
+                            let raw = doc.data();
+                            logs.push(Object.assign({}, raw, raw.details || {}, raw.data || {}));
+                        });
+                    }
                 }
+
+                if (logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">No audit logs found.</td></tr>';
+                    return;
+                }
+
+                logs.sort((a, b) => {
+                    let tA = Number(a.timestamp_ms || (a.timestamp ? new Date(a.timestamp).getTime() : 0));
+                    let tB = Number(b.timestamp_ms || (b.timestamp ? new Date(b.timestamp).getTime() : 0));
+                    return (tB || 0) - (tA || 0);
+                });
+
+                let html = '';
+                logs.forEach(d => {
+                    let actionColor = 'text-white';
+                    if(d.action && (d.action.includes('reset') || d.action.includes('LOCK'))) actionColor = 'text-rose-400';
+                    if(d.action && (d.action.includes('unlock') || d.action.includes('UNLOCK'))) actionColor = 'text-emerald-400';
+                    let tsStr = d.timestamp || (d.timestamp_ms ? new Date(Number(d.timestamp_ms)).toLocaleString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}) : '-');
+                    html += `<tr class="border-b border-slate-800 hover:bg-slate-800/50">
+                        <td class="p-3 text-[10px] text-slate-400 whitespace-nowrap">${tsStr}</td>
+                        <td class="p-3 text-[11px] font-bold text-cyan-400">${d.user || '-'}</td>
+                        <td class="p-3 text-[11px] font-bold uppercase ${actionColor}">${(d.action || '-').replace(/_/g, ' ')}</td>
+                        <td class="p-3 text-[11px] text-white">${d.target_code || '-'}</td>
+                        <td class="p-3 text-[11px] text-slate-300">${d.target_date || '-'}</td>
+                    </tr>`;
+                });
                 tbody.innerHTML = html;
-            }).catch(e => {
-                console.error(e);
+            } catch(err) {
+                console.error("renderAuditLogs err:", err);
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-rose-500 text-xs">Failed to load logs.</td></tr>';
-            });
+            }
         }
 
         // --- 4. Branch Logic ---
