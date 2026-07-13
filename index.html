@@ -4055,82 +4055,107 @@ function saveGlobalGSUrl() {
 
                 if (mode === 'monthly') {
                     showToast('info', 'Menjana Laporan Bulanan & Harian (1-31)... Sila tunggu sebentar.');
-                    let [y, m] = date.split('-').map(Number);
-                    let daysInMonth = new Date(y, m, 0).getDate();
-                    let startD = `${date}-01`;
-                    let endD = `${date}-${String(daysInMonth).padStart(2, '0')}`;
-
-                    let dailyMap = {}; // dailyMap[code][day] = {sales, mykasih, lorry}
                     try {
-                        let snap = await db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD).get();
-                        snap.forEach(doc => {
-                            let d = doc.data();
-                            if (d && d.code && d.date) {
-                                let dayNum = parseInt(d.date.split('-')[2], 10);
-                                if (!dailyMap[d.code]) dailyMap[d.code] = {};
-                                dailyMap[d.code][dayNum] = {
-                                    sales: Number(d.sales || 0),
-                                    mykasih: Number(d.mykasih || 0),
-                                    lorry: Number(d.lorry || 0)
-                                };
-                            }
-                        });
-                    } catch (e) {
-                        console.error("Monthly daily export error:", e);
-                    }
+                        let [y, m] = date.split('-').map(Number);
+                        let daysInMonth = new Date(y, m, 0).getDate();
+                        let startD = `${date}-01`;
+                        let endD = `${date}-${String(daysInMonth).padStart(2, '0')}`;
 
-                    // Also merge any loaded dbSubmissions for current month
-                    dbSubmissions.filter(s => s.date && s.date.startsWith(date)).forEach(d => {
-                        let dayNum = parseInt(d.date.split('-')[2], 10);
-                        if (!dailyMap[d.code]) dailyMap[d.code] = {};
-                        if (!dailyMap[d.code][dayNum]) {
-                            dailyMap[d.code][dayNum] = {
-                                sales: Number(d.sales || 0),
-                                mykasih: Number(d.mykasih || 0),
-                                lorry: Number(d.lorry || 0)
-                            };
+                        let dailyMap = {}; // dailyMap[code][day] = {sales, mykasih, lorry}
+                        try {
+                            let snap = await Promise.race([
+                                db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD).get(),
+                                new Promise(r => setTimeout(() => r(null), 3500))
+                            ]);
+                            if (snap && snap.forEach) {
+                                snap.forEach(doc => {
+                                    let d = doc.data();
+                                    if (d && d.code && d.date) {
+                                        let dayNum = parseInt(d.date.split('-')[2], 10);
+                                        if (!dailyMap[d.code]) dailyMap[d.code] = {};
+                                        dailyMap[d.code][dayNum] = {
+                                            sales: Number(d.sales || 0),
+                                            mykasih: Number(d.mykasih || 0),
+                                            lorry: Number(d.lorry || 0)
+                                        };
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            console.warn("Monthly daily export Firestore query warning:", e);
                         }
-                    });
 
-                    // 1. Summary Sheet
-                    let summaryArr = branches.map(b => {
-                        let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0 };
-                        return {
-                            Month: date, Code: b.code, Branch: b.name, AM: b.am,
-                            "Total Sales": s.sales, "Total Trans": s.trans, "Total MyKasih": s.mykasih,
-                            "Total WH (Lorry)": s.lorry, "Total 1st Bank-In": s.bank1, "Total 2nd Bank-In": s.bank2,
-                            "Balance": s.sales - (s.bank1 + s.bank2)
-                        };
-                    });
+                        // Also merge any loaded dbSubmissions for current month
+                        if (Array.isArray(dbSubmissions)) {
+                            dbSubmissions.filter(s => s && s.date && String(s.date).startsWith(date)).forEach(d => {
+                                let parts = String(d.date).split('-');
+                                if (parts.length === 3) {
+                                    let dayNum = parseInt(parts[2], 10);
+                                    if (!dailyMap[d.code]) dailyMap[d.code] = {};
+                                    if (!dailyMap[d.code][dayNum]) {
+                                        dailyMap[d.code][dayNum] = {
+                                            sales: Number(d.sales || 0),
+                                            mykasih: Number(d.mykasih || 0),
+                                            lorry: Number(d.lorry || 0)
+                                        };
+                                    }
+                                }
+                            });
+                        }
 
-                    // Helper to build daily matrix sheets
-                    let buildDailyMatrix = (fieldLabel) => {
-                        return branches.map(b => {
-                            let row = { Code: b.code, Branch: b.name, AM: b.am };
-                            let totalVal = 0;
-                            for (let dNum = 1; dNum <= daysInMonth; dNum++) {
-                                let dayKey = String(dNum).padStart(2, '0');
-                                let val = (dailyMap[b.code] && dailyMap[b.code][dNum]) ? (dailyMap[b.code][dNum][fieldLabel] || 0) : 0;
-                                row[dayKey] = val;
-                                totalVal += val;
-                            }
-                            row["TOTAL BULANAN"] = totalVal;
-                            return row;
+                        branches.sort((a,b) => Number(a.code||0) - Number(b.code||0));
+
+                        // 1. Summary Sheet
+                        let summaryArr = branches.map(b => {
+                            let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0 };
+                            return {
+                                Month: date, Code: b.code, Branch: b.name, AM: b.am,
+                                "Total Sales": s.sales, "Total Trans": s.trans, "Total MyKasih": s.mykasih,
+                                "Total WH (Lorry)": s.lorry, "Total 1st Bank-In": s.bank1, "Total 2nd Bank-In": s.bank2,
+                                "Balance": s.sales - (s.bank1 + s.bank2)
+                            };
                         });
-                    };
 
-                    let salesArr = buildDailyMatrix("sales");
-                    let mykasihArr = buildDailyMatrix("mykasih");
-                    let lorryArr = buildDailyMatrix("lorry");
+                        // Helper to build daily matrix sheets
+                        let buildDailyMatrix = (fieldLabel) => {
+                            return branches.map(b => {
+                                let row = { Code: b.code, Branch: b.name, AM: b.am };
+                                let totalVal = 0;
+                                for (let dNum = 1; dNum <= daysInMonth; dNum++) {
+                                    let dayKey = String(dNum).padStart(2, '0');
+                                    let val = (dailyMap[b.code] && dailyMap[b.code][dNum]) ? (dailyMap[b.code][dNum][fieldLabel] || 0) : 0;
+                                    row[dayKey] = val;
+                                    totalVal += val;
+                                }
+                                row["TOTAL BULANAN"] = totalVal;
+                                return row;
+                            });
+                        };
 
-                    let wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryArr), "Summary Bulanan");
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesArr), `Daily Sales (1-${daysInMonth})`);
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mykasihArr), `Daily MyKasih (1-${daysInMonth})`);
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lorryArr), `Daily WH Lorry (1-${daysInMonth})`);
+                        let salesArr = buildDailyMatrix("sales");
+                        let mykasihArr = buildDailyMatrix("mykasih");
+                        let lorryArr = buildDailyMatrix("lorry");
 
-                    XLSX.writeFile(wb, `Report_Monthly_${date}.xlsx`);
-                    showToast('success', 'Laporan Bulanan + Harian (4 Sheets) berjaya dimuat turun!');
+                        let dailyHeaderOrder = ['Code', 'Branch', 'AM'];
+                        for (let dNum = 1; dNum <= daysInMonth; dNum++) {
+                            dailyHeaderOrder.push(String(dNum).padStart(2, '0'));
+                        }
+                        dailyHeaderOrder.push('TOTAL BULANAN');
+
+                        let summaryHeaderOrder = ["Month", "Code", "Branch", "AM", "Total Sales", "Total Trans", "Total MyKasih", "Total WH (Lorry)", "Total 1st Bank-In", "Total 2nd Bank-In", "Balance"];
+
+                        let wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryArr, { header: summaryHeaderOrder }), "Summary Bulanan");
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesArr, { header: dailyHeaderOrder }), "Daily Sales");
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mykasihArr, { header: dailyHeaderOrder }), "Daily MyKasih");
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lorryArr, { header: dailyHeaderOrder }), "Daily WH Lorry");
+
+                        XLSX.writeFile(wb, `Report_Monthly_${date}.xlsx`);
+                        showToast('success', 'Laporan Bulanan + Harian (4 Sheets) berjaya dimuat turun!');
+                    } catch (errExcel) {
+                        console.error("Excel generation failed:", errExcel);
+                        showToast('error', 'Gagal memuat turun Excel: ' + (errExcel.message || errExcel));
+                    }
                     return;
                 }
 
