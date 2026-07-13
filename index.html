@@ -755,24 +755,51 @@
 
                     <!-- Admin Audit Logs -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl admin-only md:col-span-2">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-4">
-                            <h3 class="text-sm font-bold text-white uppercase"><i class="fa-solid fa-list-check text-indigo-400 mr-1.5"></i> AM / Admin Activity Audit Logs</h3>
-                            <button onclick="renderAuditLogs()" class="bg-slate-800 text-slate-300 hover:text-white px-3 py-1 rounded text-[10px] font-bold transition-all border border-slate-700 shadow"><i class="fa-solid fa-rotate mr-1"></i> Refresh Logs</button>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3 mb-4">
+                            <div>
+                                <h3 class="text-sm font-bold text-white uppercase flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-400"></i> AM / Admin Activity Audit Logs</h3>
+                                <p class="text-[11px] text-slate-400 mt-0.5">Pantau semua aktiviti reset & unlock oleh Area Manager dan Admin. Dilengkapi penapis harian/bulanan & carian.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button onclick="renderAuditLogs()" class="bg-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border border-slate-700 shadow flex items-center gap-1.5"><i class="fa-solid fa-rotate text-cyan-400"></i> Refresh</button>
+                                <button onclick="exportAuditLogsExcel()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                            </div>
                         </div>
-                        <p class="text-[11px] text-slate-400 mb-4">Logs of data reset and unlock actions by Area Managers and Admins. Only visible to Admins.</p>
-                        <div class="overflow-x-auto border border-slate-800 rounded-lg max-h-64 overflow-y-auto">
+
+                        <!-- Audit Log Toolbar: Daily vs Monthly Filter & Live Search -->
+                        <div class="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 rounded-xl p-3 mb-4">
+                            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                <div class="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                                    <button id="audit-filter-all" onclick="setAuditFilterMode('all')" class="px-3 py-1 rounded-md text-[11px] font-bold bg-indigo-600 text-white shadow transition-all">Semua</button>
+                                    <button id="audit-filter-daily" onclick="setAuditFilterMode('daily')" class="px-3 py-1 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition-all">Harian</button>
+                                    <button id="audit-filter-monthly" onclick="setAuditFilterMode('monthly')" class="px-3 py-1 rounded-md text-[11px] font-bold text-slate-400 hover:text-white transition-all">Bulanan</button>
+                                </div>
+                                <input type="date" id="audit-date-picker" onchange="filterAuditLogs()" class="hidden bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-indigo-500">
+                                <input type="month" id="audit-month-picker" onchange="filterAuditLogs()" class="hidden bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-indigo-500">
+                            </div>
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <div class="relative flex-1 sm:w-64">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                                    <input type="text" id="audit-search-input" oninput="filterAuditLogs()" placeholder="Cari AM, Kod Cawangan, atau Aktiviti..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500">
+                                </div>
+                                <span id="audit-log-count" class="text-[11px] font-bold text-slate-400 whitespace-nowrap bg-slate-800/80 px-2.5 py-1 rounded-md border border-slate-700">0 Rekod</span>
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <div class="overflow-x-auto border border-slate-800 rounded-xl max-h-80 overflow-y-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-900/50 sticky top-0">
+                                <thead class="bg-slate-900 sticky top-0 z-10 border-b border-slate-800">
                                     <tr>
-                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Timestamp</th>
-                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">User (AM/Admin)</th>
-                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Action Type</th>
-                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Branch Code</th>
-                                        <th class="p-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Date</th>
+                                        <th class="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Masa & Tarikh Aktiviti</th>
+                                        <th class="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pengguna (AM / Admin)</th>
+                                        <th class="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Jenis Tindakan</th>
+                                        <th class="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cawangan</th>
+                                        <th class="p-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tarikh Sasaran (Target Date)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="audit-log-tbody">
-                                    <tr><td colspan="5" class="text-center py-4 text-slate-500 text-xs">Click Refresh to load logs...</td></tr>
+                                    <tr><td colspan="5" class="text-center py-6 text-slate-500 text-xs">Loading logs...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2914,25 +2941,195 @@ function saveGlobalGSUrl() {
                     return (tB || 0) - (tA || 0);
                 });
 
-                let html = '';
-                logs.forEach(d => {
-                    let actionColor = 'text-white';
-                    if(d.action && (d.action.includes('reset') || d.action.includes('LOCK'))) actionColor = 'text-rose-400';
-                    if(d.action && (d.action.includes('unlock') || d.action.includes('UNLOCK'))) actionColor = 'text-emerald-400';
-                    let tsStr = d.timestamp || (d.timestamp_ms ? new Date(Number(d.timestamp_ms)).toLocaleString('en-GB', {timeZone: 'Asia/Kuala_Lumpur'}) : '-');
-                    html += `<tr class="border-b border-slate-800 hover:bg-slate-800/50">
-                        <td class="p-3 text-[10px] text-slate-400 whitespace-nowrap">${tsStr}</td>
-                        <td class="p-3 text-[11px] font-bold text-cyan-400">${d.user || '-'}</td>
-                        <td class="p-3 text-[11px] font-bold uppercase ${actionColor}">${(d.action || '-').replace(/_/g, ' ')}</td>
-                        <td class="p-3 text-[11px] text-white">${d.target_code || '-'}</td>
-                        <td class="p-3 text-[11px] text-slate-300">${d.target_date || '-'}</td>
-                    </tr>`;
-                });
-                tbody.innerHTML = html;
+                window.allAuditLogs = logs;
+                filterAuditLogs();
             } catch(err) {
                 console.error("renderAuditLogs err:", err);
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-rose-500 text-xs">Failed to load logs.</td></tr>';
             }
+        }
+
+        window.auditFilterMode = window.auditFilterMode || 'all';
+
+        function setAuditFilterMode(mode) {
+            window.auditFilterMode = mode;
+            document.getElementById('audit-filter-all')?.classList.toggle('bg-indigo-600', mode === 'all');
+            document.getElementById('audit-filter-all')?.classList.toggle('text-white', mode === 'all');
+            document.getElementById('audit-filter-all')?.classList.toggle('text-slate-400', mode !== 'all');
+
+            document.getElementById('audit-filter-daily')?.classList.toggle('bg-indigo-600', mode === 'daily');
+            document.getElementById('audit-filter-daily')?.classList.toggle('text-white', mode === 'daily');
+            document.getElementById('audit-filter-daily')?.classList.toggle('text-slate-400', mode !== 'daily');
+
+            document.getElementById('audit-filter-monthly')?.classList.toggle('bg-indigo-600', mode === 'monthly');
+            document.getElementById('audit-filter-monthly')?.classList.toggle('text-white', mode === 'monthly');
+            document.getElementById('audit-filter-monthly')?.classList.toggle('text-slate-400', mode !== 'monthly');
+
+            let datePicker = document.getElementById('audit-date-picker');
+            let monthPicker = document.getElementById('audit-month-picker');
+            if (datePicker) {
+                datePicker.classList.toggle('hidden', mode !== 'daily');
+                if (mode === 'daily' && !datePicker.value) {
+                    let now = new Date();
+                    datePicker.value = now.toISOString().split('T')[0];
+                }
+            }
+            if (monthPicker) {
+                monthPicker.classList.toggle('hidden', mode !== 'monthly');
+                if (mode === 'monthly' && !monthPicker.value) {
+                    let now = new Date();
+                    monthPicker.value = now.toISOString().slice(0, 7);
+                }
+            }
+            filterAuditLogs();
+        }
+
+        function filterAuditLogs() {
+            let tbody = document.getElementById('audit-log-tbody');
+            if (!tbody || !window.allAuditLogs) return;
+
+            let mode = window.auditFilterMode || 'all';
+            let keyword = (document.getElementById('audit-search-input')?.value || '').toLowerCase().trim();
+            let selectedDate = document.getElementById('audit-date-picker')?.value || '';
+            let selectedMonth = document.getElementById('audit-month-picker')?.value || '';
+
+            let filtered = window.allAuditLogs.filter(d => {
+                if (mode === 'daily' && selectedDate) {
+                    let logDateStr = d.target_date || '';
+                    let tsDateStr = '';
+                    if (d.timestamp_ms) {
+                        let dt = new Date(Number(d.timestamp_ms));
+                        let y = dt.getFullYear();
+                        let m = String(dt.getMonth() + 1).padStart(2, '0');
+                        let day = String(dt.getDate()).padStart(2, '0');
+                        tsDateStr = `${y}-${m}-${day}`;
+                    }
+                    if (logDateStr !== selectedDate && tsDateStr !== selectedDate) return false;
+                } else if (mode === 'monthly' && selectedMonth) {
+                    let logMonthStr = (d.target_date || '').slice(0, 7);
+                    let tsMonthStr = '';
+                    if (d.timestamp_ms) {
+                        let dt = new Date(Number(d.timestamp_ms));
+                        let y = dt.getFullYear();
+                        let m = String(dt.getMonth() + 1).padStart(2, '0');
+                        tsMonthStr = `${y}-${m}`;
+                    }
+                    if (logMonthStr !== selectedMonth && tsMonthStr !== selectedMonth) return false;
+                }
+
+                if (keyword) {
+                    let str = [
+                        d.user || '',
+                        d.action || '',
+                        d.target_code || '',
+                        d.target_date || '',
+                        d.role || ''
+                    ].join(' ').toLowerCase();
+                    if (!str.includes(keyword)) return false;
+                }
+                return true;
+            });
+
+            let countBadge = document.getElementById('audit-log-count');
+            if (countBadge) countBadge.innerText = `${filtered.length} Rekod`;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs">Tiada log aktiviti dijumpai untuk penapis ini.</td></tr>';
+                return;
+            }
+
+            let bMap = {};
+            if (window.masterBranches) {
+                window.masterBranches.forEach(b => { bMap[String(b.code)] = b.name; });
+            }
+
+            let html = '';
+            filtered.forEach(d => {
+                let actionBadge = `<span class="bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">${d.action || '-'}</span>`;
+                let actUpper = (d.action || '').toUpperCase();
+                if (actUpper.includes('RESET') || actUpper.includes('LOCK')) {
+                    actionBadge = `<span class="inline-flex items-center gap-1.5 bg-rose-500/15 text-rose-400 border border-rose-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase"><i class="fa-solid fa-rotate-left text-rose-400"></i> ${actUpper.replace(/_/g, ' ')}</span>`;
+                } else if (actUpper.includes('UNLOCK')) {
+                    actionBadge = `<span class="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase"><i class="fa-solid fa-unlock text-emerald-400"></i> ${actUpper.replace(/_/g, ' ')}</span>`;
+                }
+
+                let tsStr = d.timestamp || (d.timestamp_ms ? new Date(Number(d.timestamp_ms)).toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' }) : '-');
+                let codeStr = d.target_code || '-';
+                let branchName = bMap[codeStr] || '';
+                let branchDisplay = branchName ? `<span class="font-bold text-white">${codeStr}</span> <span class="text-slate-400 text-[11px]">- ${branchName}</span>` : `<span class="font-bold text-white">${codeStr}</span>`;
+
+                let userRoleBadge = d.role ? `<span class="ml-1.5 text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">${d.role}</span>` : '';
+
+                html += `<tr class="border-b border-slate-800/80 hover:bg-slate-800/60 transition-colors">
+                    <td class="p-3.5 text-[11px] text-slate-300 font-mono whitespace-nowrap"><i class="fa-regular fa-clock mr-1.5 text-slate-500"></i>${tsStr}</td>
+                    <td class="p-3.5 text-[11px] font-bold text-cyan-400 flex items-center">${d.user || '-'}${userRoleBadge}</td>
+                    <td class="p-3.5 whitespace-nowrap">${actionBadge}</td>
+                    <td class="p-3.5 text-[11px]">${branchDisplay}</td>
+                    <td class="p-3.5 text-[11px] text-slate-300 font-mono"><span class="bg-slate-900/80 border border-slate-800 px-2 py-1 rounded"><i class="fa-regular fa-calendar mr-1.5 text-slate-500"></i>${d.target_date || '-'}</span></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function exportAuditLogsExcel() {
+            if (!window.allAuditLogs || window.allAuditLogs.length === 0) {
+                showToast('error', 'Tiada data log untuk dimuat turun!');
+                return;
+            }
+            let mode = window.auditFilterMode || 'all';
+            let keyword = (document.getElementById('audit-search-input')?.value || '').toLowerCase().trim();
+            let selectedDate = document.getElementById('audit-date-picker')?.value || '';
+            let selectedMonth = document.getElementById('audit-month-picker')?.value || '';
+
+            let filtered = window.allAuditLogs.filter(d => {
+                if (mode === 'daily' && selectedDate) {
+                    let logDateStr = d.target_date || '';
+                    let tsDateStr = '';
+                    if (d.timestamp_ms) {
+                        let dt = new Date(Number(d.timestamp_ms));
+                        let y = dt.getFullYear();
+                        let m = String(dt.getMonth() + 1).padStart(2, '0');
+                        let day = String(dt.getDate()).padStart(2, '0');
+                        tsDateStr = `${y}-${m}-${day}`;
+                    }
+                    if (logDateStr !== selectedDate && tsDateStr !== selectedDate) return false;
+                } else if (mode === 'monthly' && selectedMonth) {
+                    let logMonthStr = (d.target_date || '').slice(0, 7);
+                    let tsMonthStr = '';
+                    if (d.timestamp_ms) {
+                        let dt = new Date(Number(d.timestamp_ms));
+                        let y = dt.getFullYear();
+                        let m = String(dt.getMonth() + 1).padStart(2, '0');
+                        tsMonthStr = `${y}-${m}`;
+                    }
+                    if (logMonthStr !== selectedMonth && tsMonthStr !== selectedMonth) return false;
+                }
+                if (keyword) {
+                    let str = [d.user || '', d.action || '', d.target_code || '', d.target_date || '', d.role || ''].join(' ').toLowerCase();
+                    if (!str.includes(keyword)) return false;
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                showToast('error', 'Tiada log yang sepadan dengan penapis.');
+                return;
+            }
+
+            let exportArr = filtered.map(d => ({
+                "Timestamp": d.timestamp || (d.timestamp_ms ? new Date(Number(d.timestamp_ms)).toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' }) : '-'),
+                "User": d.user || '-',
+                "Role": d.role || '-',
+                "Action": d.action || '-',
+                "Branch Code": d.target_code || '-',
+                "Target Date": d.target_date || '-'
+            }));
+
+            let wb = XLSX.utils.book_new();
+            let ws = XLSX.utils.json_to_sheet(exportArr);
+            XLSX.utils.book_append_sheet(wb, ws, "Audit Logs");
+            XLSX.writeFile(wb, `Laporan_Audit_Log_${mode}.xlsx`);
+            showToast('success', 'Laporan Audit Log berjaya dimuat turun!');
         }
 
         // --- 4. Branch Logic ---
