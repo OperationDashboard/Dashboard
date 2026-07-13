@@ -4022,7 +4022,7 @@ function saveGlobalGSUrl() {
             });
         }
 
-        function exportData(type) {
+        async function exportData(type) {
             let mode = document.getElementById('dash-mode') ? document.getElementById('dash-mode').value : 'daily';
             let date = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
             let branches = getManagerFilteredBranches();
@@ -4052,6 +4052,88 @@ function saveGlobalGSUrl() {
                     document.head.appendChild(s);
                     return;
                 }
+
+                if (mode === 'monthly') {
+                    showToast('info', 'Menjana Laporan Bulanan & Harian (1-31)... Sila tunggu sebentar.');
+                    let [y, m] = date.split('-').map(Number);
+                    let daysInMonth = new Date(y, m, 0).getDate();
+                    let startD = `${date}-01`;
+                    let endD = `${date}-${String(daysInMonth).padStart(2, '0')}`;
+
+                    let dailyMap = {}; // dailyMap[code][day] = {sales, mykasih, lorry}
+                    try {
+                        let snap = await db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD).get();
+                        snap.forEach(doc => {
+                            let d = doc.data();
+                            if (d && d.code && d.date) {
+                                let dayNum = parseInt(d.date.split('-')[2], 10);
+                                if (!dailyMap[d.code]) dailyMap[d.code] = {};
+                                dailyMap[d.code][dayNum] = {
+                                    sales: Number(d.sales || 0),
+                                    mykasih: Number(d.mykasih || 0),
+                                    lorry: Number(d.lorry || 0)
+                                };
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Monthly daily export error:", e);
+                    }
+
+                    // Also merge any loaded dbSubmissions for current month
+                    dbSubmissions.filter(s => s.date && s.date.startsWith(date)).forEach(d => {
+                        let dayNum = parseInt(d.date.split('-')[2], 10);
+                        if (!dailyMap[d.code]) dailyMap[d.code] = {};
+                        if (!dailyMap[d.code][dayNum]) {
+                            dailyMap[d.code][dayNum] = {
+                                sales: Number(d.sales || 0),
+                                mykasih: Number(d.mykasih || 0),
+                                lorry: Number(d.lorry || 0)
+                            };
+                        }
+                    });
+
+                    // 1. Summary Sheet
+                    let summaryArr = branches.map(b => {
+                        let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0 };
+                        return {
+                            Month: date, Code: b.code, Branch: b.name, AM: b.am,
+                            "Total Sales": s.sales, "Total Trans": s.trans, "Total MyKasih": s.mykasih,
+                            "Total WH (Lorry)": s.lorry, "Total 1st Bank-In": s.bank1, "Total 2nd Bank-In": s.bank2,
+                            "Balance": s.sales - (s.bank1 + s.bank2)
+                        };
+                    });
+
+                    // Helper to build daily matrix sheets
+                    let buildDailyMatrix = (fieldLabel) => {
+                        return branches.map(b => {
+                            let row = { Code: b.code, Branch: b.name, AM: b.am };
+                            let totalVal = 0;
+                            for (let dNum = 1; dNum <= daysInMonth; dNum++) {
+                                let dayKey = String(dNum).padStart(2, '0');
+                                let val = (dailyMap[b.code] && dailyMap[b.code][dNum]) ? (dailyMap[b.code][dNum][fieldLabel] || 0) : 0;
+                                row[dayKey] = val;
+                                totalVal += val;
+                            }
+                            row["TOTAL BULANAN"] = totalVal;
+                            return row;
+                        });
+                    };
+
+                    let salesArr = buildDailyMatrix("sales");
+                    let mykasihArr = buildDailyMatrix("mykasih");
+                    let lorryArr = buildDailyMatrix("lorry");
+
+                    let wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryArr), "Summary Bulanan");
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesArr), `Daily Sales (1-${daysInMonth})`);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mykasihArr), `Daily MyKasih (1-${daysInMonth})`);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lorryArr), `Daily WH Lorry (1-${daysInMonth})`);
+
+                    XLSX.writeFile(wb, `Report_Monthly_${date}.xlsx`);
+                    showToast('success', 'Laporan Bulanan + Harian (4 Sheets) berjaya dimuat turun!');
+                    return;
+                }
+
                 showToast('info', `Generating EXCEL...`);
                 let exportArr = branches.map(b => {
                     let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time:"", bank1_time:"", bank2_time:"" };
