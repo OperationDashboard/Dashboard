@@ -3545,17 +3545,23 @@ function saveGlobalGSUrl() {
             if(trendChartObj) trendChartObj.destroy();
             trendChartObj = new Chart(trendEl.getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sales (RM)', data: salesData, borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}},x:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
 
-            // Asynchronously fetch 7-day historical sales range if missing
-            if (typeof fetchRangeFromSummaries === 'function' && datesArr.length > 0) {
-                fetchRangeFromSummaries(datesArr[0], datesArr[datesArr.length - 1]).then(rangeData => {
-                    if (!Array.isArray(rangeData)) return;
-                    let combinedMap = {};
-                    dbSubmissions.forEach(s => { if(s && s.code && s.date) combinedMap[String(s.code)+"_"+String(s.date)] = s; });
-                    rangeData.forEach(s => { if(s && s.code && s.date) combinedMap[String(s.code)+"_"+String(s.date)] = s; });
-                    let allRecords = Object.values(combinedMap);
+            // Asynchronously fetch 7-day historical sales directly from submissions collection
+            if (typeof db !== 'undefined' && db.collection && datesArr.length > 0) {
+                db.collection("submissions").where("date", "in", datesArr).get().then(snap => {
+                    let fetchedRecords = [];
+                    snap.forEach(doc => {
+                        let d = doc.data();
+                        if (d && d.date) fetchedRecords.push(d);
+                    });
+                    
+                    let existSet = new Set(dbSubmissions.map(s => String(s.code) + "_" + String(s.date)));
+                    fetchedRecords.forEach(s => {
+                        let k = String(s.code) + "_" + String(s.date);
+                        if (!existSet.has(k)) dbSubmissions.push(s);
+                    });
 
                     let updatedSalesData = datesArr.map(d => {
-                        return allRecords.filter(s => s.date === d && branchCodes.includes(String(s.code)) && isSubmissionCountable(s)).reduce((a,c)=>a+(parseFloat(c.sales)||0), 0);
+                        return dbSubmissions.filter(s => s.date === d && branchCodes.includes(String(s.code)) && isSubmissionCountable(s)).reduce((a,c)=>a+(parseFloat(c.sales)||0), 0);
                     });
                     if (trendChartObj && trendChartObj.data && trendChartObj.data.datasets[0]) {
                         trendChartObj.data.datasets[0].data = updatedSalesData;
