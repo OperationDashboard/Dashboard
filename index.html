@@ -1611,6 +1611,7 @@ window.onunhandledrejection = function(event) {
                         if (merged.limit_mykasih !== undefined) payload.limit_mykasih = merged.limit_mykasih;
                         if (merged.limit_lorry !== undefined) payload.limit_lorry = merged.limit_lorry;
                     } else if (this.col === 'audit_logs') {
+                        delete payload.data;
                         payload.id = this.id;
                         payload.timestamp_ms = merged.timestamp_ms || Date.now();
                         payload.action = merged.action || '';
