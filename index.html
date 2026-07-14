@@ -1533,7 +1533,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 15000);
+                }, 120000);
                 let unsub = () => {
                     active = false;
                     clearInterval(interval);
@@ -1682,7 +1682,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 30000);
+                }, 120000);
                 let unsub = () => { active = false; clearInterval(interval); };
                 unsub.refresh = doFetch;
                 return unsub;
@@ -2107,7 +2107,7 @@ function saveGlobalGSUrl() {
                     if (!document.hidden && configListener && typeof configListener.refresh === 'function') {
                         configListener.refresh();
                     }
-                }, 5000);
+                }, 60000);
             }
         }
 
