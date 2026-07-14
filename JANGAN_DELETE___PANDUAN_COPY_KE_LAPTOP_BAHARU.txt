@@ -1,0 +1,37 @@
+================================================================================
+           PANDUAN COPY & PASTE PROJEK KE LAPTOP BAHARU (SANGAT MUDAH)
+================================================================================
+
+BOS: JANGAN DELETE FOLDER INI ATAU FAIL DI DALAMNYA.
+
+1. APA YANG ADA DALAM FOLDER INI?
+   - index.html : Fail utama sistem dashboard operasi & jualan syarikat bos.
+   - vercel.json : Fail konfigurasi penghubung ke pelayan awan Vercel.
+
+   Semua fail sementara / skrip lama yang tidak digunakan TELAH DIBERSIHKAN
+   supaya folder ini ringan, kemas dan mudah di-copy.
+
+--------------------------------------------------------------------------------
+2. CARA PINDAH KE LAPTOP BAHARU NANTI:
+--------------------------------------------------------------------------------
+   LANGKAH A: Copy satu folder "Dashboard-Syarikat" ini dan masukkan ke dalam
+              Pen Drive (Thumb Drive) ATAU simpan ke Google Drive bos.
+
+   LANGKAH B: Di Laptop Baharu bos, Paste folder "Dashboard-Syarikat" ini
+              ke Desktop laptop baharu tersebut.
+
+   LANGKAH C: Pasang aplikasi Antigravity AI di laptop baharu bos.
+
+   LANGKAH D: Buka folder "Dashboard-Syarikat" ini di dalam Antigravity AI.
+              Selesai! Bos boleh terus sambung kerja bersama saya seperti biasa!
+
+--------------------------------------------------------------------------------
+3. ADAKAH DATA JUALAN & AUDIT LOG AKAN HILANG?
+--------------------------------------------------------------------------------
+   TIDAK SAMA SEKALI.
+   Kesemua data cawangan, jualan harian, dan sejarah log tersimpan dengan
+   selamat di pangkalan data awan Supabase & Vercel.
+
+================================================================================
+                  SIAP SEDIA UNTUK DIGUNAKAN BILA-BILA MASA
+================================================================================
