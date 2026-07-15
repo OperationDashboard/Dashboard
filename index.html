@@ -1337,6 +1337,34 @@ window.onunhandledrejection = function(event) {
     console.error('Unhandled Promise Rejection:', event.reason);
 };
 
+        // Auto-purge cache when localStorage quota (5MB) is exceeded to prevent app crashes
+        (function() {
+            try {
+                const _origSetItem = localStorage.setItem.bind(localStorage);
+                localStorage.setItem = function(key, val) {
+                    try {
+                        _origSetItem(key, val);
+                    } catch(e) {
+                        try {
+                            let keysToRemove = [];
+                            for (let i = 0; i < localStorage.length; i++) {
+                                let k = localStorage.key(i);
+                                if (k && (k.startsWith('cache_sub_') || k.startsWith('am_confirm_time_') || k === 'master_branches_cache' || k === 'cached_all_surveys' || k.startsWith('audit_'))) {
+                                    keysToRemove.push(k);
+                                }
+                            }
+                            keysToRemove.forEach(k => localStorage.removeItem(k));
+                            _origSetItem(key, val);
+                        } catch(e2) {
+                            console.warn('Storage quota exceeded, unable to save key:', key);
+                        }
+                    }
+                };
+            } catch(err) {
+                console.error('Failed to override localStorage.setItem', err);
+            }
+        })();
+
         function formatDecimalInput(el) {
             let val = el.value.replace(/[^\d.]/g, '');
             let parts = val.split('.');
@@ -6801,8 +6829,9 @@ function saveGlobalGSUrl() {
                 s.amConfirmations = list;
                 s.amConfirmTimes = s.amConfirmTimes || {};
                 s.amConfirmTimes[amName] = Date.now();
-                localStorage.setItem(`am_confirm_time_${id}_${amName}`, Date.now());
+                try { localStorage.setItem(`am_confirm_time_${id}_${amName}`, Date.now()); } catch(e){}
                 await db.collection('surveys').doc(id).update({ amConfirmations: list, amConfirmTimes: s.amConfirmTimes });
+                try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
                 triggerLiveSync();
                 showToast('success', 'Pengesahan AM berjaya dihantar ke Admin! Status anda kini Disahkan.');
                 updateSurveyUI(true);
