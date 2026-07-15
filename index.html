@@ -1527,7 +1527,7 @@ window.onunhandledrejection = function(event) {
                 } catch(e) {}
 
                 let onVisChange = () => { if (active && !document.hidden) doFetch(); };
-                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 8000 : 120000;
+                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 30000 : 120000;
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
