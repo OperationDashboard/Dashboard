@@ -1527,13 +1527,11 @@ window.onunhandledrejection = function(event) {
                 } catch(e) {}
 
                 let onVisChange = () => { if (active && !document.hidden) doFetch(); };
-                document.addEventListener('visibilitychange', onVisChange);
-                window.addEventListener('focus', onVisChange);
-
+                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 25000 : 120000;
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 120000);
+                }, intervalMs);
                 let unsub = () => {
                     active = false;
                     clearInterval(interval);
@@ -1772,6 +1770,8 @@ window.onunhandledrejection = function(event) {
         var configListener = null;
         var surveyUnsubscribe = null;
         var responsesUnsubscribe = null;
+        var lastActiveSurveyHash = null;
+        var _surveyScheduleTimer = null;
         var allSurveys = [];
         var allResponses = [];
         var surveysLoaded = false;
@@ -5383,10 +5383,28 @@ function saveGlobalGSUrl() {
         function listenToSurveyBadge() {
             if (typeof surveyUnsubscribe === 'function') surveyUnsubscribe();
             if (typeof responsesUnsubscribe === 'function') responsesUnsubscribe();
+            if (_surveyScheduleTimer) clearInterval(_surveyScheduleTimer);
             
             surveysLoaded = false;
             responsesLoaded = false;
             hasAlertedSurvey = false;
+            lastActiveSurveyHash = null;
+
+            _surveyScheduleTimer = setInterval(() => {
+                if (typeof window.isFillingSurveyActive === 'boolean' && window.isFillingSurveyActive) return;
+                if (!surveysLoaded || document.hidden) return;
+                let now = new Date();
+                let needsRefresh = allSurveys.some(s => {
+                    if (s.status === 'active' && s.publishAt) {
+                        let pubTime = new Date(s.publishAt);
+                        return now >= pubTime && (now - pubTime) <= 300000;
+                    }
+                    return false;
+                });
+                if (needsRefresh) {
+                    updateSurveyUI(false);
+                }
+            }, 15000);
 
             let processSurveys = (docs) => {
                 let fetched = docs.map(doc => ({id: doc.id, ...doc.data()}));
@@ -5416,6 +5434,7 @@ function saveGlobalGSUrl() {
                 let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
                 if (sIds.length === 0) {
                     if (responsesUnsubscribe) { responsesUnsubscribe(); responsesUnsubscribe = null; }
+                    lastActiveSurveyHash = null;
                     allResponses = [];
                     responsesLoaded = true;
                     updateSurveyUI(true);
@@ -5423,27 +5442,36 @@ function saveGlobalGSUrl() {
                     return;
                 }
                 
-                if (responsesUnsubscribe) responsesUnsubscribe();
-                responsesUnsubscribe = db.collection('survey_responses').limit(1000).onSnapshot(rSnap => {
-                    let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                let curHash = sIds.slice().sort().join('|');
+                if (curHash !== lastActiveSurveyHash || !responsesUnsubscribe) {
+                    lastActiveSurveyHash = curHash;
+                    if (responsesUnsubscribe) responsesUnsubscribe();
                     
-                    if (currentUser && currentUser.role === 'branch') {
-                        rData = rData.filter(r => String(r.branchCode) === String(currentUser.id));
-                    } else if (currentUser && currentUser.role === 'am') {
-                        let amName = (currentUser.name || '').trim().toUpperCase();
-                        rData = rData.filter(r => (r.amName || '').toUpperCase() === amName);
+                    let respQuery = db.collection('survey_responses');
+                    if (sIds.length > 0 && sIds.length <= 50) {
+                        respQuery = respQuery.where('surveyId', 'in', sIds);
                     }
-                    
-                    allResponses = rData;
-                    responsesLoaded = true;
-                    updateSurveyUI(true);
-                    if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
-                }, err => {
-                    console.error("Responses snapshot err:", err);
-                    allResponses = [];
-                    responsesLoaded = true;
-                    updateSurveyUI(true);
-                });
+                    responsesUnsubscribe = respQuery.limit(3000).onSnapshot(rSnap => {
+                        let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                        
+                        if (currentUser && currentUser.role === 'branch') {
+                            rData = rData.filter(r => String(r.branchCode) === String(currentUser.id));
+                        } else if (currentUser && currentUser.role === 'am') {
+                            let amName = (currentUser.name || '').trim().toUpperCase();
+                            rData = rData.filter(r => (r.amName || '').toUpperCase() === amName);
+                        }
+                        
+                        allResponses = rData;
+                        responsesLoaded = true;
+                        updateSurveyUI(true);
+                        if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+                    }, err => {
+                        console.error("Responses snapshot err:", err);
+                        allResponses = [];
+                        responsesLoaded = true;
+                        updateSurveyUI(true);
+                    });
+                }
             }, err => {
                 console.error("Surveys snapshot err:", err);
                 db.collection('surveys').get().then(snap => {
