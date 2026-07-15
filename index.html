@@ -1527,7 +1527,7 @@ window.onunhandledrejection = function(event) {
                 } catch(e) {}
 
                 let onVisChange = () => { if (active && !document.hidden) doFetch(); };
-                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 30000 : 120000;
+                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 10000 : 120000;
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
@@ -5900,20 +5900,7 @@ function saveGlobalGSUrl() {
         function isAMSurveyConfirmed(s, amName) {
             if (!s || !amName) return false;
             amName = amName.trim().toUpperCase();
-            if (!(s.amConfirmations || []).includes(amName)) return false;
-            let resps = allResponses.filter(r => r.surveyId === s.id);
-            let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
-            if (myBranches.length > 0) {
-                let allResponded = myBranches.every(b => resps.some(r => String(r.branchCode) === String(b.code)));
-                if (!allResponded) {
-                    s.amConfirmations = (s.amConfirmations || []).filter(x => x !== amName);
-                    s.amClosed = (s.amClosed || []).filter(x => x !== amName);
-                    if (s.amConfirmTimes && s.amConfirmTimes[amName]) delete s.amConfirmTimes[amName];
-                    try { db.collection('surveys').doc(s.id).update({ amConfirmations: s.amConfirmations, amClosed: s.amClosed, amConfirmTimes: s.amConfirmTimes || {} }); } catch(e) {}
-                    return false;
-                }
-            }
-            return true;
+            return (s.amConfirmations || []).includes(amName);
         }
 
         function updateSurveyUI(force = false) {
@@ -5946,6 +5933,9 @@ function saveGlobalGSUrl() {
             
             // Elak data hilang: Jangan re-render UI jika pengguna sedang mengisi borang survey atau popup Swal aktif
             if (!force && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) return;
+            if (force && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible() && window._currentOpenReportSurveyId) {
+                if (typeof viewSurveyReport === 'function') viewSurveyReport(window._currentOpenReportSurveyId, true);
+            }
             if (!force) {
                 let amListEl = document.getElementById('survey-am-list');
                 if (amListEl && amListEl.innerHTML.trim() !== '' && !amListEl.innerHTML.includes('Loading')) {
@@ -6911,18 +6901,28 @@ function saveGlobalGSUrl() {
         }
         window.getSurveyAnswerVal = getSurveyAnswerVal;
 
-        async function viewSurveyReport(id) {
+        async function viewSurveyReport(id, silent = false) {
+            let curSearch = '';
+            let activeTab = 'maklum';
+            if (silent && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
+                let searchEl = document.getElementById('swal-search');
+                if (searchEl) curSearch = searchEl.value;
+                let tabAm = document.getElementById('tab-am-status');
+                if (tabAm && !tabAm.classList.contains('hidden')) activeTab = 'am';
+            } else {
+                Swal.fire({ title: 'Memuat data maklum balas...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            }
+            window._currentOpenReportSurveyId = id;
             let s = allSurveys.find(x => x.id === id);
             if(!s) return;
             
-            Swal.fire({ title: 'Memuat data maklum balas...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
             let sResp = [];
             try {
                 let snap = await db.collection('survey_responses').where('surveyId', '==', id).get();
                 sResp = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                Swal.close();
+                if (!silent) Swal.close();
             } catch(e) {
-                Swal.close();
+                if (!silent) Swal.close();
                 console.error(e);
                 sResp = allResponses.filter(x => x.surveyId === id);
             }
@@ -7140,13 +7140,30 @@ function saveGlobalGSUrl() {
                             <div class="bg-slate-950 p-3 rounded-lg max-h-60 overflow-y-auto border border-slate-800 shadow-inner">${exHtml}</div>
                         </div>
                     </div>
-                `,
-                background: '#0f172a',
-                color: '#fff',
-                width: '600px',
-                showConfirmButton: false,
-                showCloseButton: true
-            });
+                `;
+                if (silent && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible() && Swal.getHtmlContainer()) {
+                    Swal.getHtmlContainer().innerHTML = fullHtml;
+                    let searchEl = document.getElementById('swal-search');
+                    if (searchEl && curSearch) {
+                        searchEl.value = curSearch;
+                        if (typeof filterSwalTable === 'function') filterSwalTable();
+                    }
+                    if (activeTab === 'am') {
+                        let btnAm = document.getElementById('btn-tab-am');
+                        if (btnAm) btnAm.click();
+                    }
+                } else {
+                    Swal.fire({
+                        title: '<span class="text-lg">Custom Survey Report</span>',
+                        html: fullHtml,
+                        background: '#0f172a',
+                        color: '#fff',
+                        width: '600px',
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        didClose: () => { if (window._currentOpenReportSurveyId === id) window._currentOpenReportSurveyId = null; }
+                    });
+                }
         }
 
         async function deleteSurveyResponse(responseId, surveyId) {
