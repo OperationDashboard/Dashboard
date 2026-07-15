@@ -6466,7 +6466,15 @@ function saveGlobalGSUrl() {
             }
             
             try {
-                await db.collection('surveys').add(surveyData);
+                let tempId = 'doc_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+                let newSurveyObj = { id: tempId, ...surveyData, createdAt: new Date().toISOString() };
+                let ref = await db.collection('surveys').add(surveyData);
+                if (ref && ref.id) newSurveyObj.id = ref.id;
+                
+                if (!Array.isArray(allSurveys)) allSurveys = [];
+                allSurveys.unshift(newSurveyObj);
+                surveysLoaded = true;
+                try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
                 
                 document.getElementById('survey-new-title').value = '';
                 document.getElementById('survey-new-type').value = 'exception';
@@ -6477,6 +6485,9 @@ function saveGlobalGSUrl() {
                 toggleSurveyTypeUI();
                 renderBuilderQuestions();
                 
+                updateSurveyUI(true, true);
+                triggerLiveSync();
+                if (typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe && typeof surveyUnsubscribe.refresh === 'function') surveyUnsubscribe.refresh();
                 showToast('success', 'Survey Published Successfully!');
             } catch(e) {
                 showToast('error', 'Error: ' + e.message);
