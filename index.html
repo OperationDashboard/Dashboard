@@ -1527,7 +1527,7 @@ window.onunhandledrejection = function(event) {
                 } catch(e) {}
 
                 let onVisChange = () => { if (active && !document.hidden) doFetch(); };
-                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 25000 : 120000;
+                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 8000 : 120000;
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
@@ -5714,13 +5714,17 @@ function saveGlobalGSUrl() {
                     badge.innerText = pendingSurveys.length;
                     badge.classList.remove('hidden');
                 }
-                if (!hasAlertedSurvey) {
+                let prevCount = window._lastSurveyAlertCount || 0;
+                window._lastSurveyAlertCount = pendingSurveys.length;
+                let isNewOrDeleted = pendingSurveys.length > prevCount;
+
+                if (!hasAlertedSurvey || isNewOrDeleted) {
                     hasAlertedSurvey = true;
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
-                            icon: 'info',
-                            title: 'Survey Reminder!',
-                            text: `You have ${pendingSurveys.length} unanswered surveys. Please check${currentUser.role === 'am' ? ' the Survey & Tracking tab' : ' the form below'}.`,
+                            icon: 'warning',
+                            title: 'Perhatian: Survey Perlu Diisi!',
+                            text: `Anda mempunyai ${pendingSurveys.length} survey yang belum dilengkapkan (atau perlu diisi semula kerana data telah dipadam/direset oleh Admin/AM). Sila lengkapi di bahagian bawah.`,
                             confirmButtonColor: '#8b5cf6',
                             background: '#1e293b',
                             color: '#fff'
@@ -5905,11 +5909,12 @@ function saveGlobalGSUrl() {
             let resps = allResponses.filter(r => r.surveyId === s.id);
             let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
             if (myBranches.length > 0) {
-                let hasAtLeastOneResp = myBranches.some(b => resps.some(r => String(r.branchCode) === String(b.code)));
-                if (!hasAtLeastOneResp) {
+                let allResponded = myBranches.every(b => resps.some(r => String(r.branchCode) === String(b.code)));
+                if (!allResponded) {
                     s.amConfirmations = (s.amConfirmations || []).filter(x => x !== amName);
                     s.amClosed = (s.amClosed || []).filter(x => x !== amName);
-                    try { db.collection('surveys').doc(s.id).update({ amConfirmations: s.amConfirmations, amClosed: s.amClosed }); } catch(e) {}
+                    if (s.amConfirmTimes && s.amConfirmTimes[amName]) delete s.amConfirmTimes[amName];
+                    try { db.collection('surveys').doc(s.id).update({ amConfirmations: s.amConfirmations, amClosed: s.amClosed, amConfirmTimes: s.amConfirmTimes || {} }); } catch(e) {}
                     return false;
                 }
             }
@@ -7153,7 +7158,7 @@ function saveGlobalGSUrl() {
         async function deleteSurveyResponse(responseId, surveyId) {
             Swal.fire({
                 title: 'Padam Data Branch?',
-                text: 'Data cawangan ini akan dibuang dan cawangan (atau AM) perlu isi semula.',
+                text: 'Data cawangan ini akan dibuang dan status pengesahan AM akan bertukar menjadi Belum Disahkan semula supaya cawangan (atau AM) perlu isi semula.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
@@ -7163,9 +7168,51 @@ function saveGlobalGSUrl() {
             }).then(async (result) => {
                 if(result.isConfirmed) {
                     try {
+                        let targetResp = allResponses.find(r => r.id === responseId);
+                        if (!targetResp) {
+                            try {
+                                let docSnap = await db.collection('survey_responses').doc(responseId).get();
+                                if (docSnap && docSnap.data) targetResp = docSnap.data();
+                            } catch(err){}
+                        }
+
                         await db.collection('survey_responses').doc(responseId).delete();
                         allResponses = allResponses.filter(r => r.id !== responseId);
-                        showToast('success', 'Data cawangan berjaya dipadam dan boleh diisi semula.');
+
+                        if (targetResp) {
+                            let amName = (targetResp.amName || '').trim().toUpperCase();
+                            if (!amName && targetResp.branchCode) {
+                                let bInfo = masterBranches.find(b => String(b.code) === String(targetResp.branchCode));
+                                if (bInfo) amName = (bInfo.am || '').trim().toUpperCase();
+                            }
+                            if (amName && amName !== 'N/A' && amName !== 'UNKNOWN') {
+                                let s = allSurveys.find(x => x.id === surveyId);
+                                if (!s) {
+                                    try {
+                                        let sSnap = await db.collection('surveys').doc(surveyId).get();
+                                        if (sSnap && sSnap.data) s = { id: sSnap.id, ...sSnap.data() };
+                                    } catch(err){}
+                                }
+                                if (s) {
+                                    let list = (s.amConfirmations || []).filter(x => x !== amName);
+                                    let closed = (s.amClosed || []).filter(x => x !== amName);
+                                    s.amConfirmations = list;
+                                    s.amClosed = closed;
+                                    if (s.amConfirmTimes && s.amConfirmTimes[amName]) delete s.amConfirmTimes[amName];
+                                    try {
+                                        await db.collection('surveys').doc(surveyId).update({
+                                            amConfirmations: list,
+                                            amClosed: closed,
+                                            amConfirmTimes: s.amConfirmTimes || {}
+                                        });
+                                    } catch(err) { console.error("Failed to revoke AM confirmation:", err); }
+                                }
+                            }
+                        }
+
+                        showToast('success', 'Data cawangan berjaya dipadam & status AM ditukar ke Belum Disahkan.');
+                        triggerLiveSync();
+
                         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation') && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
                             setTimeout(() => viewSurveyReport(surveyId), 300);
                         } else {
@@ -7173,6 +7220,7 @@ function saveGlobalGSUrl() {
                             setTimeout(() => updateSurveyUI(true), 350);
                         }
                     } catch(e) {
+                        console.error("Delete response error:", e);
                         showToast('error', 'Failed to delete data.');
                     }
                 }
