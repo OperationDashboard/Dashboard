@@ -5501,12 +5501,7 @@ function saveGlobalGSUrl() {
                 }
             }
             if (user.role === 'am') {
-                let amName = (user.name || '').trim().toUpperCase();
-                if ((s.amClosed || []).includes(amName)) return false;
-                let confirmTime = (s.amConfirmTimes && s.amConfirmTimes[amName]) || Number(localStorage.getItem(`am_confirm_time_${s.id}_${amName}`) || 0);
-                if (confirmTime > 0 && (Date.now() - confirmTime) >= 5 * 60 * 1000) {
-                    return false;
-                }
+                // AM always sees active surveys targeted to their branches so they can monitor & verify
             }
             if (s.selectedBranches && s.selectedBranches.length > 0) {
                 if (user.role === 'branch') {
@@ -5698,7 +5693,7 @@ function saveGlobalGSUrl() {
                     if (s.targetAudience === 'branch') {
                         let myBranches = filterBranchesForSurvey(masterBranches.filter(b => (b.am || '').trim().toUpperCase() === amName), s);
                         if (myBranches.length === 0) return false;
-                        return !(s.amClosed || []).includes(amName);
+                        return !isAMSurveyConfirmed(s, amName);
                     }
                     return false;
                 });
@@ -6784,10 +6779,9 @@ function saveGlobalGSUrl() {
                 localStorage.setItem(`am_confirm_time_${id}_${amName}`, Date.now());
                 await db.collection('surveys').doc(id).update({ amConfirmations: list, amConfirmTimes: s.amConfirmTimes });
                 triggerLiveSync();
-                showToast('success', 'Pengesahan AM berjaya dihantar ke Admin! Survey akan ditutup automatik dalam masa 5 minit.');
+                showToast('success', 'Pengesahan AM berjaya dihantar ke Admin! Status anda kini Disahkan.');
                 updateSurveyUI(true);
                 setTimeout(() => updateSurveyUI(true), 350);
-                setTimeout(() => { updateSurveyUI(true); }, 5 * 60 * 1000);
             } catch(e) {
                 showToast('error', 'Ralat menghantar pengesahan: ' + e.message);
             }
