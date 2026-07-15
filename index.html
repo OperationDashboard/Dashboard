@@ -5795,6 +5795,7 @@ function saveGlobalGSUrl() {
         }
 
         async function handleSurveyYesNoChange(selectEl, qLabel) {
+            window.isFillingSurveyActive = true;
             if (selectEl.value === 'Tidak') {
                 let reasonsStr = selectEl.getAttribute('data-reasons');
                 let reasons = [];
@@ -5956,7 +5957,7 @@ function saveGlobalGSUrl() {
             return (s.amConfirmations || []).includes(amName);
         }
 
-        function updateSurveyUI(force = false) {
+        function updateSurveyUI(force = false, isPostSubmit = false) {
             if (!currentUser) {
                 let saved = localStorage.getItem('pbi_user');
                 if (saved) { try { currentUser = JSON.parse(saved); } catch(e){} }
@@ -5985,36 +5986,43 @@ function saveGlobalGSUrl() {
             }
             
             // Elak data hilang: Jangan re-render UI jika pengguna sedang mengisi borang survey atau popup Swal aktif
-            if (!force && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) return;
-            if (force && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible() && window._currentOpenReportSurveyId) {
-                if (typeof viewSurveyReport === 'function') viewSurveyReport(window._currentOpenReportSurveyId, true);
-            }
-            let builderArea = document.getElementById('survey-builder-area');
-            let titleArea = document.getElementById('survey-new-title');
-            if (document.activeElement && ((builderArea && builderArea.contains(document.activeElement)) || (titleArea && titleArea === document.activeElement))) {
-                if (!force) return;
-            }
-            if (!force) {
+            if (!isPostSubmit) {
+                if (typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
+                    if (force && window._currentOpenReportSurveyId) {
+                        if (typeof viewSurveyReport === 'function') viewSurveyReport(window._currentOpenReportSurveyId, true);
+                    }
+                    return;
+                }
+                let builderArea = document.getElementById('survey-builder-area');
+                let titleArea = document.getElementById('survey-new-title');
+                if (document.activeElement && ((builderArea && builderArea.contains(document.activeElement)) || (titleArea && titleArea === document.activeElement))) {
+                    if (!force) return;
+                }
                 let amListEl = document.getElementById('survey-am-list');
+                let branchListEl = document.getElementById('branch-survey-container');
+                let hasActiveInput = false;
+
                 if (amListEl && amListEl.innerHTML.trim() !== '' && !amListEl.innerHTML.includes('Loading')) {
-                    if (amListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
+                    if (amListEl.contains(document.activeElement) || window.isFillingSurveyActive) hasActiveInput = true;
                     let hasInput = Array.from(amListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
                         if (el.id && el.id.startsWith('survey-exc-')) return el.value !== '0' && el.value !== '';
                         if (el.id && el.id.startsWith('survey-code-')) return true; // Pengecualian branch sedang diisi
                         if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
                         return el.value !== '' && el.value !== '0' && el.value !== '-';
                     });
-                    if (hasInput) return;
+                    if (hasInput) hasActiveInput = true;
                 }
-                let branchListEl = document.getElementById('branch-survey-container');
                 if (branchListEl && branchListEl.innerHTML.trim() !== '') {
-                    if (branchListEl.contains(document.activeElement) || window.isFillingSurveyActive) return;
+                    if (branchListEl.contains(document.activeElement) || window.isFillingSurveyActive) hasActiveInput = true;
                     let hasInput = Array.from(branchListEl.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
                         if (el.id && el.id.startsWith('sq_')) return el.value !== '' && el.value !== '-' && el.value !== '0';
                         return el.value !== '' && el.value !== '0' && el.value !== '-';
                     });
-                    if (hasInput) return;
+                    if (hasInput) hasActiveInput = true;
                 }
+                if (hasActiveInput) return;
+            } else {
+                window.isFillingSurveyActive = false;
             }
             
             if (currentUser.role === 'branch') {
@@ -6318,15 +6326,12 @@ function saveGlobalGSUrl() {
             }
         }
 
-        document.addEventListener('input', function(e) {
-            if (e.target && ((e.target.id || '').startsWith('sq_') || (e.target.id || '').startsWith('survey-exc-') || (e.target.id || '').startsWith('survey-code-'))) {
-                window.isFillingSurveyActive = true;
-            }
-        });
-        document.addEventListener('change', function(e) {
-            if (e.target && ((e.target.id || '').startsWith('sq_') || (e.target.id || '').startsWith('survey-exc-') || (e.target.id || '').startsWith('survey-code-'))) {
-                window.isFillingSurveyActive = true;
-            }
+        ['input', 'change', 'focusin', 'click', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, function(e) {
+                if (e.target && ((e.target.id || '').startsWith('sq_') || (e.target.id || '').startsWith('survey-exc-') || (e.target.id || '').startsWith('survey-code-'))) {
+                    window.isFillingSurveyActive = true;
+                }
+            });
         });
 
         let builderQuestions = [];
@@ -6629,6 +6634,7 @@ function saveGlobalGSUrl() {
                 await db.collection('survey_responses').add(payload);
                 window.isFillingSurveyActive = false;
                 triggerLiveSync();
+                updateSurveyUI(true, true);
                 showToast('success', 'Maklum balas telah direkodkan!');
                 let box = document.getElementById(`survey-box-${id}`);
                 if (box) {
@@ -6702,7 +6708,7 @@ function saveGlobalGSUrl() {
                 if (container) {
                     container.querySelectorAll('input, select').forEach(el => el.value = '');
                 }
-                updateSurveyUI();
+                updateSurveyUI(true, true);
             } catch (e) {
                 window.isFillingSurveyActive = false;
                 console.error(e);
@@ -6752,6 +6758,7 @@ function saveGlobalGSUrl() {
                 });
                 window.isFillingSurveyActive = false;
                 triggerLiveSync();
+                updateSurveyUI(true, true);
                 showToast('success', 'Terima kasih! Maklum balas berjaya dihantar.');
                 let box = document.getElementById(`survey-box-${id}`);
                 if (box) {
@@ -6834,8 +6841,8 @@ function saveGlobalGSUrl() {
                 try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
                 triggerLiveSync();
                 showToast('success', 'Pengesahan AM berjaya dihantar ke Admin! Status anda kini Disahkan.');
-                updateSurveyUI(true);
-                setTimeout(() => updateSurveyUI(true), 350);
+                updateSurveyUI(true, true);
+                setTimeout(() => updateSurveyUI(true, true), 350);
             } catch(e) {
                 showToast('error', 'Ralat menghantar pengesahan: ' + e.message);
             }
@@ -7305,8 +7312,8 @@ function saveGlobalGSUrl() {
                         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'operation') && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
                             setTimeout(() => viewSurveyReport(surveyId), 300);
                         } else {
-                            updateSurveyUI(true);
-                            setTimeout(() => updateSurveyUI(true), 350);
+                            updateSurveyUI(true, true);
+                            setTimeout(() => updateSurveyUI(true, true), 350);
                         }
                     } catch(e) {
                         console.error("Delete response error:", e);
