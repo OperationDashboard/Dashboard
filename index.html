@@ -5390,6 +5390,17 @@ function saveGlobalGSUrl() {
             hasAlertedSurvey = false;
             lastActiveSurveyHash = null;
 
+            try {
+                let cachedS = localStorage.getItem('cached_all_surveys');
+                if (cachedS) {
+                    let p = JSON.parse(cachedS);
+                    if (Array.isArray(p) && p.length > 0) {
+                        allSurveys = p;
+                        updateSurveyUI(false);
+                    }
+                }
+            } catch(cacheErr) {}
+
             _surveyScheduleTimer = setInterval(() => {
                 if (typeof window.isFillingSurveyActive === 'boolean' && window.isFillingSurveyActive) return;
                 if (!surveysLoaded || document.hidden) return;
@@ -5407,7 +5418,10 @@ function saveGlobalGSUrl() {
             }, 15000);
 
             let processSurveys = (docs) => {
-                let fetched = docs.map(doc => ({id: doc.id, ...doc.data()}));
+                let fetched = (docs || []).map(doc => {
+                    let d = typeof doc.data === 'function' ? doc.data() : (doc || {});
+                    return { id: doc.id || d.id, ...d };
+                });
                 if (fetched.length > 0) {
                     allSurveys = fetched;
                     try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
@@ -5417,19 +5431,30 @@ function saveGlobalGSUrl() {
                         try { let p = JSON.parse(cached); if(Array.isArray(p) && p.length > 0) allSurveys = p; else allSurveys = fetched; } catch(e){ allSurveys = fetched; }
                     } else allSurveys = fetched;
                 }
-                allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                allSurveys.sort((a, b) => {
+                    let getT = (x) => {
+                        if (!x) return '';
+                        if (typeof x === 'string') return x;
+                        if (x.seconds) return String(x.seconds);
+                        if (x._seconds) return String(x._seconds);
+                        return String(x);
+                    };
+                    return getT(b.createdAt).localeCompare(getT(a.createdAt));
+                });
                 surveysLoaded = true;
                 updateSurveyUI(true);
             };
 
-            db.collection('surveys').get().then(snap => processSurveys(snap.docs)).catch(e => {
+            db.collection('surveys').get().then(snap => processSurveys(snap ? snap.docs : [])).catch(e => {
                 console.error("Initial get surveys err:", e);
                 let cached = localStorage.getItem('cached_all_surveys');
-                if (cached) { try { let p = JSON.parse(cached); if(Array.isArray(p)) { allSurveys = p; surveysLoaded = true; updateSurveyUI(true); } } catch(err){} }
+                if (cached) { try { let p = JSON.parse(cached); if(Array.isArray(p)) { allSurveys = p; } } catch(err){} }
+                surveysLoaded = true;
+                updateSurveyUI(true);
             });
             
             surveyUnsubscribe = db.collection('surveys').onSnapshot(snap => {
-                processSurveys(snap.docs);
+                processSurveys(snap ? snap.docs : []);
                 
                 let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
                 if (sIds.length === 0) {
@@ -5936,6 +5961,11 @@ function saveGlobalGSUrl() {
             if (force && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible() && window._currentOpenReportSurveyId) {
                 if (typeof viewSurveyReport === 'function') viewSurveyReport(window._currentOpenReportSurveyId, true);
             }
+            let builderArea = document.getElementById('survey-builder-area');
+            let titleArea = document.getElementById('survey-new-title');
+            if (document.activeElement && ((builderArea && builderArea.contains(document.activeElement)) || (titleArea && titleArea === document.activeElement))) {
+                if (!force) return;
+            }
             if (!force) {
                 let amListEl = document.getElementById('survey-am-list');
                 if (amListEl && amListEl.innerHTML.trim() !== '' && !amListEl.innerHTML.includes('Loading')) {
@@ -6141,7 +6171,9 @@ function saveGlobalGSUrl() {
                 let amV = document.getElementById('survey-am-view'); if(amV) { amV.classList.add('hidden'); amV.style.display = 'none'; }
                 let html = '';
                 if (allSurveys.length === 0) {
-                    html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">No surveys found.</td></tr>';
+                    html = !surveysLoaded 
+                        ? '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin text-purple-400 mr-2"></i>Sedang memuat turun data survey dari cloud...</td></tr>'
+                        : '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">Tiada survey dijumpai. Sila cipta survey baru di atas.</td></tr>';
                 } else {
                     allSurveys.forEach(s => {
                         try {
@@ -6196,7 +6228,9 @@ function saveGlobalGSUrl() {
                     });
                 }
                 if (!html) {
-                    html = '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">No surveys found.</td></tr>';
+                    html = !surveysLoaded 
+                        ? '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin text-purple-400 mr-2"></i>Sedang memuat turun data survey dari cloud...</td></tr>'
+                        : '<tr><td colspan="5" class="p-4 text-center text-slate-400 text-sm">Tiada survey dijumpai. Sila cipta survey baru di atas.</td></tr>';
                 }
                 let listEl = document.getElementById('survey-admin-list');
                 if (listEl) listEl.innerHTML = html;
@@ -6279,6 +6313,7 @@ function saveGlobalGSUrl() {
                 area.style.display = 'block';
                 area.style.setProperty('display', 'block', 'important');
                 try { renderBuilderQuestions(); } catch(e) {}
+                try { toggleSurveyQuestionReasonUI(); } catch(e) {}
             } else {
                 area.classList.add('hidden');
                 area.style.display = 'none';
@@ -7035,9 +7070,7 @@ function saveGlobalGSUrl() {
                     missingAMsHtml = `<tr><td colspan="2" class="p-4 text-center text-emerald-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>Semua AM telah sahkan dan hantar!</td></tr>`;
                 }
 
-                Swal.fire({
-                    title: '<span class="text-lg">Custom Survey Report</span>',
-                    html: `
+                let customHtml = `
                         <div class="text-left space-y-4">
                             <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
                                 <div class="text-[10px] text-slate-400 uppercase font-black tracking-wider mb-1">Soalan Survey</div>
@@ -7080,12 +7113,30 @@ function saveGlobalGSUrl() {
                                 </div>
                             </div>
                         </div>
-                    `,
-                    width: '800px',
-                    background: '#0f172a',
-                    showConfirmButton: false,
-                    showCloseButton: true
-                });
+                `;
+                if (silent && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible() && Swal.getHtmlContainer()) {
+                    Swal.getHtmlContainer().innerHTML = customHtml;
+                    let searchEl = document.getElementById('swal-search');
+                    if (searchEl && curSearch) {
+                        searchEl.value = curSearch;
+                        if (typeof filterSwalTable === 'function') filterSwalTable();
+                    }
+                    if (activeTab === 'am') {
+                        let btnAm = document.getElementById('btn-tab-am');
+                        if (btnAm) btnAm.click();
+                    }
+                } else {
+                    Swal.fire({
+                        title: '<span class="text-lg">Custom Survey Report</span>',
+                        html: customHtml,
+                        width: '800px',
+                        background: '#0f172a',
+                        color: '#fff',
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        didClose: () => { if (window._currentOpenReportSurveyId === id) window._currentOpenReportSurveyId = null; }
+                    });
+                }
                 return;
             }
 
@@ -7116,9 +7167,7 @@ function saveGlobalGSUrl() {
             let missingHtml = missingAMs.map(a => `<span class="bg-rose-950 border border-rose-900 text-rose-400 px-2 py-0.5 rounded text-[10px] mr-1 mb-1 font-bold inline-block">${a}</span>`).join('');
             if(missingHtml === '') missingHtml = '<span class="text-emerald-400 font-bold text-xs"><i class="fa-solid fa-check-double mr-1"></i> Semua AM telah hantar maklum balas!</span>';
             
-            Swal.fire({
-                title: '<span class="text-lg">Survey Report</span>',
-                html: `
+            let fullHtml = `
                     <div class="text-left space-y-5">
                         <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
                             <div class="text-[10px] text-slate-400 uppercase font-black tracking-wider mb-1">Soalan Survey</div>
@@ -7140,8 +7189,8 @@ function saveGlobalGSUrl() {
                             <div class="bg-slate-950 p-3 rounded-lg max-h-60 overflow-y-auto border border-slate-800 shadow-inner">${exHtml}</div>
                         </div>
                     </div>
-                `;
-                if (silent && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible() && Swal.getHtmlContainer()) {
+            `;
+            if (silent && typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible() && Swal.getHtmlContainer()) {
                     Swal.getHtmlContainer().innerHTML = fullHtml;
                     let searchEl = document.getElementById('swal-search');
                     if (searchEl && curSearch) {
