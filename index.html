@@ -243,6 +243,7 @@
                     <button onclick="switchTab('lorry')" id="tab-btn-lorry" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-truck-fast mr-1 text-orange-400"></i> Lorry Tracker</button>
                     <button onclick="switchTab('target')" id="tab-btn-target" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-bullseye mr-1 text-pink-400"></i> Target Tracker</button>
                     <button onclick="switchTab('survey')" id="tab-btn-survey" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap relative"><i class="fa-solid fa-clipboard-list mr-1 text-purple-400"></i> Survey & Tracking<span id="survey-badge" class="hidden absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">0</span></button>
+                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts (Admin)</button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
                     <i class="fa-solid fa-list-check text-cyan-400"></i>
@@ -1257,6 +1258,147 @@ function doPost(e) {
                     </div>
                 </div>
             </section>
+
+            <section id="tab-exec-charts" class="hidden space-y-6 admin-only">
+                <!-- TIMEFRAME & SMART FILTER BAR -->
+                <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-black text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-cyan-400 text-xl"></i> Executive Strategic Charts (CEO & Admin Dashboard)</h2>
+                        <p class="text-xs text-slate-400 mt-1">Analisis visual mendalam berimpak tinggi untuk kawalan kewangan, kecekapan logistik dan pematuhan sasaran.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <div class="flex items-center gap-2 bg-slate-950 border border-slate-700/80 rounded-xl p-1 shadow-inner">
+                            <button onclick="setExecTimeframe('daily')" id="btn-exec-tf-daily" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">Harian</button>
+                            <button onclick="setExecTimeframe('weekly')" id="btn-exec-tf-weekly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">Mingguan</button>
+                            <button onclick="setExecTimeframe('monthly')" id="btn-exec-tf-monthly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md">Bulanan</button>
+                        </div>
+                        <input type="date" id="exec-filter-date" onchange="renderExecCharts()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow hidden">
+                        <input type="month" id="exec-filter-month" onchange="renderExecCharts()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow">
+                    </div>
+                </div>
+
+                <!-- 4 EXECUTIVE KPI SUMMARY CARDS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl relative overflow-hidden">
+                        <div class="absolute -right-3 -bottom-3 text-slate-800/20 text-6xl font-black pointer-events-none"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Total Sales vs Target</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="exec-stat-sales" class="text-2xl font-black text-cyan-400">RM 0.00</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1 flex justify-between">
+                            <span>Target: <strong id="exec-stat-target" class="text-white">RM 0.00</strong></span>
+                            <span id="exec-stat-diff" class="font-bold text-emerald-400">+RM 0.00</span>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl relative overflow-hidden">
+                        <div class="absolute -right-3 -bottom-3 text-slate-800/20 text-6xl font-black pointer-events-none"><i class="fa-solid fa-gauge-high"></i></div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">KPI Achievement Score</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="exec-stat-achieve" class="text-2xl font-black text-emerald-400">0.0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 mt-2.5 overflow-hidden">
+                            <div id="exec-stat-achieve-bar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl relative overflow-hidden">
+                        <div class="absolute -right-3 -bottom-3 text-slate-800/20 text-6xl font-black pointer-events-none"><i class="fa-solid fa-truck"></i></div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Logistics Cost & Ratio</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="exec-stat-lorry" class="text-2xl font-black text-orange-400">RM 0.00</span>
+                            <span id="exec-stat-lorry-ratio" class="text-xs font-bold bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full border border-orange-500/30">0.0%</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1.5 flex items-center justify-between">
+                            <span>Benchmark normal: <strong class="text-slate-300">&lt; 5.0%</strong></span>
+                            <span id="exec-stat-lorry-status" class="text-emerald-400 font-bold">Safe</span>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl relative overflow-hidden">
+                        <div class="absolute -right-3 -bottom-3 text-slate-800/20 text-6xl font-black pointer-events-none"><i class="fa-solid fa-receipt"></i></div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Total Transactions</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="exec-stat-trans" class="text-2xl font-black text-purple-400">0</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1.5">
+                            <span>Avg per branch: <strong id="exec-stat-trans-avg" class="text-white">0</strong> resit</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHARTS GRID ROW 1: Donut Share & Bar Comparison -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-4 border-b border-slate-800/80 pb-3">
+                                <div>
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-chart-pie text-cyan-400"></i> 1. Sumbangan Jualan AM (Revenue Share)</h3>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Pegangan pasaran internal dan peratusan sumbangan jualan setiap Area Manager.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative w-full h-72 flex items-center justify-center">
+                            <canvas id="exec-chart-am-share"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-4 border-b border-slate-800/80 pb-3">
+                                <div>
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-chart-column text-emerald-400"></i> 2. Jualan vs Sasaran mengikut AM</h3>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Perbandingan langsung Jualan Terkumpul vs Sasaran KPI & Bilangan Transaksi.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative w-full h-72">
+                            <canvas id="exec-chart-sales-target"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHARTS GRID ROW 2: Logistics Cost Ratio & KPI Achievement Meter -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-4 border-b border-slate-800/80 pb-3">
+                                <div>
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-truck-fast text-orange-400"></i> 3. Nisbah Kos Logistik (Lorry) vs Jualan (%)</h3>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Pemantauan kecekapan kos lori mengikut AM (Nisbah normal di bawah 5.0%).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative w-full h-72">
+                            <canvas id="exec-chart-lorry-ratio"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-4 border-b border-slate-800/80 pb-3">
+                                <div>
+                                    <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-gauge-high text-pink-400"></i> 5. Meter Pencapaian KPI vs Sasaran (%)</h3>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Indeks kesihatan KPI syarikat dan tahap pencapaian sasaran setiap AM.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative w-full h-72">
+                            <canvas id="exec-chart-kpi-meter"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHARTS GRID ROW 3: Day of Week Buying Pattern -->
+                <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl">
+                    <div class="flex justify-between items-start mb-4 border-b border-slate-800/80 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-calendar-days text-purple-400"></i> 4. Pola Pembelian Mengikut Hari Dalam Minggu (Consumer Buying Pattern)</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Taburan purata jualan dari Isnin hingga Ahad untuk mengenal pasti hari kemuncak dan hari perlahan.</p>
+                        </div>
+                    </div>
+                    <div class="relative w-full h-80">
+                        <canvas id="exec-chart-day-pattern"></canvas>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -1913,7 +2055,7 @@ function saveGlobalGSUrl() {
                     if(typeof populateFilters === 'function' && currentUser && currentUser.role !== 'branch') populateFilters();
                     if (typeof currentUser !== 'undefined' && currentUser && typeof currentTab !== 'undefined') {
                         if (currentTab === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
-                        
+                        else if (currentTab === 'analytics' && typeof renderExecCharts === 'function') renderExecCharts();
                         else if (currentTab === 'comparison' && typeof renderComparisonTable === 'function') renderComparisonTable();
                         else if (currentTab === 'survey' && typeof renderSurveys === 'function') renderSurveys();
                         updateSurveyUI();
@@ -2238,6 +2380,7 @@ function saveGlobalGSUrl() {
                 return; // Prevent screen blink or focus loss when user is actively typing in a text field
             }
             if (currentTab === 'dashboard') renderDashboard();
+            else if (currentTab === 'analytics' && typeof renderExecCharts === 'function') renderExecCharts();
             else if (currentTab === 'comparison') renderComparisonTable();
             else if (currentTab === 'tracking') renderTrackingTable();
             else if (currentTab === 'lorry') renderLorryTracker();
@@ -2252,14 +2395,20 @@ function saveGlobalGSUrl() {
             else if (currentTab === 'control') {
                 if (typeof renderAuditLogs === 'function') renderAuditLogs();
             }
+            else if (currentTab === 'exec-charts') {
+                if (typeof renderExecCharts === 'function') renderExecCharts();
+            }
         }
 
         async function fetchSubmissionsChunked(monthStr, amName, forceRaw = false) {
             let recordMap = new Map();
+            let isDaily = monthStr && monthStr.length === 10;
+            let startD = isDaily ? monthStr : monthStr + "-01";
+            let endD = isDaily ? monthStr : monthStr + "-31";
 
             if (!forceRaw && typeof queryMonthlySummariesData === 'function') {
                 try {
-                    let sumData = await queryMonthlySummariesData(monthStr + "-01", monthStr + "-31", amName);
+                    let sumData = await queryMonthlySummariesData(startD, endD, amName);
                     if (sumData && sumData.length > 0) {
                         sumData.forEach(item => {
                             let k = String(item.code) + "_" + String(item.date);
@@ -2272,7 +2421,7 @@ function saveGlobalGSUrl() {
             }
 
             try {
-                let q = db.collection("submissions").where("date", ">=", monthStr + "-01").where("date", "<=", monthStr + "-31");
+                let q = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
                 let snap = await q.get();
                 snap.forEach(doc => {
                     if (doc.exists) {
@@ -2318,6 +2467,9 @@ function saveGlobalGSUrl() {
             } else if (currentTab === 'target') {
                 mode = 'monthly';
                 dateStr = document.getElementById('target-month') ? document.getElementById('target-month').value : todayStr.substring(0,7);
+            } else if (currentTab === 'exec-charts') {
+                mode = (typeof execCurrentTimeframe !== 'undefined' && execCurrentTimeframe === 'daily') ? 'daily' : 'monthly';
+                dateStr = mode === 'daily' ? (document.getElementById('exec-filter-date').value || todayStr) : (document.getElementById('exec-filter-month').value || todayStr.substring(0,7));
             } else if (currentTab === 'drop') {
                 return;
             }
@@ -2348,7 +2500,7 @@ function saveGlobalGSUrl() {
             let processSnap = async (snap) => {
                 let fbData = [];
                 snap.forEach(doc => { let d = doc.data(); if(d && d.date) fbData.push(d); });
-                if (typeof queryMonthlySummariesData === 'function' && fetchMode !== 'daily') {
+                if (typeof queryMonthlySummariesData === 'function') {
                     try {
                         let startD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-01";
                         let endD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-31";
@@ -2889,7 +3041,7 @@ function saveGlobalGSUrl() {
                 function switchTab(tab) {
             window.isFillingSurveyActive = false;
             currentTab = tab;
-            ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target'].forEach(t => {
+            ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target', 'exec-charts'].forEach(t => {
                 let s = document.getElementById('tab-' + t), b = document.getElementById('tab-btn-' + t);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
@@ -2921,8 +3073,10 @@ function saveGlobalGSUrl() {
                 loadTargetTracker();
             } else if (tab === 'control') {
                 renderAuditLogs();
+            } else if (tab === 'exec-charts') {
+                if (typeof renderExecCharts === 'function') renderExecCharts();
             } else {
-                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') triggerDataSync();
+                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry' || tab === 'exec-charts') triggerDataSync();
             }
         }
 
@@ -3536,6 +3690,8 @@ function saveGlobalGSUrl() {
 
         // --- 5. Manager Dashboards & Tracking ---
         let trendChartObj = null, barChartObj = null;
+        let execChartAMShare = null, execChartSalesTarget = null, execChartLorryRatio = null, execChartDayPattern = null, execChartKPIMeter = null;
+        let execCurrentTimeframe = 'monthly';
 
         function setupManagerView() {
             try {
@@ -3552,6 +3708,14 @@ function saveGlobalGSUrl() {
                 if(document.getElementById('track-date')) {
                     document.getElementById('track-date').value = todayStr;
                     updateDateDisplay('track-date');
+                }
+                if(document.getElementById('exec-filter-date')) {
+                    document.getElementById('exec-filter-date').value = todayStr;
+                    updateDateDisplay('exec-filter-date');
+                }
+                if(document.getElementById('exec-filter-month')) {
+                    document.getElementById('exec-filter-month').value = currentMonthStr;
+                    updateDateDisplay('exec-filter-month');
                 }
                 let sw = document.getElementById('section-welcome'); if(sw) sw.classList.add('hidden');
                 let sb = document.getElementById('section-branch'); if(sb) sb.classList.add('hidden');
@@ -3870,6 +4034,377 @@ function saveGlobalGSUrl() {
                         trendChartObj.update();
                     }
                 }).catch(e => console.error("Error fetching 7-day chart trend:", e));
+            }
+        }
+
+        function setExecTimeframe(mode) {
+            execCurrentTimeframe = mode;
+            ['daily', 'weekly', 'monthly'].forEach(m => {
+                let btn = document.getElementById('btn-exec-tf-' + m);
+                if (btn) {
+                    if (m === mode) {
+                        btn.className = 'px-4 py-1.5 rounded-md text-xs font-bold transition-all bg-purple-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]';
+                    } else {
+                        btn.className = 'px-4 py-1.5 rounded-md text-xs font-bold transition-all text-slate-400 hover:text-white';
+                    }
+                }
+            });
+            let dateInput = document.getElementById('exec-filter-date');
+            let monthInput = document.getElementById('exec-filter-month');
+            if (dateInput && monthInput) {
+                if (mode === 'daily' || mode === 'weekly') {
+                    dateInput.classList.remove('hidden');
+                    monthInput.classList.add('hidden');
+                    if (!dateInput.value) dateInput.value = todayStr;
+                } else {
+                    dateInput.classList.add('hidden');
+                    monthInput.classList.remove('hidden');
+                    if (!monthInput.value) monthInput.value = todayStr.substring(0, 7);
+                }
+            }
+            if (typeof triggerDataSync === 'function') triggerDataSync();
+            renderExecCharts();
+        }
+
+        function renderExecCharts() {
+            if (typeof Chart === 'undefined') {
+                console.warn("Chart.js not loaded. Skipping renderExecCharts.");
+                return;
+            }
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = "'Inter', sans-serif";
+
+            let mode = execCurrentTimeframe || 'monthly';
+            let dateInput = document.getElementById('exec-filter-date');
+            let monthInput = document.getElementById('exec-filter-month');
+            
+            let targetDate = todayStr;
+            let targetMonth = todayStr.substring(0, 7);
+            if (dateInput && dateInput.value) targetDate = dateInput.value;
+            if (monthInput && monthInput.value) targetMonth = monthInput.value;
+
+            // Filter submissions based on timeframe
+            let filteredSubs = [];
+            let datesList = [];
+            if (mode === 'daily') {
+                datesList = [targetDate];
+                filteredSubs = dbSubmissions.filter(s => s.date === targetDate && isSubmissionCountable(s));
+            } else if (mode === 'weekly') {
+                let baseD = new Date(targetDate);
+                for (let i = 6; i >= 0; i--) {
+                    let dStr = getYYYYMMDD(new Date(baseD.getTime() - (i * 86400000)));
+                    datesList.push(dStr);
+                }
+                filteredSubs = dbSubmissions.filter(s => datesList.includes(s.date) && isSubmissionCountable(s));
+            } else {
+                // monthly
+                filteredSubs = dbSubmissions.filter(s => s.date && s.date.startsWith(targetMonth) && isSubmissionCountable(s));
+            }
+
+            // Calculate overall KPIs for cards
+            let totalSales = 0, totalLorry = 0, totalTrans = 0, totalBank = 0;
+            filteredSubs.forEach(s => {
+                totalSales += (parseFloat(s.sales) || 0);
+                totalLorry += (parseFloat(s.lorry) || 0);
+                totalTrans += (parseFloat(s.transactions) || 0);
+                totalBank += (parseFloat(s.bank1) || 0) + (parseFloat(s.bank2) || 0);
+            });
+            let netRev = totalSales - totalLorry;
+            let costRatio = totalSales > 0 ? ((totalLorry / totalSales) * 100) : 0;
+
+            let elSales = document.getElementById('exec-kpi-sales');
+            let elNet = document.getElementById('exec-kpi-net');
+            let elRatio = document.getElementById('exec-kpi-lorry-ratio');
+            let elTrans = document.getElementById('exec-kpi-trans');
+            if (elSales) elSales.innerText = `RM ${formatRM(totalSales)}`;
+            if (elNet) {
+                elNet.innerText = `RM ${formatRM(netRev)}`;
+                elNet.className = netRev >= 0 ? 'text-2xl font-black text-emerald-400 mt-1' : 'text-2xl font-black text-rose-400 mt-1';
+            }
+            if (elRatio) elRatio.innerText = `${costRatio.toFixed(1)}%`;
+            if (elTrans) elTrans.innerText = formatNum(totalTrans);
+
+            // Map branch code to AM and code to target
+            let amMap = {}; // branchCode -> amName
+            let allAMs = new Set();
+            masterBranches.forEach(b => {
+                let am = (b.am || 'TIADA AM').trim().toUpperCase();
+                amMap[String(b.code)] = am;
+                allAMs.add(am);
+            });
+            let sortedAMs = Array.from(allAMs).sort();
+
+            // Chart 1: Sumbangan AM (Donut Chart)
+            let amSalesMap = {};
+            sortedAMs.forEach(am => amSalesMap[am] = 0);
+            filteredSubs.forEach(s => {
+                let code = String(s.code);
+                let am = amMap[code] || (s.am ? s.am.trim().toUpperCase() : 'TIADA AM');
+                amSalesMap[am] = (amSalesMap[am] || 0) + (parseFloat(s.sales) || 0);
+            });
+            let amLabels = Object.keys(amSalesMap).filter(am => amSalesMap[am] > 0);
+            if (amLabels.length === 0) amLabels = sortedAMs.slice(0, 5);
+            let amData = amLabels.map(am => amSalesMap[am] || 0);
+            let palette = ['#06b6d4', '#a855f7', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#14b8a6', '#ef4444', '#6366f1'];
+
+            let ctxAM = document.getElementById('chart-exec-am');
+            if (ctxAM) {
+                if (execChartAMShare) execChartAMShare.destroy();
+                execChartAMShare = new Chart(ctxAM.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: amLabels,
+                        datasets: [{
+                            data: amData,
+                            backgroundColor: palette.slice(0, amLabels.length),
+                            borderWidth: 2,
+                            borderColor: '#0f172a'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        let val = ctx.raw || 0;
+                                        let pct = totalSales > 0 ? ((val / totalSales) * 100).toFixed(1) : 0;
+                                        return `${ctx.label}: RM ${formatRM(val)} (${pct}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            }
+
+            // Chart 2: Jualan & Transaksi Terkini vs Sasaran (Bar Comparison Chart per AM)
+            let ctxTarget = document.getElementById('chart-exec-target');
+            if (ctxTarget) {
+                let targetMultiplier = mode === 'daily' ? (1/30) : (mode === 'weekly' ? (7/30) : 1);
+                let amActualList = sortedAMs.map(am => amSalesMap[am] || 0);
+                let amTargetMap = {};
+                sortedAMs.forEach(am => amTargetMap[am] = 0);
+
+                let targetQueryMonth = mode === 'monthly' ? targetMonth : targetDate.substring(0, 7);
+                if (typeof db !== 'undefined' && db.collection) {
+                    db.collection('targets').where('month', '==', targetQueryMonth).get().then(snap => {
+                        snap.forEach(doc => {
+                            let d = doc.data();
+                            if (d && d.code && d.target_sales) {
+                                let am = amMap[String(d.code)] || 'TIADA AM';
+                                amTargetMap[am] = (amTargetMap[am] || 0) + (parseFloat(d.target_sales) || 0) * targetMultiplier;
+                            }
+                        });
+                        let amTargetList = sortedAMs.map(am => amTargetMap[am] || 0);
+
+                        if (execChartSalesTarget) execChartSalesTarget.destroy();
+                        execChartSalesTarget = new Chart(ctxTarget.getContext('2d'), {
+                            type: 'bar',
+                            data: {
+                                labels: sortedAMs,
+                                datasets: [
+                                    { label: 'Jualan Sebenar (RM)', data: amActualList, backgroundColor: '#06b6d4', borderRadius: 6 },
+                                    { label: 'Sasaran / Target (RM)', data: amTargetList, backgroundColor: 'rgba(236, 72, 153, 0.4)', borderColor: '#ec4899', borderWidth: 1, borderRadius: 6 }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: { grid: { color: 'rgba(51,65,85,0.3)' }, ticks: { callback: v => 'RM ' + formatRM(v) } },
+                                    x: { grid: { display: false } }
+                                },
+                                plugins: { legend: { position: 'top' } }
+                            }
+                        });
+                    }).catch(e => {
+                        console.error("Exec chart target query error:", e);
+                        if (execChartSalesTarget) execChartSalesTarget.destroy();
+                        execChartSalesTarget = new Chart(ctxTarget.getContext('2d'), {
+                            type: 'bar',
+                            data: {
+                                labels: sortedAMs,
+                                datasets: [
+                                    { label: 'Jualan Sebenar (RM)', data: amActualList, backgroundColor: '#06b6d4', borderRadius: 6 }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: { y: { grid: { color: 'rgba(51,65,85,0.3)' } } }
+                            }
+                        });
+                    });
+                }
+            }
+
+            // Chart 3: Nisbah Kos Lori vs Jualan (Logistics Cost Ratio % Chart by AM)
+            let ctxLorry = document.getElementById('chart-exec-lorry');
+            if (ctxLorry) {
+                let amLorryMap = {};
+                sortedAMs.forEach(am => amLorryMap[am] = 0);
+                filteredSubs.forEach(s => {
+                    let code = String(s.code);
+                    let am = amMap[code] || (s.am ? s.am.trim().toUpperCase() : 'TIADA AM');
+                    amLorryMap[am] = (amLorryMap[am] || 0) + (parseFloat(s.lorry) || 0);
+                });
+
+                let amRatioList = sortedAMs.map(am => {
+                    let sVal = amSalesMap[am] || 0;
+                    let lVal = amLorryMap[am] || 0;
+                    return sVal > 0 ? parseFloat(((lVal / sVal) * 100).toFixed(2)) : 0;
+                });
+
+                if (execChartLorryRatio) execChartLorryRatio.destroy();
+                execChartLorryRatio = new Chart(ctxLorry.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: sortedAMs,
+                        datasets: [{
+                            label: 'Nisbah Kos Lori (%)',
+                            data: amRatioList,
+                            backgroundColor: amRatioList.map(r => r > 10 ? '#f43f5e' : (r > 5 ? '#f59e0b' : '#10b981')),
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { grid: { color: 'rgba(51,65,85,0.3)' }, ticks: { callback: v => v + '%' }, suggestedMax: 15 },
+                            x: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        let am = ctx.label;
+                                        let ratio = ctx.raw || 0;
+                                        return `Kos: RM ${formatRM(amLorryMap[am]||0)} / Jualan: RM ${formatRM(amSalesMap[am]||0)} (${ratio}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Chart 4: Pola Pembelian Mengikut Hari Dalam Minggu (Day-of-Week Sales Pattern)
+            let ctxDay = document.getElementById('chart-exec-day');
+            if (ctxDay) {
+                let daysOfWeek = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+                let daySums = [0, 0, 0, 0, 0, 0, 0];
+
+                filteredSubs.forEach(s => {
+                    if (s.date) {
+                        let parts = s.date.split('-');
+                        if (parts.length === 3) {
+                            let dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                            let dayIdx = dt.getDay();
+                            daySums[dayIdx] += (parseFloat(s.sales) || 0);
+                        }
+                    }
+                });
+
+                if (execChartDayPattern) execChartDayPattern.destroy();
+                execChartDayPattern = new Chart(ctxDay.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: daysOfWeek,
+                        datasets: [{
+                            label: 'Jumlah Jualan Hari (RM)',
+                            data: daySums,
+                            borderColor: '#a855f7',
+                            backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                            pointBackgroundColor: '#a855f7',
+                            pointRadius: 5,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { grid: { color: 'rgba(51,65,85,0.3)' }, ticks: { callback: v => 'RM ' + formatRM(v) } },
+                            x: { grid: { color: 'rgba(51,65,85,0.3)' } }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        return `Jumlah Jualan: RM ${formatRM(ctx.raw||0)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Chart 5: Meter Pencapaian KPI vs Sasaran (Gauge / Half-Doughnut Chart)
+            let ctxMeter = document.getElementById('chart-exec-meter');
+            if (ctxMeter && typeof db !== 'undefined' && db.collection) {
+                let targetQueryMonth = mode === 'monthly' ? targetMonth : targetDate.substring(0, 7);
+                db.collection('targets').where('month', '==', targetQueryMonth).get().then(snap => {
+                    let totalTarget = 0;
+                    snap.forEach(doc => {
+                        let d = doc.data();
+                        if (d && d.target_sales) totalTarget += (parseFloat(d.target_sales) || 0);
+                    });
+
+                    let targetMultiplier = mode === 'daily' ? (1/30) : (mode === 'weekly' ? (7/30) : 1);
+                    totalTarget = totalTarget * targetMultiplier;
+                    if (totalTarget === 0) totalTarget = Math.max(totalSales * 1.2, 100000);
+
+                    let achievedPct = Math.min(100, Math.round((totalSales / totalTarget) * 100));
+                    let remainingPct = Math.max(0, 100 - achievedPct);
+                    let meterColor = achievedPct >= 100 ? '#10b981' : (achievedPct >= 80 ? '#06b6d4' : (achievedPct >= 50 ? '#f59e0b' : '#f43f5e'));
+
+                    let meterTextEl = document.getElementById('exec-meter-pct');
+                    if (meterTextEl) {
+                        meterTextEl.innerText = `${((totalSales/totalTarget)*100).toFixed(1)}%`;
+                        meterTextEl.style.color = meterColor;
+                    }
+
+                    if (execChartKPIMeter) execChartKPIMeter.destroy();
+                    execChartKPIMeter = new Chart(ctxMeter.getContext('2d'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Pencapaian Semasa (%)', 'Baki Sasaran (%)'],
+                            datasets: [{
+                                data: [achievedPct, remainingPct],
+                                backgroundColor: [meterColor, 'rgba(51, 65, 85, 0.4)'],
+                                borderWidth: 0,
+                                circumference: 180,
+                                rotation: 270
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '75%',
+                            plugins: {
+                                legend: { display: true, position: 'bottom' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(ctx) {
+                                            return `${ctx.label}: ${ctx.raw}% (RM ${formatRM(ctx.dataIndex===0?totalSales:Math.max(0,totalTarget-totalSales))})`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }).catch(e => {
+                    console.error("Exec chart KPI meter query error:", e);
+                });
             }
         }
 
@@ -5450,6 +5985,20 @@ function saveGlobalGSUrl() {
                     let d = typeof doc.data === 'function' ? doc.data() : (doc || {});
                     return { id: doc.id || d.id, ...d };
                 });
+                if (typeof allSurveys !== 'undefined' && Array.isArray(allSurveys)) {
+                    fetched.forEach(f => {
+                        let old = allSurveys.find(x => x.id === f.id);
+                        if (old && old.amConfirmations && old.amConfirmations.length > 0) {
+                            f.amConfirmations = Array.from(new Set([...(f.amConfirmations || []), ...old.amConfirmations]));
+                        }
+                        if (old && old.amConfirmTimes) {
+                            f.amConfirmTimes = Object.assign({}, old.amConfirmTimes, f.amConfirmTimes || {});
+                        }
+                        if (old && old.amClosed && old.amClosed.length > 0) {
+                            f.amClosed = Array.from(new Set([...(f.amClosed || []), ...old.amClosed]));
+                        }
+                    });
+                }
                 if (fetched.length > 0) {
                     allSurveys = fetched;
                     try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
@@ -5514,13 +6063,24 @@ function saveGlobalGSUrl() {
                             rData = rData.filter(r => (r.amName || '').toUpperCase() === amName);
                         }
                         
+                        if (typeof allResponses !== 'undefined' && Array.isArray(allResponses) && allResponses.length > 0) {
+                            let respMap = new Map();
+                            allResponses.forEach(r => respMap.set(r.id, r));
+                            rData.forEach(r => respMap.set(r.id, r));
+                            rData = Array.from(respMap.values());
+                        }
                         allResponses = rData;
+                        try { localStorage.setItem('cached_all_responses', JSON.stringify(allResponses)); } catch(e){}
                         responsesLoaded = true;
                         updateSurveyUI(true);
                         if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
                     }, err => {
                         console.error("Responses snapshot err:", err);
-                        allResponses = [];
+                        if (!Array.isArray(allResponses) || allResponses.length === 0) {
+                            let cachedR = localStorage.getItem('cached_all_responses');
+                            if (cachedR) { try { let pr = JSON.parse(cachedR); if(Array.isArray(pr)) allResponses = pr; } catch(err){} }
+                        }
+                        if (!Array.isArray(allResponses)) allResponses = [];
                         responsesLoaded = true;
                         updateSurveyUI(true);
                     });
@@ -5528,11 +6088,10 @@ function saveGlobalGSUrl() {
             }, err => {
                 console.error("Surveys snapshot err:", err);
                 db.collection('surveys').get().then(snap => {
-                    allSurveys = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
-                    allSurveys.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-                    surveysLoaded = true;
-                    updateSurveyUI(true);
+                    processSurveys(snap ? snap.docs : []);
                 }).catch(e => {
+                    let cachedS = localStorage.getItem('cached_all_surveys');
+                    if (cachedS) { try { let ps = JSON.parse(cachedS); if(Array.isArray(ps)) allSurveys = ps; } catch(err){} }
                     surveysLoaded = true;
                     updateSurveyUI(true);
                 });
@@ -6043,7 +6602,7 @@ function saveGlobalGSUrl() {
 
             if (currentUser.role === 'am') {
                 let amName = (currentUser.name || '').trim().toUpperCase();
-                let pendingSurveys = allSurveys.filter(s => isSurveyForUser(s, currentUser));
+                let pendingSurveys = allSurveys.filter(s => isSurveyForUser(s, currentUser) && !isAMSurveyConfirmed(s, amName) && !(s.amClosed || []).includes(amName));
                 
                 let html = '';
                 if (pendingSurveys.length === 0) {
@@ -6179,7 +6738,7 @@ function saveGlobalGSUrl() {
                 if (!html) {
                     html = '<div class="text-green-400 text-sm font-bold py-4 text-center"><i class="fa-solid fa-check-circle mr-2"></i>Tiada survey aktif / pantauan baru!</div>';
                 }
-                let completedAMSurveys = allSurveys.filter(s => !isSurveyForUser(s, currentUser) && isAMSurveyConfirmed(s, amName));
+                let completedAMSurveys = allSurveys.filter(s => (isSurveyForUser(s, currentUser) || s.targetAudience === 'branch' || s.targetAudience === 'am') && isAMSurveyConfirmed(s, amName));
                 if (completedAMSurveys.length > 0) {
                     html += `<div class="mt-6 border-t border-slate-700 pt-4">
                         <h4 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i>Sejarah Survey Dihantar / Disahkan</h4>
