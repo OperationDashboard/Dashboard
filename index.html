@@ -234,6 +234,7 @@
             <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
                     <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Daily Summary</button>
+                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts (Admin)</button>
                     <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
                     <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-area mr-1"></i> Daily & Analytic Comparison</button>
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
@@ -243,7 +244,6 @@
                     <button onclick="switchTab('lorry')" id="tab-btn-lorry" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-truck-fast mr-1 text-orange-400"></i> Lorry Tracker</button>
                     <button onclick="switchTab('target')" id="tab-btn-target" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-bullseye mr-1 text-pink-400"></i> Target Tracker</button>
                     <button onclick="switchTab('survey')" id="tab-btn-survey" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap relative"><i class="fa-solid fa-clipboard-list mr-1 text-purple-400"></i> Survey & Tracking<span id="survey-badge" class="hidden absolute -top-1 -right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">0</span></button>
-                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts (Admin)</button>
                 </div>
                 <div class="am-only hidden bg-slate-900 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
                     <i class="fa-solid fa-list-check text-cyan-400"></i>
@@ -1259,7 +1259,7 @@ function doPost(e) {
                 </div>
             </section>
 
-            <section id="tab-exec-charts" class="hidden space-y-6 admin-only">
+            <section id="tab-exec-charts" class="hidden space-y-6">
                 <!-- TIMEFRAME & SMART FILTER BAR -->
                 <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
@@ -1272,8 +1272,8 @@ function doPost(e) {
                             <button onclick="setExecTimeframe('weekly')" id="btn-exec-tf-weekly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">Mingguan</button>
                             <button onclick="setExecTimeframe('monthly')" id="btn-exec-tf-monthly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md">Bulanan</button>
                         </div>
-                        <input type="date" id="exec-filter-date" onchange="renderExecCharts()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow hidden">
-                        <input type="month" id="exec-filter-month" onchange="renderExecCharts()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow">
+                        <input type="date" id="exec-filter-date" onchange="triggerDataSync()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow hidden">
+                        <input type="month" id="exec-filter-month" onchange="triggerDataSync()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow">
                     </div>
                 </div>
 
@@ -3075,6 +3075,7 @@ function saveGlobalGSUrl() {
                 renderAuditLogs();
             } else if (tab === 'exec-charts') {
                 if (typeof renderExecCharts === 'function') renderExecCharts();
+                if (typeof triggerDataSync === 'function') triggerDataSync();
             } else {
                 if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry' || tab === 'exec-charts') triggerDataSync();
             }
