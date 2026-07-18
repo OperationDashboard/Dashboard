@@ -4081,8 +4081,8 @@ function saveGlobalGSUrl() {
             
             let targetDate = todayStr;
             let targetMonth = todayStr.substring(0, 7);
-            if (dateInput && dateInput.value) targetDate = dateInput.value;
-            if (monthInput && monthInput.value) targetMonth = monthInput.value;
+            if (dateInput) { if (!dateInput.value) dateInput.value = todayStr; targetDate = dateInput.value; }
+            if (monthInput) { if (!monthInput.value) monthInput.value = todayStr.substring(0, 7); targetMonth = monthInput.value; }
 
             // Filter submissions based on timeframe
             let filteredSubs = [];
@@ -5074,11 +5074,18 @@ function saveGlobalGSUrl() {
             if (missingMonths.length > 0) {
                 let promises = missingMonths.map(mStr => {
                     return db.collection("monthly_summaries")
-                        .where("id", "like", mStr + "_%").get()
+                        .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
+                        .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff")
+                        .get()
                         .then(snap => ({ mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) }))
-                        .catch(e => {
-                            console.error("Error loading monthly summaries for " + mStr, e);
-                            return { mStr, docs: [] };
+                        .catch(async () => {
+                            try {
+                                let snap = await db.collection("monthly_summaries").where("month", "==", mStr).get();
+                                return { mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) };
+                            } catch(err) {
+                                console.error("Error loading monthly summaries for " + mStr, err);
+                                return { mStr, docs: [] };
+                            }
                         });
                 });
                 let fetched = await Promise.all(promises);
