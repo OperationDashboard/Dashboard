@@ -234,7 +234,7 @@
             <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
                     <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Daily Summary</button>
-                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap admin-only hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts (Admin)</button>
+                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts (Admin)</button>
                     <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
                     <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-area mr-1"></i> Daily & Analytic Comparison</button>
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
@@ -1268,7 +1268,9 @@ function doPost(e) {
                     </div>
                     <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                         <div class="flex items-center gap-2 bg-slate-950 border border-slate-700/80 rounded-xl p-1 shadow-inner">
-                            <button onclick="setExecTimeframe('monthly')" id="btn-exec-tf-monthly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md">Bulanan</button>
+                            <button onclick="setExecTimeframe('daily')" id="btn-exec-tf-daily" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">Daily</button>
+                            <button onclick="setExecTimeframe('weekly')" id="btn-exec-tf-weekly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">Weekly</button>
+                            <button onclick="setExecTimeframe('monthly')" id="btn-exec-tf-monthly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md">Monthly</button>
                         </div>
                         <input type="date" id="exec-filter-date" onchange="triggerDataSync()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow hidden">
                         <input type="month" id="exec-filter-month" onchange="triggerDataSync()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-cyan-500 shadow">
@@ -3170,6 +3172,10 @@ function saveGlobalGSUrl() {
         }
 
                 function switchTab(tab) {
+            if (tab === 'exec-charts' && (!currentUser || currentUser.role !== 'admin')) {
+                showToast('error', 'Executive Charts is strictly for Admin only.');
+                return;
+            }
             window.isFillingSurveyActive = false;
             currentTab = tab;
             ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target', 'exec-charts'].forEach(t => {
@@ -3937,7 +3943,7 @@ function saveGlobalGSUrl() {
 
         function isSubmissionCountable(s) {
             if (!s) return false;
-            return Boolean((s.night_locked === true) || ((parseFloat(s.sales) || 0) > 0) || ((parseInt(s.transactions) || 0) > 0) || ((parseFloat(s.lorry) || 0) > 0) || ((parseFloat(s.bank1) || 0) > 0) || ((parseFloat(s.bank2) || 0) > 0));
+            return Boolean(((parseFloat(s.sales) || 0) > 0) || ((parseInt(s.transactions) || 0) > 0));
         }
 
         function updateSubmissionRatio() {
@@ -3957,7 +3963,7 @@ function saveGlobalGSUrl() {
             if(subRatioEl) {
                 let submittedCount = new Set(dashData.map(s=>String(s.code))).size;
                 let totalBranches = branches.length;
-                if (totalBranches === 0 || (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation')) {
+                if (totalBranches === 0) {
                     totalBranches = masterBranches && masterBranches.length > 0 ? masterBranches.length : 2855;
                 }
                 if (totalBranches < submittedCount) totalBranches = submittedCount;
@@ -4116,7 +4122,7 @@ function saveGlobalGSUrl() {
                 console.warn("Chart.js is not loaded. Skipping renderCharts.");
                 return;
             }
-            Chart.defaults.color = '#94a3b8'; Chart.defaults.font.family = "'Inter', sans-serif";
+            Chart.defaults.color = '#f8fafc'; Chart.defaults.font.family = "'Inter', sans-serif";
             
             let barEl = document.getElementById('chart-bar-compare');
             if (barEl) {
@@ -4172,9 +4178,9 @@ function saveGlobalGSUrl() {
                 let btn = document.getElementById('btn-exec-tf-' + m);
                 if (btn) {
                     if (m === mode) {
-                        btn.className = 'px-4 py-1.5 rounded-md text-xs font-bold transition-all bg-purple-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]';
+                        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md';
                     } else {
-                        btn.className = 'px-4 py-1.5 rounded-md text-xs font-bold transition-all text-slate-400 hover:text-white';
+                        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white';
                     }
                 }
             });
@@ -4200,7 +4206,7 @@ function saveGlobalGSUrl() {
                 console.warn("Chart.js not loaded. Skipping renderExecCharts.");
                 return;
             }
-            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.color = '#f8fafc';
             Chart.defaults.font.family = "'Inter', sans-serif";
 
             let mode = execCurrentTimeframe || 'monthly';
@@ -4305,18 +4311,49 @@ function saveGlobalGSUrl() {
             let ctxAM1 = document.getElementById('exec-chart-am-share-1') || document.getElementById('exec-chart-am-share') || document.getElementById('chart-exec-am');
             let ctxAM2 = document.getElementById('exec-chart-am-share-2');
 
+            let donutCenterPlugin = {
+                id: 'donutCenterText',
+                beforeDraw: function(chart) {
+                    if (chart.config.type !== 'doughnut') return;
+                    let width = chart.width, height = chart.height, ctx = chart.ctx;
+                    ctx.save();
+                    let chartArea = chart.chartArea;
+                    let centerX = (chartArea.left + chartArea.right) / 2;
+                    let centerY = (chartArea.top + chartArea.bottom) / 2;
+                    
+                    let dataset = chart.data.datasets[0];
+                    if (!dataset || !dataset.data) return;
+                    let total = dataset.data.reduce((a, b) => a + (parseFloat(b) || 0), 0);
+                    let totalStr = `RM ${formatRM(total)}`;
+                    
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = "bold 11px 'Inter', sans-serif";
+                    ctx.fillStyle = "#94a3b8";
+                    ctx.fillText("TOTAL SHARE", centerX, centerY - 12);
+                    
+                    ctx.font = "900 15px 'Inter', sans-serif";
+                    ctx.fillStyle = "#38bdf8";
+                    ctx.fillText(totalStr, centerX, centerY + 8);
+                    ctx.restore();
+                }
+            };
+
             if (ctxAM1) {
                 if (execChartAMShare) execChartAMShare.destroy();
                 let amData1 = topAMs1.map(am => amSalesMap[am] || 0);
                 execChartAMShare = new Chart(ctxAM1.getContext('2d'), {
                     type: 'doughnut',
+                    plugins: [donutCenterPlugin],
                     data: {
                         labels: topAMs1,
                         datasets: [{
                             data: amData1,
                             backgroundColor: palette.slice(0, topAMs1.length),
-                            borderWidth: 2,
-                            borderColor: '#0f172a'
+                            borderWidth: 3,
+                            borderColor: '#0f172a',
+                            hoverOffset: 12,
+                            borderRadius: 6
                         }]
                     },
                     options: {
@@ -4328,9 +4365,31 @@ function saveGlobalGSUrl() {
                                 align: 'center',
                                 labels: { 
                                     boxWidth: 12, 
-                                    padding: 8, 
-                                    font: { size: 10, family: 'Inter', weight: 'bold' },
-                                    color: '#cbd5e1'
+                                    padding: 10, 
+                                    font: { size: 11, family: 'Inter', weight: 'bold' },
+                                    color: '#ffffff',
+                                    generateLabels: function(chart) {
+                                        let data = chart.data;
+                                        if (data.labels.length && data.datasets.length) {
+                                            let dataset = data.datasets[0];
+                                            let total = dataset.data.reduce((a, b) => a + (parseFloat(b) || 0), 0);
+                                            return data.labels.map(function(label, i) {
+                                                let val = parseFloat(dataset.data[i]) || 0;
+                                                let pct = total > 0 ? ((val / total) * 100).toFixed(1) : (totalSales > 0 ? ((val / totalSales) * 100).toFixed(1) : 0);
+                                                return {
+                                                    text: `${label} (${pct}% | RM ${formatRM(val)})`,
+                                                    fillStyle: dataset.backgroundColor[i],
+                                                    strokeStyle: dataset.borderColor || '#0f172a',
+                                                    lineWidth: dataset.borderWidth || 2,
+                                                    fontColor: '#ffffff',
+                                                    color: '#ffffff',
+                                                    hidden: isNaN(dataset.data[i]) || (chart.getDatasetMeta(0).data[i] && chart.getDatasetMeta(0).data[i].hidden),
+                                                    index: i
+                                                };
+                                            });
+                                        }
+                                        return [];
+                                    }
                                 } 
                             },
                             tooltip: {
@@ -4343,7 +4402,7 @@ function saveGlobalGSUrl() {
                                 }
                             }
                         },
-                        cutout: '58%'
+                        cutout: '68%'
                     }
                 });
             }
@@ -4354,13 +4413,16 @@ function saveGlobalGSUrl() {
                     let amData2 = bottomAMs1.map(am => amSalesMap[am] || 0);
                     execChartAMShare2 = new Chart(ctxAM2.getContext('2d'), {
                         type: 'doughnut',
+                        plugins: [donutCenterPlugin],
                         data: {
                             labels: bottomAMs1,
                             datasets: [{
                                 data: amData2,
                                 backgroundColor: palette.slice(0, bottomAMs1.length),
-                                borderWidth: 2,
-                                borderColor: '#0f172a'
+                                borderWidth: 3,
+                                borderColor: '#0f172a',
+                                hoverOffset: 12,
+                                borderRadius: 6
                             }]
                         },
                         options: {
@@ -4372,9 +4434,31 @@ function saveGlobalGSUrl() {
                                     align: 'center',
                                     labels: { 
                                         boxWidth: 12, 
-                                        padding: 8, 
-                                        font: { size: 10, family: 'Inter', weight: 'bold' },
-                                        color: '#cbd5e1'
+                                        padding: 10, 
+                                        font: { size: 11, family: 'Inter', weight: 'bold' },
+                                        color: '#ffffff',
+                                        generateLabels: function(chart) {
+                                            let data = chart.data;
+                                            if (data.labels.length && data.datasets.length) {
+                                                let dataset = data.datasets[0];
+                                                let total = dataset.data.reduce((a, b) => a + (parseFloat(b) || 0), 0);
+                                                return data.labels.map(function(label, i) {
+                                                    let val = parseFloat(dataset.data[i]) || 0;
+                                                    let pct = total > 0 ? ((val / total) * 100).toFixed(1) : (totalSales > 0 ? ((val / totalSales) * 100).toFixed(1) : 0);
+                                                    return {
+                                                        text: `${label} (${pct}% | RM ${formatRM(val)})`,
+                                                        fillStyle: dataset.backgroundColor[i],
+                                                        strokeStyle: dataset.borderColor || '#0f172a',
+                                                        lineWidth: dataset.borderWidth || 2,
+                                                        fontColor: '#ffffff',
+                                                        color: '#ffffff',
+                                                        hidden: isNaN(dataset.data[i]) || (chart.getDatasetMeta(0).data[i] && chart.getDatasetMeta(0).data[i].hidden),
+                                                        index: i
+                                                    };
+                                                });
+                                            }
+                                            return [];
+                                        }
                                     } 
                                 },
                                 tooltip: {
@@ -4387,7 +4471,7 @@ function saveGlobalGSUrl() {
                                     }
                                 }
                             },
-                            cutout: '58%'
+                            cutout: '68%'
                         }
                     });
                 }
