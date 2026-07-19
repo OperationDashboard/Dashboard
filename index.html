@@ -1852,6 +1852,9 @@ window.onunhandledrejection = function(event) {
                             let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : (cur.exists ? (cur.data().target || cur.data().target_sales || 0) : 0));
                             payload.target = tVal;
                             payload.target_sales = tVal;
+                            if (dataObj.am || merged.am) payload.am = dataObj.am || merged.am;
+                        } else if (this.col === 'monthly_summaries') {
+                            if (dataObj.am || merged.am) payload.am = dataObj.am || merged.am;
                         }
                     } else {
                         payload.data = dataObj;
@@ -1861,6 +1864,9 @@ window.onunhandledrejection = function(event) {
                             let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : 0);
                             payload.target = tVal;
                             payload.target_sales = tVal;
+                            if (dataObj.am) payload.am = dataObj.am;
+                        } else if (this.col === 'monthly_summaries') {
+                            if (dataObj.am) payload.am = dataObj.am;
                         }
                     }
                     payload.updated_at = new Date().toISOString();
@@ -2022,7 +2028,14 @@ window.onunhandledrejection = function(event) {
             window.Swal = {
                 fire: function(arg1, arg2, arg3) {
                     if (typeof arg1 === 'object') {
-                        if (arg1.showCancelButton) {
+                        if (arg1.input === 'text') {
+                            let ans = prompt((arg1.title || '') + '\n\n' + (arg1.text || 'Sila taip VALID / SAH untuk mengesahkan:'), '');
+                            if (arg1.inputValidator && ans !== null) {
+                                let err = arg1.inputValidator(ans);
+                                if (err) { alert(err); return Promise.resolve({ isConfirmed: false, value: ans }); }
+                            }
+                            return Promise.resolve({ isConfirmed: ans !== null, value: ans });
+                        } else if (arg1.showCancelButton) {
                             return Promise.resolve({ isConfirmed: confirm((arg1.title || '') + '\n\n' + (arg1.text || '')) });
                         } else {
                             alert((arg1.title || '') + '\n\n' + (arg1.text || ''));
@@ -2143,12 +2156,15 @@ function saveGlobalGSUrl() {
                     else if (b["State"]) b.state = b["State"];
                     else if (b["STATE"]) b.state = b["STATE"];
                     else if (b["negeri"]) b.state = b["negeri"];
+                    else if (typeof branchStateMap !== 'undefined' && branchStateMap[String(b.code)]) b.state = branchStateMap[String(b.code)];
                 }
                 if (b.state != null) {
                     b.state = String(b.state).trim().toUpperCase();
+                    if (b.state === 'LAIN2' || b.state === 'LAIN') b.state = 'LAIN-LAIN';
                 } else {
-                    b.state = "";
+                    b.state = (typeof branchStateMap !== 'undefined' && branchStateMap[String(b.code)]) ? String(branchStateMap[String(b.code)]).trim().toUpperCase() : "";
                 }
+                if (!b.state || b.state === '' || b.state === 'LAIN2' || b.state === 'LAIN') b.state = 'LAIN-LAIN';
                 if (b.name != null) {
                     b.name = String(b.name).trim();
                 }
@@ -2302,10 +2318,7 @@ function saveGlobalGSUrl() {
                     currentUser = JSON.parse(savedUser); let role = currentUser.role;
                     
             
-                      document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
-                      document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
-                      document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
-                      document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
+                      applyRoleVisibilities();
                       if (typeof updateThemeBtnVisibility === 'function') updateThemeBtnVisibility();
 
 
@@ -2531,6 +2544,7 @@ function saveGlobalGSUrl() {
             else if (currentTab === 'exec-charts') {
                 if (typeof renderExecCharts === 'function') renderExecCharts();
             }
+            if (typeof applyRoleVisibilities === 'function') applyRoleVisibilities();
         }
 
         async function fetchSubmissionsChunked(monthStr, amName, forceRaw = false) {
@@ -3104,10 +3118,7 @@ function saveGlobalGSUrl() {
                 closeModal('auth-modal');
                 currentUser = { role: role };
                 
-                document.querySelectorAll('.super-admin').forEach(el => { if(el) el.style.display = role==='admin' ? 'block' : 'none'; });
-                document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) el.style.display = role==='operation' ? 'none' : 'block'; });
-                document.querySelectorAll('.admin-only').forEach(el => { if(el) el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; });
-                document.querySelectorAll('.am-only').forEach(el => { if(el) el.style.display = (role==='am' || role==='admin' || role==='operation') ? 'flex' : 'none'; });
+                applyRoleVisibilities();
                 if (typeof updateThemeBtnVisibility === 'function') updateThemeBtnVisibility();
 
 
@@ -3171,13 +3182,32 @@ function saveGlobalGSUrl() {
             if (typeof updateThemeBtnVisibility === 'function') updateThemeBtnVisibility();
         }
 
-                function switchTab(tab) {
+        function applyRoleVisibilities() {
+            let role = currentUser ? currentUser.role : '';
+            document.querySelectorAll('.super-admin').forEach(el => { if(el) { el.style.display = role==='admin' ? 'block' : 'none'; if(role==='admin') el.classList.remove('hidden'); else el.classList.add('hidden'); } });
+            document.querySelectorAll('.hide-from-operation').forEach(el => { if(el) { el.style.display = role==='operation' ? 'none' : 'block'; if(role==='operation') el.classList.add('hidden'); else el.classList.remove('hidden'); } });
+            document.querySelectorAll('.admin-only').forEach(el => { if(el) { el.style.display = (role==='admin' || role==='operation') ? 'block' : 'none'; if(role==='admin' || role==='operation') el.classList.remove('hidden'); else el.classList.add('hidden'); } });
+            document.querySelectorAll('.am-only').forEach(el => { 
+                if(el) {
+                    if (role === 'am' || role === 'admin' || role === 'operation') {
+                        el.style.display = 'flex';
+                        el.classList.remove('hidden');
+                    } else {
+                        el.style.display = 'none';
+                        el.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        function switchTab(tab) {
             if (tab === 'exec-charts' && (!currentUser || currentUser.role !== 'admin')) {
                 showToast('error', 'Executive Charts is strictly for Admin only.');
                 return;
             }
             window.isFillingSurveyActive = false;
             currentTab = tab;
+            applyRoleVisibilities();
             ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target', 'exec-charts'].forEach(t => {
                 let s = document.getElementById('tab-' + t), b = document.getElementById('tab-btn-' + t);
                 if(s) s.classList.add('hidden');
@@ -3770,12 +3800,12 @@ function saveGlobalGSUrl() {
             };
 
             if(overLimit) {
-                let tTitle = 'Logical Limit Warning!';
-                let tDesc = 'The value you entered is too high / abnormal:';
-                let tInst = 'Please type <strong class="text-lg">VALID</strong> below if this value is truly valid, or press Cancel to re-check.';
-                let tConf = 'Yes, Valid';
-                let tCanc = 'Cancel';
-                let tVali = 'You must type VALID to proceed!';
+                let tTitle = 'Logical Limit Warning / Amaran Had Logik!';
+                let tDesc = 'The value you entered is abnormal or exceeds limit / Nilai yang dimasukkan melepasi had biasa:';
+                let tInst = 'Please type <strong class="text-lg">VALID</strong> below if this value is truly valid, or press Cancel to re-check.<br>(Sila taip <strong>VALID</strong> atau <strong>SAH</strong> jika nilai ini betul)';
+                let tConf = 'Yes, Valid / Ya, Sah';
+                let tCanc = 'Cancel / Batal';
+                let tVali = 'You must type VALID or SAH to proceed! / Sila taip VALID atau SAH untuk meneruskan.';
                 
                 Swal.fire({
                     title: tTitle,
@@ -3787,9 +3817,16 @@ function saveGlobalGSUrl() {
                     cancelButtonText: tCanc,
                     confirmButtonColor: '#ef4444',
                     inputValidator: (value) => {
-                        if (value.trim().toUpperCase() !== 'SAH') {
+                        let v = String(value || '')
+                            .replace(/[\u200B-\u200D\uFEFF]/g, '') // strip zero-width characters
+                            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()'"“”]/g, '') // strip periods/punctuation from mobile auto-correct
+                            .trim()
+                            .toUpperCase();
+                        let allowed = ['VALID', 'SAH', 'YA', 'YES', 'BETUL', 'BENAR', 'OK', 'CONFIRM', 'SURE', 'YES VALID', 'YA SAH', 'BETUL SAH', 'SAYA SAHKAN'];
+                        if (!allowed.includes(v)) {
                             return tVali;
                         }
+                        return null;
                     }
                 }).then((result) => {
                     if (result.isConfirmed) {
@@ -3889,7 +3926,14 @@ function saveGlobalGSUrl() {
                         let sAm = (s.am || '').trim().toUpperCase();
                         if (currentUser.role === 'admin' || currentUser.role === 'operation' || sAm === cName) {
                             seenCode.add(String(s.code));
-                            base.push({ code: String(s.code), name: s.name || String(s.code), am: s.am || cName, state: s.state || '', warehouse: s.warehouse || '' });
+                            let mb = masterBranches.find(x => String(x.code) === String(s.code));
+                            base.push({ 
+                                code: String(s.code), 
+                                name: mb && mb.name ? mb.name : (s.name || String(s.code)), 
+                                am: mb && mb.am ? mb.am : (s.am || cName), 
+                                state: mb && mb.state ? mb.state : (s.state || ''), 
+                                warehouse: mb && mb.warehouse ? mb.warehouse : (s.warehouse || '') 
+                            });
                         }
                     }
                 });
@@ -3899,9 +3943,10 @@ function saveGlobalGSUrl() {
             let fWH = document.getElementById('filter-warehouse') ? document.getElementById('filter-warehouse').value : '';
             let fB = document.getElementById('filter-branch') ? document.getElementById('filter-branch').value : '';
             if(fAM) base = base.filter(b => (b.am || '').trim().toUpperCase() === String(fAM).trim().toUpperCase());
-            if(fState) base = base.filter(b => b.state === fState);
-            if(fWH) base = base.filter(b => b.warehouse === fWH);
+            if(fState) base = base.filter(b => (b.state || '') === fState);
+            if(fWH) base = base.filter(b => (b.warehouse || '') === fWH);
             if(fB) base = base.filter(b => String(b.code) === String(fB));
+            base.forEach(b => { if (!b.state || b.state === '' || b.state === 'LAIN2' || b.state === 'LAIN') b.state = 'LAIN-LAIN'; });
             return base;
         }
 
@@ -5211,7 +5256,7 @@ function saveGlobalGSUrl() {
                 
                 adminAct = adminUnlockNight + adminUnlockBank;
 
-                let acts = (isNightLocked || hasBankIn || adminAct || (date !== todayStr && !sub)) ? `<div class="flex flex-col w-[130px]"><div class="flex gap-2 w-full">${actNight}${actBank}</div>${adminAct}</div>` : `<span class="text-slate-600">-</span>`;
+                let acts = (hasNightData || hasBankIn || isNightLocked || adminAct || (date !== todayStr && !sub)) ? `<div class="flex flex-col w-[130px]"><div class="flex gap-2 w-full">${actNight}${actBank}</div>${adminAct}</div>` : `<span class="text-slate-600">-</span>`;
 
                 html += `<tr class="hover:bg-slate-900/40 border-b border-slate-800/50 transition-colors">
                     <td class="p-3"><div class="font-bold text-slate-300 text-[11px]">${b.code}</div><div class="text-[9px] text-slate-500 truncate max-w-[150px]">${b.name}</div><div class="text-[8px] text-cyan-500 font-semibold mt-0.5 uppercase"><i class="fa-solid fa-user-tie mr-1"></i>${b.am}</div></td>
@@ -5234,7 +5279,11 @@ function saveGlobalGSUrl() {
             if(confirm(`Reset Night Data for ${code}?\nThis will instruct the server to delete the row's night operations data.`)) {
                 syncToCloud('reset_night', { date: date, code: String(code), amName: currentUser.name });
                 let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
-                if(idx > -1) { dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; dbSubmissions[idx].night_unlocked = false; }
+                if(idx > -1) { 
+                    dbSubmissions[idx].sales = 0; dbSubmissions[idx].transactions = 0; dbSubmissions[idx].mykasih = 0; dbSubmissions[idx].lorry = 0; dbSubmissions[idx].night_locked = false; dbSubmissions[idx].night_submit_time = ""; dbSubmissions[idx].night_unlocked = false; 
+                } else {
+                    dbSubmissions.push({ date: date, code: String(code), sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false, am: currentUser.name });
+                }
                 renderTrackingTable();
                 updateSubmissionRatio();
                 calculateTotals();
@@ -5245,7 +5294,11 @@ function saveGlobalGSUrl() {
             if(confirm(`Reset Bank-In Data for ${code}?`)) {
                 syncToCloud('reset_bank', { date: date, code: String(code), amName: currentUser.name });
                 let idx = dbSubmissions.findIndex(s => String(s.code) === String(code) && s.date === date);
-                if(idx > -1) { dbSubmissions[idx].bank1 = 0; dbSubmissions[idx].bank2 = 0; dbSubmissions[idx].bank_edit_time = ""; }
+                if(idx > -1) { 
+                    dbSubmissions[idx].bank1 = 0; dbSubmissions[idx].bank2 = 0; dbSubmissions[idx].bank_edit_time = ""; 
+                } else {
+                    dbSubmissions.push({ date: date, code: String(code), bank1: 0, bank2: 0, bank_edit_time: "", am: currentUser.name });
+                }
                 renderTrackingTable();
             }
         }
@@ -8844,8 +8897,9 @@ function saveGlobalGSUrl() {
                     tbody.setAttribute('data-month', month);
                     tbody.setAttribute('data-am', String(amFilter));
                 }
+                if (typeof applyRoleVisibilities === 'function') applyRoleVisibilities();
 
-                if(isAdminOrOp) {
+                if(isAdminOrOp || (currentUser && currentUser.role === 'am')) {
                     let eT = document.getElementById('target-total-kpi');
                     if(eT) eT.innerText = `RM ${formatRM(tTarget)}`;
                     let eS = document.getElementById('target-sales-kpi');
@@ -8862,7 +8916,7 @@ function saveGlobalGSUrl() {
             }
         }
 
-                async function saveTargets() {
+        async function saveTargets() {
             let mEl = document.getElementById('target-month-select');
             if(!mEl) return;
             let month = mEl.value;
@@ -8872,15 +8926,14 @@ function saveGlobalGSUrl() {
             inputs.forEach(inp => {
                 let rawVal = inp.value.replace(/,/g, '').trim();
                 let origVal = inp.getAttribute('data-original') || '';
+                let numRaw = rawVal === '' ? null : parseFloat(rawVal);
+                let numOrig = origVal === '' ? null : parseFloat(origVal);
                 
-                if (rawVal !== origVal) {
-                    if (rawVal === '') {
+                if (numRaw !== numOrig) {
+                    if (numRaw === null || isNaN(numRaw)) {
                         updates.push({ code: inp.getAttribute('data-code'), delete: true });
-                    } else {
-                        let val = parseFloat(rawVal);
-                        if (!isNaN(val) && val >= 0) {
-                            updates.push({ code: inp.getAttribute('data-code'), target: val });
-                        }
+                    } else if (numRaw >= 0) {
+                        updates.push({ code: inp.getAttribute('data-code'), target: numRaw });
                     }
                 }
             });
@@ -8907,7 +8960,7 @@ function saveGlobalGSUrl() {
                                 target_sales: u.target,
                                 target: u.target,
                                 updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                            });
+                            }, {merge: true});
                         }
                     });
                     await batch.commit();
