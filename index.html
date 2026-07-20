@@ -1744,7 +1744,7 @@ window.onunhandledrejection = function(event) {
                         if (res.data) rows = res.data;
                         break;
                     } else {
-                        if (from === 0 && typeof q.order === 'function') {
+                        if (typeof q.order === 'function' && (!this.orders || !this.orders.some(o => o.field === 'id'))) {
                             try { q = q.order('id', { ascending: true }); } catch(e){}
                         }
                         let pQuery = q.range(from, from + step - 1);
