@@ -1744,8 +1744,11 @@ window.onunhandledrejection = function(event) {
                         if (res.data) rows = res.data;
                         break;
                     } else {
-                        q = q.range(from, from + step - 1);
-                        let res = await runQuery(q);
+                        if (from === 0 && typeof q.order === 'function') {
+                            try { q = q.order('id', { ascending: true }); } catch(e){}
+                        }
+                        let pQuery = q.range(from, from + step - 1);
+                        let res = await runQuery(pQuery);
                         let chunk = res.data || [];
                         rows.push(...chunk);
                         if (chunk.length < step) break;
@@ -1756,6 +1759,17 @@ window.onunhandledrejection = function(event) {
                         }
                     }
                 }
+                let seenIds = new Set();
+                let uniqueRows = [];
+                for (let r of rows) {
+                    if (r && r.id && !seenIds.has(r.id)) {
+                        seenIds.add(r.id);
+                        uniqueRows.push(r);
+                    } else if (r && !r.id) {
+                        uniqueRows.push(r);
+                    }
+                }
+                rows = uniqueRows;
                 let docs = rows.map(r => ({
                     id: r.id,
                     exists: true,
@@ -2649,6 +2663,28 @@ function saveGlobalGSUrl() {
             let fetchMode = mode;
             let fetchDateStr = dateStr;
 
+        function deduplicateSubmissionsList(list) {
+            if (!Array.isArray(list)) return [];
+            let map = new Map();
+            for (let i = 0; i < list.length; i++) {
+                let s = list[i];
+                if (!s || !s.code || !s.date) continue;
+                let cTrim = String(s.code).trim();
+                let k = cTrim + "_" + String(s.date).trim();
+                let existing = map.get(k);
+                if (!existing) {
+                    map.set(k, s);
+                } else {
+                    let existScore = (existing.night_locked ? 100 : 0) + ((parseFloat(existing.sales)||0)>0 ? 10 : 0) + ((parseFloat(existing.lorry)||0)>0 ? 1 : 0);
+                    let currScore = (s.night_locked ? 100 : 0) + ((parseFloat(s.sales)||0)>0 ? 10 : 0) + ((parseFloat(s.lorry)||0)>0 ? 1 : 0);
+                    if (currScore > existScore || (currScore === existScore && String(s.updated_at || "") >= String(existing.updated_at || ""))) {
+                        map.set(k, s);
+                    }
+                }
+            }
+            return Array.from(map.values());
+        }
+
             let processSnap = async (snap) => {
                 let fbData = [];
                 snap.forEach(doc => { let d = doc.data(); if(d && d.date) fbData.push(d); });
@@ -2659,9 +2695,9 @@ function saveGlobalGSUrl() {
                         let amFilterVal = (currentUser && currentUser.role === 'am') ? currentUser.name : "";
                         let sumDaily = await queryMonthlySummariesData(startD, endD, amFilterVal, forceRefresh);
                         if (sumDaily && sumDaily.length > 0) {
-                            let existSet = new Set(fbData.map(s => String(s.code) + "_" + String(s.date)));
+                            let existSet = new Set(fbData.map(s => String(s.code).trim() + "_" + String(s.date).trim()));
                             sumDaily.forEach(item => {
-                                let k = String(item.code) + "_" + String(item.date);
+                                let k = String(item.code).trim() + "_" + String(item.date).trim();
                                 if (!existSet.has(k)) fbData.push(item);
                             });
                         }
@@ -2679,7 +2715,7 @@ function saveGlobalGSUrl() {
                     }
                 }
                 dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
-                dbSubmissions = dbSubmissions.concat(fbData);
+                dbSubmissions = deduplicateSubmissionsList(dbSubmissions.concat(fbData));
                 window.fetchedQueries[queryKey] = true;
                 refreshCurrentTabView();
                 if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
@@ -2693,7 +2729,7 @@ function saveGlobalGSUrl() {
                         let parsed = JSON.parse(cached);
                         if (Array.isArray(parsed) && parsed.length > 0) {
                             dbSubmissions = dbSubmissions.filter(s => fetchMode === 'daily' ? s.date !== fetchDateStr : !s.date.startsWith(fetchDateStr));
-                            dbSubmissions = dbSubmissions.concat(parsed);
+                            dbSubmissions = deduplicateSubmissionsList(dbSubmissions.concat(parsed));
                             refreshCurrentTabView();
                         }
                     }
@@ -4104,7 +4140,7 @@ function saveGlobalGSUrl() {
             let targetDate = mode === 'daily' ? document.getElementById('dash-date').value : document.getElementById('dash-month').value;
             let branches = getManagerFilteredBranches(); let bCodes = branches.map(b=>String(b.code));
             let cName = currentUser ? (currentUser.name || '').trim().toUpperCase() : '';
-            let dashData = dbSubmissions.filter(s => {
+            let dashData = deduplicateSubmissionsList(dbSubmissions.filter(s => {
                 let matchDate = (mode === 'daily' ? s.date === targetDate : s.date.startsWith(targetDate));
                 if (!matchDate) return false;
                 if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation') return true;
@@ -4114,7 +4150,7 @@ function saveGlobalGSUrl() {
                     return sAm && cName && sAm === cName;
                 }
                 return bCodes.includes(String(s.code));
-            });
+            }));
             
             updateSubmissionRatio();
 
@@ -4225,11 +4261,12 @@ function saveGlobalGSUrl() {
                         if (d && d.date) fetchedRecords.push(d);
                     });
                     
-                    let existSet = new Set(dbSubmissions.map(s => String(s.code) + "_" + String(s.date)));
+                    let existSet = new Set(dbSubmissions.map(s => String(s.code).trim() + "_" + String(s.date).trim()));
                     fetchedRecords.forEach(s => {
-                        let k = String(s.code) + "_" + String(s.date);
+                        let k = String(s.code).trim() + "_" + String(s.date).trim();
                         if (!existSet.has(k)) dbSubmissions.push(s);
                     });
+                    dbSubmissions = deduplicateSubmissionsList(dbSubmissions);
 
                     let updatedSalesData = datesArr.map(d => {
                         return dbSubmissions.filter(s => s.date === d && branchCodes.includes(String(s.code)) && isSubmissionCountable(s)).reduce((a,c)=>a+(parseFloat(c.sales)||0), 0);
