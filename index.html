@@ -1852,7 +1852,6 @@ window.onunhandledrejection = function(event) {
                             let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : (cur.exists ? (cur.data().target || cur.data().target_sales || 0) : 0));
                             payload.target = tVal;
                             payload.target_sales = tVal;
-                            if (dataObj.am || merged.am) payload.am = dataObj.am || merged.am;
                         } else if (this.col === 'monthly_summaries') {
                             if (dataObj.am || merged.am) payload.am = dataObj.am || merged.am;
                         }
@@ -1864,7 +1863,6 @@ window.onunhandledrejection = function(event) {
                             let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : 0);
                             payload.target = tVal;
                             payload.target_sales = tVal;
-                            if (dataObj.am) payload.am = dataObj.am;
                         } else if (this.col === 'monthly_summaries') {
                             if (dataObj.am) payload.am = dataObj.am;
                         }
@@ -8878,8 +8876,14 @@ function saveGlobalGSUrl() {
                 if (targetSnap && targetSnap.docs) {
                     targetSnap.docs.forEach(d => {
                         let tData = d.data();
-                        if (allowedCodes.has(String(tData.code))) {
-                            targets[tData.code] = tData.target_sales;
+                        let tVal = tData.target_sales !== undefined ? tData.target_sales : (tData.target !== undefined ? tData.target : 0);
+                        let cTrim = String(tData.code || '').trim();
+                        let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : cTrim;
+                        let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                        if (allowedCodes.has(cTrim) || allowedCodes.has(String(cNum)) || allowedCodes.has(cPad)) {
+                            targets[cTrim] = tVal;
+                            targets[cNum] = tVal;
+                            targets[cPad] = tVal;
                         }
                     });
                 }
@@ -8921,8 +8925,11 @@ function saveGlobalGSUrl() {
                 let tTarget = 0, tSales = 0, noTarget = 0;
 
                 branches.sort((a,b)=>String(a.code).localeCompare(String(b.code))).forEach(b => {
-                    let target = targets[b.code] || 0;
-                    let sales = currentSales[b.code] || 0;
+                    let cTrim = String(b.code).trim();
+                    let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : cTrim;
+                    let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                    let target = targets[cTrim] !== undefined ? targets[cTrim] : (targets[cNum] !== undefined ? targets[cNum] : (targets[cPad] !== undefined ? targets[cPad] : 0));
+                    let sales = currentSales[b.code] || currentSales[cTrim] || currentSales[cNum] || currentSales[cPad] || 0;
                     let pct = target > 0 ? ((sales/target)*100).toFixed(1) : 0;
                     let required = target - sales;
                     let reqPerDay = (required > 0 && remainingDays > 0) ? (required / remainingDays) : 0;
