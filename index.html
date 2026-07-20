@@ -4008,7 +4008,7 @@ function saveGlobalGSUrl() {
 
         function isSubmissionCountable(s) {
             if (!s) return false;
-            return Boolean(((parseFloat(s.sales) || 0) > 0) || ((parseInt(s.transactions) || 0) > 0));
+            return Boolean(s.night_locked || ((parseFloat(s.sales) || 0) !== 0) || ((parseInt(s.transactions) || 0) > 0) || ((parseFloat(s.lorry) || 0) > 0) || ((parseFloat(s.mykasih) || 0) > 0) || ((parseFloat(s.bank1) || 0) > 0) || ((parseFloat(s.bank2) || 0) > 0));
         }
 
         function updateSubmissionRatio() {
@@ -4121,7 +4121,7 @@ function saveGlobalGSUrl() {
                 sales: acc.sales + (curr.sales||0), trans: acc.trans + (curr.transactions||0), mykasih: acc.mykasih + (curr.mykasih||0), lorry: acc.lorry + (curr.lorry||0), bank: acc.bank + (curr.bank1||0) + (curr.bank2||0)
             }), {sales:0, trans:0, mykasih:0, lorry:0, bank:0});
 
-            let tKPI = calcKPI(dashData.filter(s => s.night_locked || (parseFloat(s.sales)||0)>0 || (parseFloat(s.transactions)||0)>0 || (parseFloat(s.bank1)||0)>0 || (parseFloat(s.bank2)||0)>0)); 
+            let tKPI = calcKPI(dashData.filter(isSubmissionCountable)); 
 
             document.getElementById('kpi-sales').innerText = `RM ${formatRM(tKPI.sales)}`; document.getElementById('kpi-mykasih').innerText = `RM ${formatRM(tKPI.mykasih)}`;
             document.getElementById('kpi-lorry').innerText = `RM ${formatRM(tKPI.lorry)}`; document.getElementById('kpi-trans').innerText = formatNum(tKPI.trans);
@@ -4953,14 +4953,19 @@ function saveGlobalGSUrl() {
                     let code = String(s.code).trim();
                     let numCode = !isNaN(code) ? Number(code) : code;
                     let padCode = code.padStart(4, '0');
-                    let st = stateMap[code] || stateMap[numCode] || stateMap[padCode] || (s.state ? String(s.state).trim().toUpperCase() : '') || (typeof branchStateMap !== 'undefined' && (branchStateMap[code] || branchStateMap[numCode]) ? String(branchStateMap[code] || branchStateMap[numCode]).trim().toUpperCase() : 'LAIN-LAIN');
-                    if (st === 'LAIN2' || st === 'LAIN') st = 'LAIN-LAIN';
-                    if (!allStates.has(st)) allStates.add(st);
-                    stateSalesMap[st] = (stateSalesMap[st] || 0) + (parseFloat(s.sales) || 0);
+                    let st = stateMap[code] || stateMap[numCode] || stateMap[padCode] || (s.state ? String(s.state).trim().toUpperCase() : '') || (typeof branchStateMap !== 'undefined' && (branchStateMap[code] || branchStateMap[numCode]) ? String(branchStateMap[code] || branchStateMap[numCode]).trim().toUpperCase() : '');
+                    if (st === 'LAIN2' || st === 'LAIN' || st === 'UNKNOWN' || st === 'LAIN-LAIN' || !st) {
+                        let mb = masterBranches && masterBranches.find(x => String(x.code).trim() === code || (!isNaN(numCode) && Number(x.code) === numCode) || String(x.code).trim() === padCode);
+                        if (mb && mb.state && mb.state !== 'LAIN2' && mb.state !== 'LAIN' && mb.state !== 'LAIN-LAIN') st = mb.state.trim().toUpperCase();
+                    }
+                    if (st && st !== 'LAIN-LAIN' && st !== 'LAIN' && st !== 'LAIN2' && st !== 'UNKNOWN') {
+                        if (!allStates.has(st)) allStates.add(st);
+                        stateSalesMap[st] = (stateSalesMap[st] || 0) + (parseFloat(s.sales) || 0);
+                    }
                 });
 
-                let sortedStates = Array.from(allStates).filter(st => stateSalesMap[st] > 0 || st !== 'LAIN-LAIN').sort((a, b) => (stateSalesMap[b] || 0) - (stateSalesMap[a] || 0));
-                if (sortedStates.length === 0) sortedStates = Array.from(allStates);
+                let sortedStates = Array.from(allStates).filter(st => st && st !== 'LAIN-LAIN' && st !== 'LAIN' && st !== 'LAIN2' && st !== 'UNKNOWN' && (stateSalesMap[st] > 0 || stateSalesMap[st] < 0)).sort((a, b) => (stateSalesMap[b] || 0) - (stateSalesMap[a] || 0));
+                if (sortedStates.length === 0) sortedStates = Array.from(allStates).filter(st => st && st !== 'LAIN-LAIN' && st !== 'LAIN' && st !== 'LAIN2' && st !== 'UNKNOWN');
 
                 let stateTargetMap = {};
                 sortedStates.forEach(st => stateTargetMap[st] = 0);
@@ -5014,8 +5019,13 @@ function saveGlobalGSUrl() {
                         snap.forEach(doc => {
                             let d = doc.data();
                             if (d && d.code && d.target_sales) {
-                                let st = stateMap[String(d.code)] || (typeof branchStateMap !== 'undefined' && branchStateMap[String(d.code)] ? branchStateMap[String(d.code)].trim().toUpperCase() : 'LAIN-LAIN');
-                                stateTargetMap[st] = (stateTargetMap[st] || 0) + (parseFloat(d.target_sales) || 0) * targetMultiplier;
+                                let cTrim = String(d.code).trim();
+                                let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : null;
+                                let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                                let st = stateMap[cTrim] || (cNum !== null ? stateMap[cNum] : null) || stateMap[cPad] || (typeof branchStateMap !== 'undefined' && branchStateMap[cTrim] ? branchStateMap[cTrim].trim().toUpperCase() : '');
+                                if (st && st !== 'LAIN-LAIN' && st !== 'LAIN' && st !== 'LAIN2' && st !== 'UNKNOWN') {
+                                    stateTargetMap[st] = (stateTargetMap[st] || 0) + (parseFloat(d.target_sales) || 0) * targetMultiplier;
+                                }
                             }
                         });
                         renderStateChart();
@@ -5727,17 +5737,25 @@ function saveGlobalGSUrl() {
             if (missingMonths.length > 0) {
                 let promises = missingMonths.map(mStr => {
                     return db.collection("monthly_summaries")
-                        .like("id", mStr + "_%")
+                        .where("month", "==", mStr)
                         .get()
                         .then(snap => {
                             if (snap && snap.docs && snap.docs.length > 0) {
                                 return { mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) };
                             }
                             return db.collection("monthly_summaries")
-                                .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
-                                .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff")
+                                .like("id", mStr + "_%")
                                 .get()
-                                .then(s2 => ({ mStr, docs: (s2 && s2.docs) ? s2.docs.map(doc => ({ id: doc.id, data: doc.data() })) : [] }));
+                                .then(s2 => {
+                                    if (s2 && s2.docs && s2.docs.length > 0) {
+                                        return { mStr, docs: s2.docs.map(doc => ({ id: doc.id, data: doc.data() })) };
+                                    }
+                                    return db.collection("monthly_summaries")
+                                        .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
+                                        .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff")
+                                        .get()
+                                        .then(s3 => ({ mStr, docs: (s3 && s3.docs) ? s3.docs.map(doc => ({ id: doc.id, data: doc.data() })) : [] }));
+                                });
                         })
                         .catch(err => {
                             console.error("Error loading monthly summaries for " + mStr, err);
