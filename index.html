@@ -2225,9 +2225,16 @@ function saveGlobalGSUrl() {
           let yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           let yesterdayStr = getYYYYMMDD(yesterday);
-        setInterval(() => {
+        function updateAllDateMax() {
             todayStr = getYYYYMMDD(new Date());
             currentMonthStr = todayStr.substring(0, 7);
+            ['night-date', 'bank-in-date', 'dash-date', 'track-date', 'exec-filter-date'].forEach(id => {
+                let el = document.getElementById(id);
+                if (el) el.max = todayStr;
+            });
+        }
+        setInterval(() => {
+            updateAllDateMax();
             let yd = new Date(); yd.setDate(yd.getDate() - 1);
             yesterdayStr = getYYYYMMDD(yd);
         }, 60000);
@@ -2296,11 +2303,8 @@ function saveGlobalGSUrl() {
               window.addEventListener("pageshow", () => {
                   if (currentUser && typeof triggerDataSync === 'function') triggerDataSync();
               });
+            updateAllDateMax();
             loadBranchesCache();
-            if(document.getElementById('night-date')) document.getElementById('night-date').max = todayStr;
-            if(document.getElementById('bank-in-date')) document.getElementById('bank-in-date').max = todayStr;
-            if(document.getElementById('dash-date')) document.getElementById('dash-date').max = todayStr;
-            if(document.getElementById('track-date')) document.getElementById('track-date').max = todayStr;
             fetchBranchesFromCloud();
             
             document.getElementById('dash-date').value = todayStr;
@@ -2561,6 +2565,11 @@ function saveGlobalGSUrl() {
                             let k = String(item.code) + "_" + String(item.date);
                             recordMap.set(k, item);
                         });
+                        if (!isDaily) {
+                            let quickCombined = [];
+                            recordMap.forEach(val => quickCombined.push({ exists: true, data: () => val }));
+                            return quickCombined;
+                        }
                     }
                 } catch (e) {
                     console.error("Failed monthly summaries read:", e);
@@ -2647,10 +2656,10 @@ function saveGlobalGSUrl() {
             let processSnap = async (snap) => {
                 let fbData = [];
                 snap.forEach(doc => { let d = doc.data(); if(d && d.date) fbData.push(d); });
-                if (typeof queryMonthlySummariesData === 'function') {
+                if (typeof queryMonthlySummariesData === 'function' && fetchMode === 'daily') {
                     try {
-                        let startD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-01";
-                        let endD = fetchMode === 'daily' ? fetchDateStr : fetchDateStr + "-31";
+                        let startD = fetchDateStr;
+                        let endD = fetchDateStr;
                         let amFilterVal = (currentUser && currentUser.role === 'am') ? currentUser.name : "";
                         let sumDaily = await queryMonthlySummariesData(startD, endD, amFilterVal, forceRefresh);
                         if (sumDaily && sumDaily.length > 0) {
@@ -3241,10 +3250,14 @@ function saveGlobalGSUrl() {
             } else if (tab === 'control') {
                 renderAuditLogs();
             } else if (tab === 'exec-charts') {
-                if (typeof renderExecCharts === 'function') renderExecCharts();
+                if (typeof updateAllDateMax === 'function') updateAllDateMax();
                 if (typeof triggerDataSync === 'function') triggerDataSync();
+                if (typeof renderExecCharts === 'function') setTimeout(renderExecCharts, 50);
             } else {
-                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry' || tab === 'exec-charts') triggerDataSync();
+                if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') {
+                    if (typeof updateAllDateMax === 'function') updateAllDateMax();
+                    triggerDataSync();
+                }
             }
         }
 
@@ -3867,6 +3880,7 @@ function saveGlobalGSUrl() {
 
         function setupManagerView() {
             try {
+                if (typeof updateAllDateMax === 'function') updateAllDateMax();
                 todayStr = getYYYYMMDD(new Date());
                 currentMonthStr = todayStr.substring(0, 7);
                 if(document.getElementById('dash-month')) {
@@ -4912,8 +4926,10 @@ function saveGlobalGSUrl() {
                 masterBranches.forEach(b => {
                     let st = (b.state || (typeof branchStateMap !== 'undefined' ? branchStateMap[String(b.code)] : '') || 'LAIN-LAIN').trim().toUpperCase();
                     if (st !== '' && st !== 'LAIN-LAIN') {
-                        stateMap[String(b.code)] = st;
-                        if (!isNaN(b.code)) stateMap[Number(b.code)] = st;
+                        let cStr = String(b.code).trim();
+                        stateMap[cStr] = st;
+                        if (!isNaN(cStr)) stateMap[Number(cStr)] = st;
+                        stateMap[cStr.padStart(4, '0')] = st;
                         allStates.add(st);
                     }
                 });
@@ -4921,8 +4937,11 @@ function saveGlobalGSUrl() {
                 let stateSalesMap = {};
                 allStates.forEach(st => stateSalesMap[st] = 0);
                 filteredSubs.forEach(s => {
-                    let code = String(s.code);
-                    let st = stateMap[code] || (s.state ? String(s.state).trim().toUpperCase() : '') || (typeof branchStateMap !== 'undefined' && branchStateMap[code] ? branchStateMap[code].trim().toUpperCase() : 'LAIN-LAIN');
+                    let code = String(s.code).trim();
+                    let numCode = !isNaN(code) ? Number(code) : code;
+                    let padCode = code.padStart(4, '0');
+                    let st = stateMap[code] || stateMap[numCode] || stateMap[padCode] || (s.state ? String(s.state).trim().toUpperCase() : '') || (typeof branchStateMap !== 'undefined' && (branchStateMap[code] || branchStateMap[numCode]) ? String(branchStateMap[code] || branchStateMap[numCode]).trim().toUpperCase() : 'LAIN-LAIN');
+                    if (st === 'LAIN2' || st === 'LAIN') st = 'LAIN-LAIN';
                     if (!allStates.has(st)) allStates.add(st);
                     stateSalesMap[st] = (stateSalesMap[st] || 0) + (parseFloat(s.sales) || 0);
                 });
