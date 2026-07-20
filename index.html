@@ -1851,9 +1851,8 @@ window.onunhandledrejection = function(event) {
                             payload.code = dataObj.code || this.id.split('_')[1];
                             let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : (cur.exists ? (cur.data().target || cur.data().target_sales || 0) : 0));
                             payload.target = tVal;
-                            payload.target_sales = tVal;
                         } else if (this.col === 'monthly_summaries') {
-                            if (dataObj.am || merged.am) payload.am = dataObj.am || merged.am;
+                            // am and month stay cleanly inside payload.data (JSONB)
                         }
                     } else {
                         payload.data = dataObj;
@@ -1862,9 +1861,8 @@ window.onunhandledrejection = function(event) {
                             payload.code = dataObj.code || this.id.split('_')[1];
                             let tVal = dataObj.target !== undefined ? dataObj.target : (dataObj.target_sales !== undefined ? dataObj.target_sales : 0);
                             payload.target = tVal;
-                            payload.target_sales = tVal;
                         } else if (this.col === 'monthly_summaries') {
-                            if (dataObj.am) payload.am = dataObj.am;
+                            // am and month stay cleanly inside payload.data (JSONB)
                         }
                     }
                     payload.updated_at = new Date().toISOString();
