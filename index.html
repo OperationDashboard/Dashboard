@@ -1391,8 +1391,8 @@ function doPost(e) {
                     <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
                         <div class="flex justify-between items-start mb-4 border-b border-slate-800/80 pb-3">
                             <div>
-                                <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-truck-fast text-orange-400"></i> 3A. Logistics Cost Ratio vs Sales (#1 - #28)</h3>
-                                <p class="text-[11px] text-slate-400 mt-0.5">Monitoring logistics cost efficiency across AMs (Standard benchmark < 5.0%).</p>
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-truck-fast text-orange-400"></i> 3A. Total Sales vs Lorry Trip Sales (#1 - #28)</h3>
+                                <p class="text-[11px] text-slate-400 mt-0.5">Comparative analysis of Total Sales vs Lorry Trip Contribution (RM) across Area Managers.</p>
                             </div>
                             <span class="bg-orange-500/10 text-orange-400 text-[10px] font-bold px-2 py-1 rounded-lg border border-orange-500/30">Group 1</span>
                         </div>
@@ -1404,8 +1404,8 @@ function doPost(e) {
                     <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
                         <div class="flex justify-between items-start mb-4 border-b border-slate-800/80 pb-3">
                             <div>
-                                <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-truck-fast text-orange-400"></i> 3B. Logistics Cost Ratio vs Sales (#29 & Below)</h3>
-                                <p class="text-[11px] text-slate-400 mt-0.5">Monitoring logistics cost efficiency for the second group of AMs.</p>
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-truck-fast text-orange-400"></i> 3B. Total Sales vs Lorry Trip Sales (#29 & Below)</h3>
+                                <p class="text-[11px] text-slate-400 mt-0.5">Comparative analysis of Total Sales vs Lorry Trip Contribution (RM) for the second group of AMs.</p>
                             </div>
                             <span class="bg-orange-500/10 text-orange-400 text-[10px] font-bold px-2 py-1 rounded-lg border border-orange-500/30">Group 2</span>
                         </div>
@@ -4671,38 +4671,44 @@ function saveGlobalGSUrl() {
                 amRatioMap[am] = sVal > 0 ? parseFloat(((lVal / sVal) * 100).toFixed(2)) : 0;
             });
 
-            let sortedAMsByRatio = sortedAMs.slice().sort((a, b) => (amRatioMap[b] || 0) - (amRatioMap[a] || 0));
-            let topRatioAMs = sortedAMsByRatio.slice(0, 28);
-            let bottomRatioAMs = sortedAMsByRatio.slice(28);
+            let sortedAMsBySalesList = sortedAMs.slice().sort((a, b) => (amSalesMap[b] || 0) - (amSalesMap[a] || 0));
+            let topLorryAMs = sortedAMsBySalesList.slice(0, 28);
+            let bottomLorryAMs = sortedAMsBySalesList.slice(28);
 
             if (ctxLorry1) {
                 if (execChartLorryRatio) execChartLorryRatio.destroy();
                 execChartLorryRatio = new Chart(ctxLorry1.getContext('2d'), {
                     type: 'bar',
                     data: {
-                        labels: topRatioAMs,
-                        datasets: [{
-                            label: 'Logistics Cost Ratio (%)',
-                            data: topRatioAMs.map(am => amRatioMap[am] || 0),
-                            backgroundColor: topRatioAMs.map(am => amRatioMap[am] > 10 ? '#f43f5e' : (amRatioMap[am] > 5 ? '#f59e0b' : '#10b981')),
-                            borderRadius: 6
-                        }]
+                        labels: topLorryAMs,
+                        datasets: [
+                            { label: 'Total Sales (RM)', data: topLorryAMs.map(am => amSalesMap[am] || 0), backgroundColor: '#3b82f6', borderRadius: 6 },
+                            { label: 'Lorry Trip Sales (RM)', data: topLorryAMs.map(am => amLorryMap[am] || 0), backgroundColor: '#f59e0b', borderRadius: 6 }
+                        ]
                     },
                     options: {
+                        indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
-                            y: { grid: { color: 'rgba(51,65,85,0.3)' }, ticks: { callback: v => v + '%' }, suggestedMax: 15 },
-                            x: { grid: { display: false } }
+                            x: { grid: { color: 'rgba(51,65,85,0.3)' }, ticks: { callback: v => 'RM ' + formatRM(v) } },
+                            y: { grid: { display: false } }
                         },
                         plugins: {
-                            legend: { display: false },
+                            legend: { position: 'top' },
                             tooltip: {
                                 callbacks: {
                                     label: function(ctx) {
                                         let am = ctx.label;
-                                        let ratio = ctx.raw || 0;
-                                        return `Cost: RM ${formatRM(amLorryMap[am]||0)} / Sales: RM ${formatRM(amSalesMap[am]||0)} (${ratio}%)`;
+                                        let sVal = amSalesMap[am] || 0;
+                                        let lVal = amLorryMap[am] || 0;
+                                        let diff = sVal - lVal;
+                                        let ratio = amRatioMap[am] || 0;
+                                        if (ctx.datasetIndex === 0) {
+                                            return `Total Sales: RM ${formatRM(sVal)} (Non-Lorry: RM ${formatRM(diff)})`;
+                                        } else {
+                                            return `Lorry Trip Sales: RM ${formatRM(lVal)} (${ratio}% of Total Sales)`;
+                                        }
                                     }
                                 }
                             }
@@ -4713,35 +4719,41 @@ function saveGlobalGSUrl() {
 
             if (ctxLorry2) {
                 if (execChartLorryRatio2) execChartLorryRatio2.destroy();
-                if (bottomRatioAMs.length > 0) {
+                if (bottomLorryAMs.length > 0) {
                     execChartLorryRatio2 = new Chart(ctxLorry2.getContext('2d'), {
                         type: 'bar',
                         data: {
-                            labels: bottomRatioAMs,
-                            datasets: [{
-                                label: 'Logistics Cost Ratio (%)',
-                                data: bottomRatioAMs.map(am => amRatioMap[am] || 0),
-                                backgroundColor: bottomRatioAMs.map(am => amRatioMap[am] > 10 ? '#f43f5e' : (amRatioMap[am] > 5 ? '#f59e0b' : '#10b981')),
-                                borderRadius: 6
-                            }]
+                            labels: bottomLorryAMs,
+                            datasets: [
+                                { label: 'Total Sales (RM)', data: bottomLorryAMs.map(am => amSalesMap[am] || 0), backgroundColor: '#3b82f6', borderRadius: 6 },
+                                { label: 'Lorry Trip Sales (RM)', data: bottomLorryAMs.map(am => amLorryMap[am] || 0), backgroundColor: '#f59e0b', borderRadius: 6 }
+                            ]
                         },
                         options: {
+                            indexAxis: 'y',
                             responsive: true,
                             maintainAspectRatio: false,
                             scales: {
-                                y: { grid: { color: 'rgba(51,65,85,0.3)' }, ticks: { callback: v => v + '%' }, suggestedMax: 15 },
-                                x: { grid: { display: false } }
+                                x: { grid: { color: 'rgba(51,65,85,0.3)' }, ticks: { callback: v => 'RM ' + formatRM(v) } },
+                                y: { grid: { display: false } }
                             },
                             plugins: {
-                                legend: { display: false },
+                                legend: { position: 'top' },
                                 tooltip: {
-                                callbacks: {
-                                    label: function(ctx) {
-                                        let am = ctx.label;
-                                        let ratio = ctx.raw || 0;
-                                        return `Cost: RM ${formatRM(amLorryMap[am]||0)} / Sales: RM ${formatRM(amSalesMap[am]||0)} (${ratio}%)`;
+                                    callbacks: {
+                                        label: function(ctx) {
+                                            let am = ctx.label;
+                                            let sVal = amSalesMap[am] || 0;
+                                            let lVal = amLorryMap[am] || 0;
+                                            let diff = sVal - lVal;
+                                            let ratio = amRatioMap[am] || 0;
+                                            if (ctx.datasetIndex === 0) {
+                                                return `Total Sales: RM ${formatRM(sVal)} (Non-Lorry: RM ${formatRM(diff)})`;
+                                            } else {
+                                                return `Lorry Trip Sales: RM ${formatRM(lVal)} (${ratio}% of Total Sales)`;
+                                            }
+                                        }
                                     }
-                                }
                                 }
                             }
                         }
