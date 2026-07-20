@@ -2611,6 +2611,29 @@ function saveGlobalGSUrl() {
             return combined;
         }
 
+        function deduplicateSubmissionsList(list) {
+            if (!Array.isArray(list)) return [];
+            let map = new Map();
+            for (let i = 0; i < list.length; i++) {
+                let s = list[i];
+                if (!s || !s.code || !s.date) continue;
+                let cTrim = String(s.code).trim();
+                let k = cTrim + "_" + String(s.date).trim();
+                let existing = map.get(k);
+                if (!existing) {
+                    map.set(k, s);
+                } else {
+                    let existScore = (existing.night_locked ? 100 : 0) + ((parseFloat(existing.sales)||0)>0 ? 10 : 0) + ((parseFloat(existing.lorry)||0)>0 ? 1 : 0);
+                    let currScore = (s.night_locked ? 100 : 0) + ((parseFloat(s.sales)||0)>0 ? 10 : 0) + ((parseFloat(s.lorry)||0)>0 ? 1 : 0);
+                    if (currScore > existScore || (currScore === existScore && String(s.updated_at || "") >= String(existing.updated_at || ""))) {
+                        map.set(k, s);
+                    }
+                }
+            }
+            return Array.from(map.values());
+        }
+        window.deduplicateSubmissionsList = deduplicateSubmissionsList;
+
         function syncManagerFromCloud(forceRefresh = false) {
             let mode = 'daily';
             let dateStr = todayStr;
@@ -2662,28 +2685,6 @@ function saveGlobalGSUrl() {
             
             let fetchMode = mode;
             let fetchDateStr = dateStr;
-
-        function deduplicateSubmissionsList(list) {
-            if (!Array.isArray(list)) return [];
-            let map = new Map();
-            for (let i = 0; i < list.length; i++) {
-                let s = list[i];
-                if (!s || !s.code || !s.date) continue;
-                let cTrim = String(s.code).trim();
-                let k = cTrim + "_" + String(s.date).trim();
-                let existing = map.get(k);
-                if (!existing) {
-                    map.set(k, s);
-                } else {
-                    let existScore = (existing.night_locked ? 100 : 0) + ((parseFloat(existing.sales)||0)>0 ? 10 : 0) + ((parseFloat(existing.lorry)||0)>0 ? 1 : 0);
-                    let currScore = (s.night_locked ? 100 : 0) + ((parseFloat(s.sales)||0)>0 ? 10 : 0) + ((parseFloat(s.lorry)||0)>0 ? 1 : 0);
-                    if (currScore > existScore || (currScore === existScore && String(s.updated_at || "") >= String(existing.updated_at || ""))) {
-                        map.set(k, s);
-                    }
-                }
-            }
-            return Array.from(map.values());
-        }
 
             let processSnap = async (snap) => {
                 let fbData = [];
