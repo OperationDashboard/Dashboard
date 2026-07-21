@@ -1788,8 +1788,12 @@ window.onunhandledrejection = function(event) {
                 let isFetching = false;
                 let lastHash = "";
                 let firstSnapDone = false;
+                let lastFetchTime = 0;
                 let doFetch = () => {
                     if (!active || isFetching) return;
+                    let now = Date.now();
+                    if (now - lastFetchTime < 35000 && firstSnapDone) return;
+                    lastFetchTime = now;
                     isFetching = true;
                     this.get().then(snap => {
                         isFetching = false;
@@ -1823,7 +1827,7 @@ window.onunhandledrejection = function(event) {
                 } catch(e) {}
 
                 let onVisChange = () => { if (active && !document.hidden) doFetch(); };
-                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 10000 : 120000;
+                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 15000 : (180000 + Math.floor(Math.random() * 60000));
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
@@ -1957,8 +1961,12 @@ window.onunhandledrejection = function(event) {
                 let isFetching = false;
                 let lastHash = "";
                 let firstSnapDone = false;
+                let lastFetchTime = 0;
                 let doFetch = () => {
                     if (!active || isFetching) return;
+                    let now = Date.now();
+                    if (now - lastFetchTime < 15000 && firstSnapDone) return;
+                    lastFetchTime = now;
                     isFetching = true;
                     this.get().then(docSnap => {
                         isFetching = false;
@@ -1979,7 +1987,7 @@ window.onunhandledrejection = function(event) {
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
-                }, 120000);
+                }, 180000 + Math.floor(Math.random() * 60000));
                 let unsub = () => { active = false; clearInterval(interval); };
                 unsub.refresh = doFetch;
                 return unsub;
@@ -2442,7 +2450,10 @@ function saveGlobalGSUrl() {
             }
         }
 
+        let lastWinRefresh = 0;
         window.addEventListener('focus', () => {
+            if (Date.now() - lastWinRefresh < 60000) return;
+            lastWinRefresh = Date.now();
             if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
             if (typeof unsubToday !== 'undefined' && unsubToday && typeof unsubToday.refresh === 'function') unsubToday.refresh();
             if (typeof unsubNight !== 'undefined' && unsubNight && typeof unsubNight.refresh === 'function') unsubNight.refresh();
@@ -2450,6 +2461,8 @@ function saveGlobalGSUrl() {
         });
         window.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
+                if (Date.now() - lastWinRefresh < 60000) return;
+                lastWinRefresh = Date.now();
                 if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
                 if (typeof unsubToday !== 'undefined' && unsubToday && typeof unsubToday.refresh === 'function') unsubToday.refresh();
                 if (typeof unsubNight !== 'undefined' && unsubNight && typeof unsubNight.refresh === 'function') unsubNight.refresh();
