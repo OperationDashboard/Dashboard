@@ -2014,10 +2014,13 @@ window.onunhandledrejection = function(event) {
             set(ref, data, opts) { this.ops.push({ type: 'set', ref, data, opts }); }
             delete(ref) { this.ops.push({ type: 'delete', ref }); }
             async commit() {
-                for (let op of this.ops) {
-                    if (op.type === 'update') await op.ref.update(op.data);
-                    else if (op.type === 'set') await op.ref.set(op.data, op.opts);
-                    else if (op.type === 'delete') await op.ref.delete();
+                for (let i = 0; i < this.ops.length; i += 15) {
+                    let chunk = this.ops.slice(i, i + 15);
+                    await Promise.all(chunk.map(async op => {
+                        if (op.type === 'update') await op.ref.update(op.data);
+                        else if (op.type === 'set') await op.ref.set(op.data, op.opts);
+                        else if (op.type === 'delete') await op.ref.delete();
+                    }));
                 }
             }
         }
@@ -2601,6 +2604,11 @@ function saveGlobalGSUrl() {
 
             try {
                 let q = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
+                if (currentUser && currentUser.role === 'branch') {
+                    q = q.where("code", "==", String(currentUser.id));
+                } else if (amName) {
+                    q = q.where("am", "==", amName);
+                }
                 let snap = await q.get();
                 snap.forEach(doc => {
                     if (doc.exists) {
@@ -2767,6 +2775,11 @@ function saveGlobalGSUrl() {
                     });
             } else {
                 let query = db.collection("submissions").where("date", "==", fetchDateStr);
+                if (currentUser && currentUser.role === 'branch') {
+                    query = query.where("code", "==", String(currentUser.id));
+                } else if (currentUser && currentUser.role === 'am') {
+                    query = query.where("am", "==", (currentUser.name || '').trim().toUpperCase());
+                }
                 let snapTimer = null;
                 window.activeListeners[queryKey] = query.onSnapshot(snap => {
                     if (snapTimer) clearTimeout(snapTimer);
@@ -3029,19 +3042,23 @@ function saveGlobalGSUrl() {
             if (action === 'reset_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 let payload = { sales: 0, transactions: 0, mykasih: 0, lorry: 0, date: payloadData.date, code: payloadData.code };
-                updateMonthlySummary(payload, bAm);
-                fbPromise = db.collection("submissions").doc(docId).set({
-                    date: payloadData.date, code: payloadData.code,
-                      sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false, am: bAm
-                }, {merge: true});
+                fbPromise = (async () => {
+                    await db.collection("submissions").doc(docId).set({
+                        date: payloadData.date, code: payloadData.code,
+                        sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false, am: bAm
+                    }, {merge: true});
+                    await updateMonthlySummary(payload, bAm);
+                })();
             } else if (action === 'reset_bank' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 let payload = { bank1: 0, bank2: 0, date: payloadData.date, code: payloadData.code };
-                updateMonthlySummary(payload, bAm);
-                fbPromise = db.collection("submissions").doc(docId).set({
-                    date: payloadData.date, code: payloadData.code,
-                    bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true, am: bAm
-                }, {merge: true});
+                fbPromise = (async () => {
+                    await db.collection("submissions").doc(docId).set({
+                        date: payloadData.date, code: payloadData.code,
+                        bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true, am: bAm
+                    }, {merge: true});
+                    await updateMonthlySummary(payload, bAm);
+                })();
             } else if (action === 'unlock_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, night_unlocked: true, night_locked: false, am: bAm }, {merge: true});
@@ -3063,12 +3080,14 @@ function saveGlobalGSUrl() {
                     }
                 });
             } else if (payloadData && payloadData.date && payloadData.code) {
-                if (typeof payloadData.sales !== 'undefined' || typeof payloadData.lorry !== 'undefined' || typeof payloadData.bank1 !== 'undefined' || typeof payloadData.bank2 !== 'undefined') {
-                    updateMonthlySummary(payloadData, bAm);
-                }
                 let docId = payloadData.date + "_" + payloadData.code;
                 payloadData.am = bAm;
-                fbPromise = db.collection("submissions").doc(docId).set(payloadData, {merge: true});
+                fbPromise = (async () => {
+                    await db.collection("submissions").doc(docId).set(payloadData, {merge: true});
+                    if (typeof payloadData.sales !== 'undefined' || typeof payloadData.lorry !== 'undefined' || typeof payloadData.bank1 !== 'undefined' || typeof payloadData.bank2 !== 'undefined') {
+                        await updateMonthlySummary(payloadData, bAm);
+                    }
+                })();
             } else if (action === 'set_global_lock') {
                 fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
             } else if (action === 'set_past_lock') {
@@ -6834,6 +6853,11 @@ function saveGlobalGSUrl() {
                     let respQuery = db.collection('survey_responses');
                     if (sIds.length > 0 && sIds.length <= 50) {
                         respQuery = respQuery.where('surveyId', 'in', sIds);
+                    }
+                    if (currentUser && currentUser.role === 'branch') {
+                        respQuery = respQuery.where('branchCode', '==', String(currentUser.id));
+                    } else if (currentUser && currentUser.role === 'am') {
+                        respQuery = respQuery.where('amName', '==', (currentUser.name || '').trim().toUpperCase());
                     }
                     responsesUnsubscribe = respQuery.limit(50000).onSnapshot(rSnap => {
                         let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
