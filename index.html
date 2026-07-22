@@ -1749,7 +1749,7 @@ window.onunhandledrejection = function(event) {
                         }
                         let pQuery = q.range(from, from + step - 1);
                         let res = await runQuery(pQuery);
-                        let chunk = res.data || [];
+                        let chunk = (res && res.data) || [];
                         rows.push(...chunk);
                         if (chunk.length < step) break;
                         from += step;
@@ -1757,6 +1757,26 @@ window.onunhandledrejection = function(event) {
                             rows = rows.slice(0, this.lim);
                             break;
                         }
+                        while (true) {
+                            let batchPromises = [];
+                            for (let b = 0; b < 4; b++) {
+                                let bFrom = from + (b * step);
+                                batchPromises.push(runQuery(q.range(bFrom, bFrom + step - 1)));
+                            }
+                            let batchResults = await Promise.all(batchPromises);
+                            let stopBatch = false;
+                            for (let bRes of batchResults) {
+                                let bChunk = (bRes && bRes.data) || [];
+                                rows.push(...bChunk);
+                                if (bChunk.length < step) { stopBatch = true; break; }
+                            }
+                            from += 4 * step;
+                            if (stopBatch || (this.lim && rows.length >= this.lim)) {
+                                if (this.lim && rows.length >= this.lim) rows = rows.slice(0, this.lim);
+                                break;
+                            }
+                        }
+                        break;
                     }
                 }
                 let seenIds = new Set();
@@ -2619,20 +2639,41 @@ function saveGlobalGSUrl() {
             }
 
             try {
-                let q = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
-                if (currentUser && currentUser.role === 'branch') {
-                    q = q.where("code", "==", String(currentUser.id));
-                }
-                let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Direct submissions query timed out after 15s")), 15000));
-                let snap = await Promise.race([q.get(), timeoutPromise]);
-                snap.forEach(doc => {
-                    if (doc && doc.exists) {
-                        let d = doc.data();
-                        if (d && d.code && d.date) {
-                            recordMap.set(String(d.code) + "_" + String(d.date), d);
-                        }
+                let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Direct submissions query timed out after 60s")), 60000));
+                if (!isDaily && (!currentUser || currentUser.role !== 'branch')) {
+                    let intervals = [
+                        [monthStr + "-01", monthStr + "-08"],
+                        [monthStr + "-09", monthStr + "-16"],
+                        [monthStr + "-17", monthStr + "-24"],
+                        [monthStr + "-25", monthStr + "-31"]
+                    ];
+                    let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
+                    let snaps = await Promise.race([Promise.all(queries), timeoutPromise]);
+                    snaps.forEach(snap => {
+                        snap.forEach(doc => {
+                            if (doc && doc.exists) {
+                                let d = doc.data();
+                                if (d && d.code && d.date) {
+                                    recordMap.set(String(d.code) + "_" + String(d.date), d);
+                                }
+                            }
+                        });
+                    });
+                } else {
+                    let q = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
+                    if (currentUser && currentUser.role === 'branch') {
+                        q = q.where("code", "==", String(currentUser.id));
                     }
-                });
+                    let snap = await Promise.race([q.get(), timeoutPromise]);
+                    snap.forEach(doc => {
+                        if (doc && doc.exists) {
+                            let d = doc.data();
+                            if (d && d.code && d.date) {
+                                recordMap.set(String(d.code) + "_" + String(d.date), d);
+                            }
+                        }
+                    });
+                }
             } catch (e) {
                 console.warn("Direct submissions query failed or timed out (using summary/cache):", e.message || e);
             }
@@ -5990,10 +6031,27 @@ function saveGlobalGSUrl() {
                 try {
                     sumRes = await queryMonthlySummariesData(startDate, endDate, amFilterVal);
                 } catch(e) {}
-                let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
-                let snap = await query.get();
                 let subRes = [];
-                snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
+                let d1 = new Date(startDate);
+                let d2 = new Date(endDate);
+                let diffDays = (d2 - d1) / (1000 * 3600 * 24);
+                if (diffDays > 10 && (!currentUser || currentUser.role !== 'branch')) {
+                    let intervals = [
+                        [startDate.substring(0, 8) + "01", startDate.substring(0, 8) + "08"],
+                        [startDate.substring(0, 8) + "09", startDate.substring(0, 8) + "16"],
+                        [startDate.substring(0, 8) + "17", startDate.substring(0, 8) + "24"],
+                        [startDate.substring(0, 8) + "25", endDate]
+                    ];
+                    let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
+                    let snaps = await Promise.all(queries);
+                    snaps.forEach(snap => {
+                        snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
+                    });
+                } else {
+                    let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
+                    let snap = await query.get();
+                    snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
+                }
                 
                 let map = {};
                 if (Array.isArray(sumRes)) {
