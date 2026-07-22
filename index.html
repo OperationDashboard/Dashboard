@@ -2607,7 +2607,19 @@ function saveGlobalGSUrl() {
                 if (currentUser && currentUser.role === 'branch') {
                     q = q.where("code", "==", String(currentUser.id));
                 } else if (amName) {
-                    q = q.where("am", "==", amName);
+                    let targetAM = String(amName).trim().toUpperCase();
+                    let amCodes = [];
+                    if (typeof masterBranches !== 'undefined' && Array.isArray(masterBranches)) {
+                        amCodes = masterBranches
+                            .filter(b => (b.am || '').trim().toUpperCase() === targetAM || (b.am || '').trim().toUpperCase().includes(targetAM))
+                            .map(b => String(b.code).trim())
+                            .filter(Boolean);
+                    }
+                    if (amCodes.length > 0 && amCodes.length <= 150) {
+                        q = q.where("code", "in", amCodes);
+                    } else {
+                        q = q.where("am", "==", targetAM);
+                    }
                 }
                 let snap = await q.get();
                 snap.forEach(doc => {
@@ -2778,7 +2790,19 @@ function saveGlobalGSUrl() {
                 if (currentUser && currentUser.role === 'branch') {
                     query = query.where("code", "==", String(currentUser.id));
                 } else if (currentUser && currentUser.role === 'am') {
-                    query = query.where("am", "==", (currentUser.name || '').trim().toUpperCase());
+                    let targetAM = (currentUser.name || '').trim().toUpperCase();
+                    let amCodes = [];
+                    if (typeof masterBranches !== 'undefined' && Array.isArray(masterBranches)) {
+                        amCodes = masterBranches
+                            .filter(b => (b.am || '').trim().toUpperCase() === targetAM || (b.am || '').trim().toUpperCase().includes(targetAM))
+                            .map(b => String(b.code).trim())
+                            .filter(Boolean);
+                    }
+                    if (amCodes.length > 0 && amCodes.length <= 150) {
+                        query = query.where("code", "in", amCodes);
+                    } else {
+                        query = query.where("am", "==", targetAM);
+                    }
                 }
                 let snapTimer = null;
                 window.activeListeners[queryKey] = query.onSnapshot(snap => {
@@ -3034,8 +3058,13 @@ function saveGlobalGSUrl() {
             
             let bAm = "";
             if (payloadData && payloadData.code) {
-                let b = masterBranches.find(x => x.code == payloadData.code);
-                if (b && b.am) bAm = b.am;
+                let cTrim = String(payloadData.code).trim();
+                let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : null;
+                let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                let b = typeof masterBranches !== 'undefined' && Array.isArray(masterBranches) ? masterBranches.find(x => String(x.code).trim() === cTrim || (cNum !== null && Number(x.code) === cNum) || String(x.code).trim() === cPad) : null;
+                if (b && b.am) bAm = String(b.am).trim().toUpperCase();
+                else if (payloadData.am) bAm = String(payloadData.am).trim().toUpperCase();
+                else if (currentUser && currentUser.am) bAm = String(currentUser.am).trim().toUpperCase();
             }
 
             let fbPromise = Promise.resolve();
