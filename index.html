@@ -2627,8 +2627,8 @@ function saveGlobalGSUrl() {
                     let sumData = await queryMonthlySummariesData(startD, endD, amName);
                     if (sumData && sumData.length > 0) {
                         sumData.forEach(item => {
-                            let k = String(item.code) + "_" + String(item.date);
-                            recordMap.set(k, item);
+                            let k = typeof getCanonicalSubKey === 'function' ? getCanonicalSubKey(item) : (String(item.code) + "_" + String(item.date));
+                            if (k) recordMap.set(k, item);
                         });
                     }
                 } catch (e) {
@@ -2651,8 +2651,9 @@ function saveGlobalGSUrl() {
                         snap.forEach(doc => {
                             if (doc && doc.exists) {
                                 let d = doc.data();
-                                if (d && d.code && d.date) {
-                                    recordMap.set(String(d.code) + "_" + String(d.date), d);
+                                if (d && d.code != null && d.date) {
+                                    let k = typeof getCanonicalSubKey === 'function' ? getCanonicalSubKey(d) : (String(d.code) + "_" + String(d.date));
+                                    if (k) recordMap.set(k, d);
                                 }
                             }
                         });
@@ -2666,8 +2667,9 @@ function saveGlobalGSUrl() {
                     snap.forEach(doc => {
                         if (doc && doc.exists) {
                             let d = doc.data();
-                            if (d && d.code && d.date) {
-                                recordMap.set(String(d.code) + "_" + String(d.date), d);
+                            if (d && d.code != null && d.date) {
+                                let k = typeof getCanonicalSubKey === 'function' ? getCanonicalSubKey(d) : (String(d.code) + "_" + String(d.date));
+                                if (k) recordMap.set(k, d);
                             }
                         }
                     });
@@ -2701,14 +2703,22 @@ function saveGlobalGSUrl() {
             return combined;
         }
 
+        function getCanonicalSubKey(s) {
+            if (!s || s.code == null || !s.date) return "";
+            let c = String(s.code).trim();
+            if (!isNaN(Number(c)) && c !== "") c = String(Number(c));
+            let d = String(s.date).trim().substring(0, 10);
+            return c + "_" + d;
+        }
+
         function deduplicateSubmissionsList(list) {
             if (!Array.isArray(list)) return [];
             let map = new Map();
             for (let i = 0; i < list.length; i++) {
                 let s = list[i];
-                if (!s || !s.code || !s.date) continue;
-                let cTrim = String(s.code).trim();
-                let k = cTrim + "_" + String(s.date).trim();
+                if (!s || s.code == null || !s.date) continue;
+                let k = getCanonicalSubKey(s);
+                if (!k) continue;
                 let existing = map.get(k);
                 if (!existing) {
                     map.set(k, s);
@@ -6051,16 +6061,8 @@ function saveGlobalGSUrl() {
                     snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
                 }
                 
-                let map = {};
-                if (Array.isArray(sumRes)) {
-                    sumRes.forEach(r => {
-                        if (r && r.code && r.date) map[String(r.code) + "_" + String(r.date)] = r;
-                    });
-                }
-                subRes.forEach(r => {
-                    if (r && r.code && r.date) map[String(r.code) + "_" + String(r.date)] = r;
-                });
-                let resultList = Object.values(map);
+                let combinedList = deduplicateSubmissionsList([...(Array.isArray(sumRes) ? sumRes : []), ...subRes]);
+                let resultList = combinedList;
                 if (amFilterVal && (!currentUser || currentUser.role === 'am')) {
                     let targetAM = String(amFilterVal).trim().toUpperCase();
                     let branches = typeof getManagerFilteredBranches === 'function' ? getManagerFilteredBranches() : (typeof masterBranches !== 'undefined' ? masterBranches.filter(b => (b.am || '').trim().toUpperCase() === targetAM || (b.am || '').trim().toUpperCase().includes(targetAM)) : []);
