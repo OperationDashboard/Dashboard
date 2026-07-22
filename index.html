@@ -2757,7 +2757,9 @@ function saveGlobalGSUrl() {
             }
 
             if (fetchMode === 'monthly') {
-                fetchSubmissionsChunked(fetchDateStr, (currentUser && currentUser.role === 'am') ? currentUser.name : null)
+                let nowM = new Date().toISOString().substring(0, 7);
+                let isCurrentOngoingMonth = (fetchDateStr === nowM || fetchDateStr.startsWith(nowM));
+                fetchSubmissionsChunked(fetchDateStr, (currentUser && currentUser.role === 'am') ? currentUser.name : null, isCurrentOngoingMonth)
                     .then(processSnap)
                     .catch(e => {
                         console.error("Monthly sync failed", e);
@@ -5818,7 +5820,8 @@ function saveGlobalGSUrl() {
             if (missingMonths.length > 0) {
                 let promises = missingMonths.map(mStr => {
                     return db.collection("monthly_summaries")
-                        .where("month", "==", mStr)
+                        .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
+                        .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff")
                         .get()
                         .then(snap => {
                             if (snap && snap.docs && snap.docs.length > 0) {
@@ -5827,16 +5830,7 @@ function saveGlobalGSUrl() {
                             return db.collection("monthly_summaries")
                                 .like("id", mStr + "_%")
                                 .get()
-                                .then(s2 => {
-                                    if (s2 && s2.docs && s2.docs.length > 0) {
-                                        return { mStr, docs: s2.docs.map(doc => ({ id: doc.id, data: doc.data() })) };
-                                    }
-                                    return db.collection("monthly_summaries")
-                                        .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
-                                        .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff")
-                                        .get()
-                                        .then(s3 => ({ mStr, docs: (s3 && s3.docs) ? s3.docs.map(doc => ({ id: doc.id, data: doc.data() })) : [] }));
-                                });
+                                .then(s2 => ({ mStr, docs: (s2 && s2.docs) ? s2.docs.map(doc => ({ id: doc.id, data: doc.data() })) : [] }));
                         })
                         .catch(err => {
                             console.error("Error loading monthly summaries for " + mStr, err);
@@ -6841,7 +6835,7 @@ function saveGlobalGSUrl() {
                     if (sIds.length > 0 && sIds.length <= 50) {
                         respQuery = respQuery.where('surveyId', 'in', sIds);
                     }
-                    responsesUnsubscribe = respQuery.limit(3000).onSnapshot(rSnap => {
+                    responsesUnsubscribe = respQuery.limit(50000).onSnapshot(rSnap => {
                         let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                         
                         if (currentUser && currentUser.role === 'branch') {
