@@ -1724,18 +1724,18 @@ window.onunhandledrejection = function(event) {
                         q = q.order(o.field, { ascending: o.dir !== 'desc' });
                     }
                     let runQuery = async (queryObj) => {
-                        for (let attempt = 1; attempt <= 4; attempt++) {
+                        for (let attempt = 1; attempt <= 3; attempt++) {
                             try {
                                 let res = await queryObj;
                                 if (!res.error && res.data) return res;
-                                if (attempt === 4) {
+                                if (attempt === 3) {
                                     if (res.error) throw new Error(res.error.message || 'Supabase Query Error');
                                     return res;
                                 }
                             } catch (e) {
-                                if (attempt === 4) throw e;
+                                if (attempt === 3) throw e;
                             }
-                            await new Promise(r => setTimeout(r, 400 * Math.pow(1.8, attempt - 1)));
+                            await new Promise(r => setTimeout(r, 250 * Math.pow(1.5, attempt - 1)));
                         }
                     };
                     if (this.lim && this.lim <= 1000) {
@@ -1849,12 +1849,12 @@ window.onunhandledrejection = function(event) {
             constructor(col, id) { this.col = col; this.id = id; }
             async get() {
                 let res = null;
-                for (let attempt = 1; attempt <= 4; attempt++) {
+                for (let attempt = 1; attempt <= 3; attempt++) {
                     try {
                         res = await sbClient.from(this.col).select('*').eq('id', this.id).maybeSingle();
                         if (!res.error) break;
-                    } catch (e) { if (attempt === 4) throw e; }
-                    if (attempt < 4) await new Promise(r => setTimeout(r, 400 * Math.pow(1.8, attempt - 1)));
+                    } catch (e) { if (attempt === 3) throw e; }
+                    if (attempt < 3) await new Promise(r => setTimeout(r, 250 * Math.pow(1.5, attempt - 1)));
                 }
                 let r = res && res.data;
                 return {
@@ -1948,12 +1948,12 @@ window.onunhandledrejection = function(event) {
                     payload.updated_at = new Date().toISOString();
                 }
                 let res = null;
-                for (let attempt = 1; attempt <= 4; attempt++) {
+                for (let attempt = 1; attempt <= 3; attempt++) {
                     try {
                         res = await sbClient.from(this.col).upsert(payload);
                         if (!res.error) break;
-                    } catch (e) { if (attempt === 4) throw e; }
-                    if (attempt < 4) await new Promise(r => setTimeout(r, 400 * Math.pow(1.8, attempt - 1)));
+                    } catch (e) { if (attempt === 3) throw e; }
+                    if (attempt < 3) await new Promise(r => setTimeout(r, 250 * Math.pow(1.5, attempt - 1)));
                 }
                 if (res && res.error) {
                     console.error(`Supabase Upsert Error (${this.col}):`, res.error.message);
@@ -1964,12 +1964,12 @@ window.onunhandledrejection = function(event) {
             async update(dataObj) { return await this.set(dataObj, { merge: true }); }
             async delete() {
                 let res = null;
-                for (let attempt = 1; attempt <= 4; attempt++) {
+                for (let attempt = 1; attempt <= 3; attempt++) {
                     try {
                         res = await sbClient.from(this.col).delete().eq('id', this.id);
                         if (!res.error) break;
-                    } catch (e) { if (attempt === 4) throw e; }
-                    if (attempt < 4) await new Promise(r => setTimeout(r, 400 * Math.pow(1.8, attempt - 1)));
+                    } catch (e) { if (attempt === 3) throw e; }
+                    if (attempt < 3) await new Promise(r => setTimeout(r, 250 * Math.pow(1.5, attempt - 1)));
                 }
                 if (res && res.error) {
                     console.error(`Supabase Delete Error (${this.col}):`, res.error.message);
@@ -2612,11 +2612,6 @@ function saveGlobalGSUrl() {
                             let k = String(item.code) + "_" + String(item.date);
                             recordMap.set(k, item);
                         });
-                        if (!isDaily) {
-                            let quickCombined = [];
-                            recordMap.forEach(val => quickCombined.push({ exists: true, data: () => val }));
-                            return quickCombined;
-                        }
                     }
                 } catch (e) {
                     console.error("Failed monthly summaries read:", e);
@@ -2627,20 +2622,6 @@ function saveGlobalGSUrl() {
                 let q = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
                 if (currentUser && currentUser.role === 'branch') {
                     q = q.where("code", "==", String(currentUser.id));
-                } else if (amName) {
-                    let targetAM = String(amName).trim().toUpperCase();
-                    let amCodes = [];
-                    if (typeof masterBranches !== 'undefined' && Array.isArray(masterBranches)) {
-                        amCodes = masterBranches
-                            .filter(b => (b.am || '').trim().toUpperCase() === targetAM || (b.am || '').trim().toUpperCase().includes(targetAM))
-                            .map(b => String(b.code).trim())
-                            .filter(Boolean);
-                    }
-                    if (amCodes.length > 0 && amCodes.length <= 150) {
-                        q = q.where("code", "in", amCodes);
-                    } else {
-                        q = q.where("am", "==", targetAM);
-                    }
                 }
                 let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Direct submissions query timed out after 15s")), 15000));
                 let snap = await Promise.race([q.get(), timeoutPromise]);
@@ -2663,6 +2644,21 @@ function saveGlobalGSUrl() {
                     data: () => val
                 });
             });
+            if (amName && (!currentUser || currentUser.role === 'am')) {
+                let targetAM = String(amName).trim().toUpperCase();
+                let branches = typeof getManagerFilteredBranches === 'function' ? getManagerFilteredBranches() : (typeof masterBranches !== 'undefined' ? masterBranches.filter(b => (b.am || '').trim().toUpperCase() === targetAM || (b.am || '').trim().toUpperCase().includes(targetAM)) : []);
+                let allowedCodes = new Set(branches.map(b => String(b.code).trim()));
+                if (allowedCodes.size > 0) {
+                    combined = combined.filter(doc => {
+                        let d = doc.data();
+                        if (!d || !d.code) return false;
+                        let cTrim = String(d.code).trim();
+                        let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : null;
+                        let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                        return allowedCodes.has(cTrim) || (cNum !== null && allowedCodes.has(String(cNum))) || allowedCodes.has(cPad);
+                    });
+                }
+            }
             return combined;
         }
 
@@ -2688,6 +2684,19 @@ function saveGlobalGSUrl() {
             return Array.from(map.values());
         }
         window.deduplicateSubmissionsList = deduplicateSubmissionsList;
+
+        let _syncDebounceTimer = null;
+        function debouncedTriggerSync() {
+            if (_syncDebounceTimer) clearTimeout(_syncDebounceTimer);
+            _syncDebounceTimer = setTimeout(() => {
+                if (currentUser && currentUser.role !== 'branch') {
+                    syncManagerFromCloud();
+                } else if (currentUser && currentUser.role === 'branch') {
+                    syncBranchFromCloud();
+                }
+            }, 800);
+        }
+        window.debouncedTriggerSync = debouncedTriggerSync;
 
         function syncManagerFromCloud(forceRefresh = false) {
             let mode = 'daily';
@@ -2809,20 +2818,6 @@ function saveGlobalGSUrl() {
                 let query = db.collection("submissions").where("date", "==", fetchDateStr);
                 if (currentUser && currentUser.role === 'branch') {
                     query = query.where("code", "==", String(currentUser.id));
-                } else if (currentUser && currentUser.role === 'am') {
-                    let targetAM = (currentUser.name || '').trim().toUpperCase();
-                    let amCodes = [];
-                    if (typeof masterBranches !== 'undefined' && Array.isArray(masterBranches)) {
-                        amCodes = masterBranches
-                            .filter(b => (b.am || '').trim().toUpperCase() === targetAM || (b.am || '').trim().toUpperCase().includes(targetAM))
-                            .map(b => String(b.code).trim())
-                            .filter(Boolean);
-                    }
-                    if (amCodes.length > 0 && amCodes.length <= 150) {
-                        query = query.where("code", "in", amCodes);
-                    } else {
-                        query = query.where("am", "==", targetAM);
-                    }
                 }
                 let snapTimer = null;
                 window.activeListeners[queryKey] = query.onSnapshot(snap => {
@@ -3091,23 +3086,21 @@ function saveGlobalGSUrl() {
             if (action === 'reset_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 let payload = { sales: 0, transactions: 0, mykasih: 0, lorry: 0, date: payloadData.date, code: payloadData.code };
-                fbPromise = (async () => {
-                    await db.collection("submissions").doc(docId).set({
-                        date: payloadData.date, code: payloadData.code,
-                        sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false, am: bAm
-                    }, {merge: true});
-                    await updateMonthlySummary(payload, bAm);
-                })();
+                fbPromise = db.collection("submissions").doc(docId).set({
+                    date: payloadData.date, code: payloadData.code,
+                    sales: 0, transactions: 0, mykasih: 0, lorry: 0, night_locked: false, night_submit_time: "", night_unlocked: false, am: bAm
+                }, {merge: true}).then(() => {
+                    setTimeout(() => { updateMonthlySummary(payload, bAm).catch(e => console.error(e)); }, 10);
+                });
             } else if (action === 'reset_bank' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 let payload = { bank1: 0, bank2: 0, date: payloadData.date, code: payloadData.code };
-                fbPromise = (async () => {
-                    await db.collection("submissions").doc(docId).set({
-                        date: payloadData.date, code: payloadData.code,
-                        bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true, am: bAm
-                    }, {merge: true});
-                    await updateMonthlySummary(payload, bAm);
-                })();
+                fbPromise = db.collection("submissions").doc(docId).set({
+                    date: payloadData.date, code: payloadData.code,
+                    bank1: 0, bank2: 0, bank1_time: "", bank2_time: "", bank2_unlocked: true, am: bAm
+                }, {merge: true}).then(() => {
+                    setTimeout(() => { updateMonthlySummary(payload, bAm).catch(e => console.error(e)); }, 10);
+                });
             } else if (action === 'unlock_night' && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, night_unlocked: true, night_locked: false, am: bAm }, {merge: true});
@@ -3131,12 +3124,11 @@ function saveGlobalGSUrl() {
             } else if (payloadData && payloadData.date && payloadData.code) {
                 let docId = payloadData.date + "_" + payloadData.code;
                 payloadData.am = bAm;
-                fbPromise = (async () => {
-                    await db.collection("submissions").doc(docId).set(payloadData, {merge: true});
+                fbPromise = db.collection("submissions").doc(docId).set(payloadData, {merge: true}).then(() => {
                     if (typeof payloadData.sales !== 'undefined' || typeof payloadData.lorry !== 'undefined' || typeof payloadData.bank1 !== 'undefined' || typeof payloadData.bank2 !== 'undefined') {
-                        await updateMonthlySummary(payloadData, bAm);
+                        setTimeout(() => { updateMonthlySummary(payloadData, bAm).catch(e => console.error(e)); }, 10);
                     }
-                })();
+                });
             } else if (action === 'set_global_lock') {
                 fbPromise = db.collection("config").doc("system").set({global_lock: payloadData.locked}, {merge: true});
             } else if (action === 'set_past_lock') {
@@ -5246,14 +5238,26 @@ function saveGlobalGSUrl() {
             for(let d=1; d<=daysInMonth; d++) dailyTotals[d] = {sales:0, trans:0, lorry:0};
             
             let branchCodeMap = {};
-            branches.forEach(b => branchCodeMap[b.code] = true);
+            branches.forEach(b => {
+                let cTrim = String(b.code || '').trim();
+                let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : cTrim;
+                let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                branchCodeMap[cTrim] = true;
+                branchCodeMap[cNum] = true;
+                branchCodeMap[cPad] = true;
+            });
             
             dbSubmissions.forEach(sub => {
                 if(sub.date.startsWith(monthStr)) {
-                    if(!dataMap[sub.code]) dataMap[sub.code] = {};
-                    dataMap[sub.code][sub.date] = { sales: sub.sales || 0, trans: sub.transactions || 0 };
+                    let cTrim = String(sub.code || '').trim();
+                    let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : cTrim;
+                    let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                    [cTrim, cNum, cPad].forEach(cKey => {
+                        if(!dataMap[cKey]) dataMap[cKey] = {};
+                        dataMap[cKey][sub.date] = { sales: sub.sales || 0, trans: sub.transactions || 0 };
+                    });
                     
-                    if (branchCodeMap[sub.code]) {
+                    if (branchCodeMap[cTrim] || branchCodeMap[cNum] || branchCodeMap[cPad]) {
                         let dayNum = parseInt(sub.date.split('-')[2]);
                         if(dailyTotals[dayNum]) {
                             dailyTotals[dayNum].sales += (sub.sales || 0);
@@ -5987,7 +5991,6 @@ function saveGlobalGSUrl() {
                     sumRes = await queryMonthlySummariesData(startDate, endDate, amFilterVal);
                 } catch(e) {}
                 let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
-                if (amFilterVal) query = query.where("am", "==", amFilterVal);
                 let snap = await query.get();
                 let subRes = [];
                 snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
@@ -6001,7 +6004,22 @@ function saveGlobalGSUrl() {
                 subRes.forEach(r => {
                     if (r && r.code && r.date) map[String(r.code) + "_" + String(r.date)] = r;
                 });
-                return Object.values(map);
+                let resultList = Object.values(map);
+                if (amFilterVal && (!currentUser || currentUser.role === 'am')) {
+                    let targetAM = String(amFilterVal).trim().toUpperCase();
+                    let branches = typeof getManagerFilteredBranches === 'function' ? getManagerFilteredBranches() : (typeof masterBranches !== 'undefined' ? masterBranches.filter(b => (b.am || '').trim().toUpperCase() === targetAM || (b.am || '').trim().toUpperCase().includes(targetAM)) : []);
+                    let allowedCodes = new Set(branches.map(b => String(b.code).trim()));
+                    if (allowedCodes.size > 0) {
+                        resultList = resultList.filter(d => {
+                            if (!d || !d.code) return false;
+                            let cTrim = String(d.code).trim();
+                            let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : null;
+                            let cPad = /^\d+$/.test(cTrim) ? cTrim.padStart(4, '0') : cTrim;
+                            return allowedCodes.has(cTrim) || (cNum !== null && allowedCodes.has(String(cNum))) || allowedCodes.has(cPad);
+                        });
+                    }
+                }
+                return resultList;
             } catch(e) {
                 console.error("Error in fetchRangeFromSummaries:", e);
                 return [];
