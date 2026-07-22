@@ -1,0 +1,49 @@
+================================================================================
+PANDUAN & SOP SERAH TUGAS PEMBANGUN (DEVELOPER HANDOVER & ARCHITECTURE GUIDE)
+Sistem: Operational Hub - Dashboard Syarikat (99 Speed Mart - 3,500 Cawangan)
+================================================================================
+
+AMARAN KERAS: 
+Dokumen ini WAJIB dibaca dan dipatuhi 100% oleh mana-mana pembangun (developer) baru sebelum melakukan sebarang perubahan kod atau penolakan (push) ke GitHub/Vercel.
+
+--------------------------------------------------------------------------------
+1. RINGKASAN ARKITEKTUR SISTEM
+--------------------------------------------------------------------------------
+- Frontend & Aplikasi Utama: index.html (Single-Page Application menggunakan Vanilla JavaScript, Tailwind CSS menerusi CDN, Chart.js, FontAwesome).
+- Pangkalan Data: Supabase (PostgreSQL / Realtime) di URL https://jolrtaqlpqqydncacqza.supabase.co.
+- Wrapper Pangkalan Data: Sistem ini menggunakan kelas pembungkus (SBCollectionRef, SBQuery, SBDocRef) dalam index.html yang meniru sintaks Firestore (db.collection('...').where('...').get()).
+- Hosting & Deployment: Vercel (dashboard-operation.vercel.app), bersambung secara otomatis (CI/CD) ke branch main di GitHub.
+
+--------------------------------------------------------------------------------
+2. PERATURAN ARKITEKTUR & LOGIK KRITIKAL (TIDAK BOLEH DIUBAH / DIBUANG)
+--------------------------------------------------------------------------------
+
+[PERATURAN 1] Tarikan Data Besar Wajib Menggunakan buildRangeQuery (Parallel Batching):
+- Tarikan data submissions bagi tempoh panjang (>10 hari atau bulanan) WAJIB menggunakan teknik 4-Way Parallel Batching (4,000 baris setiap pusingan).
+- DILARANG SAMA SEKALI menggunakan objek pertanyaan (query builder) yang dikongsi dalam pusingan selari kerana @supabase/supabase-js memutasi parameter .range(a, b), yang akan melangkau 3/4 halaman dan merosakkan jumlah jualan. Wajib bina objek pertanyaan baru (buildRangeQuery) bagi setiap halaman.
+
+[PERATURAN 2] Normalisasi Kunci Kanonikal (getCanonicalSubKey) Bagi Mengelak Jualan Berganda (Double Sales):
+- Pangkalan data mengandungi campuran format kod cawangan bersifar ("0012", "01009") dan integer (12, 1009).
+- Setiap penggabungan data antara monthly_summaries dan submissions WAJIB memanggil getCanonicalSubKey(s) dan deduplicateSubmissionsList() bagi menyatukan kod ke format integer. Jika fungsi ini dibuang, jualan cawangan akan dijumlahkan dua kali ganda.
+
+[PERATURAN 3] Kestabilan Isian Malam (upsert & Retry 3x) Bagi 3,500 Cawangan:
+- Waktu kemuncak operasi adalah 8:00 PM - 11:00 PM di mana 3,500 cawangan menekan tombol 'Send Data' serentak.
+- Penulisan data harian cawangan WAJIB melalui fungsi upsert dengan 3x Exponential Backoff Retry (250ms, 375ms, 562ms). DILARANG membuang mekanisme retry ini.
+- DILARANG melakukan carian berat tanpa halaman pada jadual submissions di antaramuka utama bagi mengelakkan connection timeout sewaktu cawangan mengisi data.
+
+[PERATURAN 4] Pengasingan Ketat Area Manager (AM Isolation):
+- Gunakan fungsi getManagerFilteredBranches() untuk mendapatkan senarai cawangan rasmi bagi Area Manager yang sedang log masuk.
+- Dalam jadual Lorry Tracker, Branch Target Tracker, dan Daily Comparison, sentiasa tapis menggunakan allowedCodes = new Set(branches.map(b => String(b.code))). Dilarang menggunakan .includes() atau carian teks longgar.
+
+[PERATURAN 5] Kestabilan Realtime & Telefon Bimbit:
+- Pendengar Realtime Supabase menggunakan debouncedTriggerSync (800ms) untuk mengelakkan browser freeze tatkala ribuan data masuk serentak.
+- Penyinkronan telefon bimbit menggunakan setInterval(..., 5000) pada configListener.refresh() bagi mengatasi masalah Websocket terputus semasa skrin dikunci.
+
+--------------------------------------------------------------------------------
+3. SENARAI SEMAK WAJIB SEBELUM DEVELOPER MEMBUAT PUSH KE VERCEL
+--------------------------------------------------------------------------------
+[ ] Semak ralat konsol browser (Console Error). Tiada ralat merah dibenarkan.
+[ ] Uji tarikan data di tab Executive Charts & Comparison Table — pastikan tiada jualan berganda (sales double) atau halaman terlangkau.
+[ ] Uji log masuk cawangan dan pastikan tombol 'Send Data' berjaya menghantar data di bawah 1 saat.
+[ ] Jangan ubah struktur kelas pembungkus SBCollectionRef, SBQuery, dan SBDocRef.
+[ ] Setelah lulus semua ujian lokal di atas, barulah lakukan git commit dan git push origin main.
