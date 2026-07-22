@@ -1827,7 +1827,7 @@ window.onunhandledrejection = function(event) {
                 } catch(e) {}
 
                 let onVisChange = () => { if (active && !document.hidden) doFetch(); };
-                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? 15000 : (180000 + Math.floor(Math.random() * 60000));
+                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? (180000 + Math.floor(Math.random() * 60000)) : (240000 + Math.floor(Math.random() * 60000));
                 let interval = setInterval(() => {
                     if (!active || document.hidden) return;
                     doFetch();
@@ -2642,9 +2642,10 @@ function saveGlobalGSUrl() {
                         q = q.where("am", "==", targetAM);
                     }
                 }
-                let snap = await q.get();
+                let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Direct submissions query timed out after 15s")), 15000));
+                let snap = await Promise.race([q.get(), timeoutPromise]);
                 snap.forEach(doc => {
-                    if (doc.exists) {
+                    if (doc && doc.exists) {
                         let d = doc.data();
                         if (d && d.code && d.date) {
                             recordMap.set(String(d.code) + "_" + String(d.date), d);
@@ -2652,7 +2653,7 @@ function saveGlobalGSUrl() {
                     }
                 });
             } catch (e) {
-                console.error("Direct submissions query failed:", e);
+                console.warn("Direct submissions query failed or timed out (using summary/cache):", e.message || e);
             }
 
             let combined = [];
@@ -2798,9 +2799,7 @@ function saveGlobalGSUrl() {
             }
 
             if (fetchMode === 'monthly') {
-                let nowM = new Date().toISOString().substring(0, 7);
-                let isCurrentOngoingMonth = (fetchDateStr === nowM || fetchDateStr.startsWith(nowM));
-                fetchSubmissionsChunked(fetchDateStr, (currentUser && currentUser.role === 'am') ? currentUser.name : null, isCurrentOngoingMonth)
+                fetchSubmissionsChunked(fetchDateStr, (currentUser && currentUser.role === 'am') ? currentUser.name : null, false)
                     .then(processSnap)
                     .catch(e => {
                         console.error("Monthly sync failed", e);
@@ -6830,7 +6829,7 @@ function saveGlobalGSUrl() {
                 if (needsRefresh) {
                     updateSurveyUI(false);
                 }
-            }, 15000);
+            }, 60000);
 
             let processSurveys = (docs) => {
                 let fetched = (docs || []).map(doc => {
@@ -6910,7 +6909,7 @@ function saveGlobalGSUrl() {
                     } else if (currentUser && currentUser.role === 'am') {
                         respQuery = respQuery.where('amName', '==', (currentUser.name || '').trim().toUpperCase());
                     }
-                    responsesUnsubscribe = respQuery.limit(50000).onSnapshot(rSnap => {
+                    responsesUnsubscribe = respQuery.limit(2000).onSnapshot(rSnap => {
                         let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                         
                         if (currentUser && currentUser.role === 'branch') {
