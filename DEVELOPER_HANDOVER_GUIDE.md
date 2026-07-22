@@ -40,18 +40,30 @@ Pembangun baru **DILARANG SAMA SEKALI** mengubah atau merosakkan logik kritikal 
    - Dalam jadual **Lorry Tracker**, **Branch Target Tracker**, dan **Daily Comparison**, sentiasa tapis menggunakan `allowedCodes = new Set(branches.map(b => String(b.code)))`. Dilarang menggunakan `.includes()` atau carian teks longgar.
 2. **Kestabilan & Pencegahan Crash Malam (Realtime Debouncing 800ms):**
    - Apabila 3,500 cawangan mengisi data serentak pada waktu malam, pendengar Realtime Supabase menggunakan **debounce 800ms (`debouncedTriggerSync`)** supaya antaramuka tidak membeku (*freeze*). Jangan buang fungsi debounce ini.
-3. **Tarikan Data Sales Analytics 100% Lengkap:**
-   - Dalam fungsi `fetchSubmissionsChunked(monthStr, amName)`, tarikan database `submissions` **TIDAK BOLEH** ditapis menggunakan `.where('am', '==', amName)` di peringkat database kerana penulisan nama AM dalam pangkalan data mungkin berbeza format. Tarik semua data bulanan (<300ms) dan tapis kod cawangan di peringkat JavaScript.
-4. **Penyinkronan Realtime Telefon Bimbit (Mobile Heartbeat 5s):**
+3. **Tarikan Data Sales Analytics 100% Lengkap & Pantas (Parallel Batching & `buildRangeQuery`):**
+   - Dalam fungsi `fetchSubmissionsChunked` dan `SBQuery.prototype.get()`, tarikan pangkalan data bagi set data besar (60,000+ baris) menggunakan teknik **4-Way Parallel Batching** (tarikan 4 halaman serentak dengan saiz 4,000 baris setiap pusingan).
+   - **AMARAN KERAS:** Pembangun baru **WAJIB** menggunakan fungsi pembina berasingan (`buildRangeQuery`) bagi setiap halaman dalam tarikan selari. Perpustakaan `@supabase/supabase-js` memutasi objek parameter apabila `.range(a, b)` dipanggil. Jika objek pertanyaan dikongsi, sistem akan melangkau 3/4 halaman dan menyebabkan kehilangan ribuan baris data cawangan.
+4. **Normalisasi Kunci Kanonikal (`getCanonicalSubKey`) Bagi Mencegah Jualan Berganda (*Double Sales*):**
+   - Kod cawangan dalam pangkalan data mungkin berformat teks bersifar (`"0012"`, `"01009"`) atau integer (`12`, `1009`).
+   - Semua penggabungan data antara `monthly_summaries` dan `submissions` **WAJIB** menggunakan fungsi `getCanonicalSubKey(s)` serta `deduplicateSubmissionsList()` bagi menormalisasikan kod cawangan kepada integer tunggal. Ini menjamin **tiada duplikasi atau jualan berganda** walaupun format kemasukan berbeza.
+5. **Kestabilan Isian Malam (`upsert` & *Exponential Backoff Retry*) Bagi 3,500 Cawangan:**
+   - Sewaktu waktu kemuncak malam (8:00 PM - 11:00 PM), 3,500 cawangan menekan tombol *Send Data* secara serentak.
+   - Semua penulisan jualan menggunakan kaedah `upsert` melalui kelas `SBDocRef.prototype.set(payload, {merge: true})` yang dilengkapi **3x Exponential Backoff Retry (250ms, 375ms, 562ms)** secara automatik. Jangan buang logik *retry* ini bagi memastikan tiada cawangan mengalami *loading lama* atau gagal hantar data semasa gangguan rangkaian sementara.
+   - Pembacaan analitik berat oleh Area Manager/HQ dihalakan ke koleksi `monthly_summaries` bagi mengurangkan 95% beban pangkalan data pada jadual `submissions`, memastikan laluan penulisan cawangan sentiasa lancar dan laju.
+6. **Penyinkronan Realtime Telefon Bimbit (Mobile Heartbeat 5s):**
    - Browser telefon bimbit menggantungkan Websocket apabila skrin dikunci. Sistem menggunakan `setInterval(..., 5000)` dan pendengar `focus`/`pageshow` pada `configListener.refresh()` supaya perubahan status Unlock/Lock dari laptop dikesan serta-merta di telefon bimbit.
 
 ---
 
-## 4. CARA MEMULAKAN TUGAS BAGI DEVELOPER BARU
+## 4. SOP & SENARAI SEMAK WAJIB SEBELUM DEVELOPER BARU MEMBUAT PUSH KE VERCEL
 
-1. Buka fail `index.html` dan baca dokumen ini (`DEVELOPER_HANDOVER_GUIDE.md`).
-2. Untuk menguji sistem secara lokal, buka `index.html` pada browser atau jalankan pelayan lokal (`npx serve .`).
-3. Untuk membuat perubahan rasmi:
-   - Kemaskini kod dalam `index.html`.
-   - Jalankan ujian automasi (contoh: Puppeteer) untuk memastikan tiada ralat konsol (`pageerror`).
-   - Commit & push ke GitHub (`main`), dan Vercel akan menerbitkan kemaskini secara automatik dalam masa 30 saat.
+Setiap pembangun baru yang mengambil alih sistem ini **WAJIB** melakukan senarai semak berikut sebelum menolak (`push`) sebarang perubahan kod:
+
+1. **Ujian Pembacaan Penuh Tanpa Langkauan (`deduplicateSubmissionsList`):**
+   - Pastikan setiap tarikan data gabungan memanggil `deduplicateSubmissionsList(...)` supaya tiada cawangan berganda atau jualan meningkat dua kali ganda (*sales double*).
+2. **Ujian Isian Cawangan (`upsert`):**
+   - Uji penghantaran jualan dari akaun cawangan (contoh cawangan `1004` / `1009`). Pastikan penghantaran berjaya di bawah 1 saat tanpa ralat konsol.
+3. **Larangan Mengubah Kelas Wrapper Supabase (`SBCollectionRef`, `SBQuery`, `SBDocRef`):**
+   - Kelas-kelas ini direka khusus untuk meniru kelakuan dan struktur fail projek asal. Sebarang pengubahan pada kaedah `where`, `get`, `set`, atau `onSnapshot` boleh meruntuhkan seluruh aplikasi.
+4. **Aliran Penerbitan (Deployment Flow):**
+   - Setelah ujian lokal selesai dan bebas ralat konsol, lakukan `git commit -m "..."` dan `git push origin main`. Vercel akan menerbitkan kemaskini rasmi ke `dashboard-operation.vercel.app` dalam masa ~30 saat.
