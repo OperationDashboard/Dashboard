@@ -1697,32 +1697,35 @@ window.onunhandledrejection = function(event) {
                 let from = 0;
                 let step = 1000;
                 while (true) {
-                    let q = sbClient.from(this.col).select('*');
-                    let normFld = (f) => ((typeof f === 'object' && f && f.__isDocId) || f === '__name__' || f === 'documentId' || f === 'id' ? 'id' : f);
-                    let processedFilters = [];
-                    for (let i = 0; i < this.filters.length; i++) {
-                        let f = this.filters[i];
-                        let fName = normFld(f.field);
-                        if (f.op === '<=' && typeof f.val === 'string' && (f.val.includes('\uf8ff') || f.val.includes('\uffff'))) {
-                            let cleanVal = f.val.replace(/[\uf8ff\uffff]/g, '') + 'z';
-                            processedFilters.push({ ...f, field: fName, val: cleanVal });
-                            continue;
+                    let buildRangeQuery = (fromIdx, toIdx) => {
+                        let qObj = sbClient.from(this.col).select('*');
+                        let normFld = (f) => ((typeof f === 'object' && f && f.__isDocId) || f === '__name__' || f === 'documentId' || f === 'id' ? 'id' : f);
+                        for (let i = 0; i < this.filters.length; i++) {
+                            let f = this.filters[i];
+                            let fName = normFld(f.field);
+                            if (f.op === '<=' && typeof f.val === 'string' && (f.val.includes('\uf8ff') || f.val.includes('\uffff'))) {
+                                let cleanVal = f.val.replace(/[\uf8ff\uffff]/g, '') + 'z';
+                                qObj = qObj.lte(fName, cleanVal);
+                                continue;
+                            }
+                            if (f.op === '==' || f.op === 'eq') qObj = qObj.eq(fName, f.val);
+                            else if (f.op === '>=' || f.op === 'gte') qObj = qObj.gte(fName, f.val);
+                            else if (f.op === '<=' || f.op === 'lte') qObj = qObj.lte(fName, f.val);
+                            else if (f.op === '>' || f.op === 'gt') qObj = qObj.gt(fName, f.val);
+                            else if (f.op === '<' || f.op === 'lt') qObj = qObj.lt(fName, f.val);
+                            else if (f.op === 'in') qObj = qObj.in(fName, Array.isArray(f.val) ? f.val : [f.val]);
+                            else if (f.op === 'like' || f.op === 'ilike') qObj = qObj.like(fName, f.val);
                         }
-                        processedFilters.push({ ...f, field: fName });
-                    }
-                    for (let f of processedFilters) {
-                        let fld = f.field;
-                        if (f.op === '==') q = q.eq(fld, f.val);
-                        else if (f.op === '>=') q = q.gte(fld, f.val);
-                        else if (f.op === '<=') q = q.lte(fld, f.val);
-                        else if (f.op === '>') q = q.gt(fld, f.val);
-                        else if (f.op === '<') q = q.lt(fld, f.val);
-                        else if (f.op === 'in') q = q.in(fld, Array.isArray(f.val) ? f.val : [f.val]);
-                        else if (f.op === 'like' || f.op === 'ilike') q = q.like(fld, f.val);
-                    }
-                    for (let o of this.orders) {
-                        q = q.order(o.field, { ascending: o.dir !== 'desc' });
-                    }
+                        let hasIdOrder = false;
+                        for (let o of this.orders) {
+                            if (normFld(o.field) === 'id') hasIdOrder = true;
+                            qObj = qObj.order(normFld(o.field), { ascending: o.dir !== 'desc' });
+                        }
+                        if (!hasIdOrder) {
+                            try { qObj = qObj.order('id', { ascending: true }); } catch(e){}
+                        }
+                        return qObj.range(fromIdx, toIdx);
+                    };
                     let runQuery = async (queryObj) => {
                         for (let attempt = 1; attempt <= 3; attempt++) {
                             try {
@@ -1739,16 +1742,11 @@ window.onunhandledrejection = function(event) {
                         }
                     };
                     if (this.lim && this.lim <= 1000) {
-                        q = q.limit(this.lim);
-                        let res = await runQuery(q);
+                        let res = await runQuery(buildRangeQuery(0, this.lim - 1));
                         if (res.data) rows = res.data;
                         break;
                     } else {
-                        if (typeof q.order === 'function' && (!this.orders || !this.orders.some(o => o.field === 'id'))) {
-                            try { q = q.order('id', { ascending: true }); } catch(e){}
-                        }
-                        let pQuery = q.range(from, from + step - 1);
-                        let res = await runQuery(pQuery);
+                        let res = await runQuery(buildRangeQuery(from, from + step - 1));
                         let chunk = (res && res.data) || [];
                         rows.push(...chunk);
                         if (chunk.length < step) break;
@@ -1761,7 +1759,7 @@ window.onunhandledrejection = function(event) {
                             let batchPromises = [];
                             for (let b = 0; b < 4; b++) {
                                 let bFrom = from + (b * step);
-                                batchPromises.push(runQuery(q.range(bFrom, bFrom + step - 1)));
+                                batchPromises.push(runQuery(buildRangeQuery(bFrom, bFrom + step - 1)));
                             }
                             let batchResults = await Promise.all(batchPromises);
                             let stopBatch = false;
