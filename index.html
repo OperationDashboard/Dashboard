@@ -1838,10 +1838,15 @@ window.onunhandledrejection = function(event) {
                 
                 let rtChannel = null;
                 try {
-                    rtChannel = sbClient.channel('rt_' + this.col + '_' + Math.random().toString(36).substring(2))
-                        .on('postgres_changes', { event: '*', schema: 'public', table: this.col }, () => {
-                            if (active) doFetch();
-                        }).subscribe();
+                    // CRITICAL FIX: Only use WebSocket Realtime for AMs/Admins. 
+                    // 3500 branches = 10,500 WebSockets, which exceeds the 500 limit and crashes the API gateway via reconnect DDoS!
+                    let useRealtime = currentUser && currentUser.role !== 'branch' && this.col !== 'config';
+                    if (useRealtime) {
+                        rtChannel = sbClient.channel('rt_' + this.col + '_' + Math.random().toString(36).substring(2))
+                            .on('postgres_changes', { event: '*', schema: 'public', table: this.col }, () => {
+                                if (active) doFetch();
+                            }).subscribe();
+                    }
                 } catch(e) {}
 
                 let onVisChange = () => { if (active && !document.hidden) doFetch(); };
@@ -2113,7 +2118,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.39;
+        const APP_VERSION = 10.40;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
