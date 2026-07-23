@@ -2622,6 +2622,7 @@ function saveGlobalGSUrl() {
             let startD = isDaily ? monthStr : monthStr + "-01";
             let endD = isDaily ? monthStr : monthStr + "-31";
 
+            let sumDataLoaded = false;
             if (!forceRaw && typeof queryMonthlySummariesData === 'function') {
                 try {
                     let sumData = await queryMonthlySummariesData(startD, endD, amName);
@@ -2630,6 +2631,7 @@ function saveGlobalGSUrl() {
                             let k = typeof getCanonicalSubKey === 'function' ? getCanonicalSubKey(item) : (String(item.code) + "_" + String(item.date));
                             if (k) recordMap.set(k, item);
                         });
+                        sumDataLoaded = true;
                     }
                 } catch (e) {
                     console.error("Failed monthly summaries read:", e);
@@ -2638,28 +2640,46 @@ function saveGlobalGSUrl() {
 
             try {
                 let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Direct submissions query timed out after 60s")), 60000));
-                if (!isDaily && (!currentUser || currentUser.role !== 'branch')) {
-                    let intervals = [
-                        [monthStr + "-01", monthStr + "-08"],
-                        [monthStr + "-09", monthStr + "-16"],
-                        [monthStr + "-17", monthStr + "-24"],
-                        [monthStr + "-25", monthStr + "-31"]
-                    ];
-                    let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
-                    let snaps = await Promise.race([Promise.all(queries), timeoutPromise]);
-                    snaps.forEach(snap => {
-                        snap.forEach(doc => {
-                            if (doc && doc.exists) {
-                                let d = doc.data();
-                                if (d && d.code != null && d.date) {
-                                    let k = typeof getCanonicalSubKey === 'function' ? getCanonicalSubKey(d) : (String(d.code) + "_" + String(d.date));
-                                    if (k) recordMap.set(k, d);
+                
+                // If sumData is loaded, ONLY fetch today's date from submissions (to get live unlock/bank times).
+                // Do not fetch the entire month from submissions and hammer the DB!
+                let todayStr = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
+                let fetchStart = startD;
+                let fetchEnd = endD;
+                if (sumDataLoaded && !isDaily) {
+                    // Only fetch today if it falls within the month we are fetching
+                    if (todayStr >= startD && todayStr <= endD) {
+                        fetchStart = todayStr;
+                        fetchEnd = todayStr;
+                    } else {
+                        // Skip submissions query entirely if today is not in the month requested
+                        fetchStart = null;
+                    }
+                }
+
+                if (fetchStart && fetchEnd) {
+                    if (!isDaily && fetchStart !== fetchEnd && (!currentUser || currentUser.role !== 'branch')) {
+                        let intervals = [
+                            [monthStr + "-01", monthStr + "-08"],
+                            [monthStr + "-09", monthStr + "-16"],
+                            [monthStr + "-17", monthStr + "-24"],
+                            [monthStr + "-25", monthStr + "-31"]
+                        ];
+                        let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
+                        let snaps = await Promise.race([Promise.all(queries), timeoutPromise]);
+                        snaps.forEach(snap => {
+                            snap.forEach(doc => {
+                                if (doc && doc.exists) {
+                                    let d = doc.data();
+                                    if (d && d.code != null && d.date) {
+                                        let k = typeof getCanonicalSubKey === 'function' ? getCanonicalSubKey(d) : (String(d.code) + "_" + String(d.date));
+                                        if (k) recordMap.set(k, d);
+                                    }
                                 }
-                            }
+                            });
                         });
-                    });
-                } else {
-                    let q = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
+                    } else {
+                        let q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
                     if (currentUser && currentUser.role === 'branch') {
                         q = q.where("code", "==", String(currentUser.id));
                     }
@@ -6043,22 +6063,39 @@ function saveGlobalGSUrl() {
                 let d1 = new Date(startDate);
                 let d2 = new Date(endDate);
                 let diffDays = (d2 - d1) / (1000 * 3600 * 24);
-                if (diffDays > 10 && (!currentUser || currentUser.role !== 'branch')) {
-                    let intervals = [
-                        [startDate.substring(0, 8) + "01", startDate.substring(0, 8) + "08"],
-                        [startDate.substring(0, 8) + "09", startDate.substring(0, 8) + "16"],
-                        [startDate.substring(0, 8) + "17", startDate.substring(0, 8) + "24"],
-                        [startDate.substring(0, 8) + "25", endDate]
-                    ];
-                    let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
-                    let snaps = await Promise.all(queries);
-                    snaps.forEach(snap => {
+                let todayStr = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
+                
+                let sumDataLoaded = Array.isArray(sumRes) && sumRes.length > 0;
+                let fetchStart = startDate;
+                let fetchEnd = endDate;
+                
+                if (sumDataLoaded) {
+                    if (todayStr >= startDate && todayStr <= endDate) {
+                        fetchStart = todayStr;
+                        fetchEnd = todayStr;
+                    } else {
+                        fetchStart = null;
+                    }
+                }
+
+                if (fetchStart && fetchEnd) {
+                    if (diffDays > 10 && fetchStart !== fetchEnd && (!currentUser || currentUser.role !== 'branch')) {
+                        let intervals = [
+                            [fetchStart.substring(0, 8) + "01", fetchStart.substring(0, 8) + "08"],
+                            [fetchStart.substring(0, 8) + "09", fetchStart.substring(0, 8) + "16"],
+                            [fetchStart.substring(0, 8) + "17", fetchStart.substring(0, 8) + "24"],
+                            [fetchStart.substring(0, 8) + "25", fetchEnd]
+                        ];
+                        let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
+                        let snaps = await Promise.all(queries);
+                        snaps.forEach(snap => {
+                            snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
+                        });
+                    } else {
+                        let query = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
+                        let snap = await query.get();
                         snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
-                    });
-                } else {
-                    let query = db.collection("submissions").where("date", ">=", startDate).where("date", "<=", endDate);
-                    let snap = await query.get();
-                    snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
+                    }
                 }
                 
                 let combinedList = deduplicateSubmissionsList([...(Array.isArray(sumRes) ? sumRes : []), ...subRes]);
