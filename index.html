@@ -2119,7 +2119,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.44;
+        const APP_VERSION = 10.45;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -9091,9 +9091,8 @@ function saveGlobalGSUrl() {
                     await Promise.all(setPromises.slice(i, i + 50));
                 }
                 
-                // Check if any branches are now missing from the new summaries that were in the old ones,
-                // and fetch latest data.
-                refreshCurrentTabView();
+                // Reload page to fetch the newly generated summaries
+                window.location.reload();
                 
                 setSyncing(false);
                 Swal.fire('Success!', 'All data has been successfully calculated and saved!', 'success');
