@@ -1944,7 +1944,7 @@ window.onunhandledrejection = function(event) {
                     }
                 } else {
                     let curData = {};
-                    if (opts && opts.merge) { let cur = await this.get(); curData = cur.exists ? cur.data() : {}; }
+                    if (opts && opts.merge && this.col !== 'submissions') { let cur = await this.get(); curData = cur.exists ? cur.data() : {}; }
                     let merged = applyDotUpdates(curData, dataObj);
                     payload = { id: this.id, data: merged };
                     if (merged.date !== undefined) payload.date = merged.date;
@@ -2113,7 +2113,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.38;
+        const APP_VERSION = 10.39;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -3045,6 +3045,7 @@ function saveGlobalGSUrl() {
         }
 
         async function updateMonthlySummary(payloadData, bAm, overrideOldRec = null) {
+            return; // STOP CLIENT-SIDE DDOS: monthly_summaries is cached, submissions is the source of truth. Admin will regenerate it later.
             if (!payloadData || !payloadData.date || !payloadData.code) return;
             let cTrim = String(payloadData.code).trim();
             let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : null;
