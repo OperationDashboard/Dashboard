@@ -2119,7 +2119,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.42;
+        const APP_VERSION = 10.43;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -5936,6 +5936,7 @@ function saveGlobalGSUrl() {
 
         window._monthlySummaryCache = window._monthlySummaryCache || {};
         async function queryMonthlySummariesData(startDate, endDate, amFilter = "", forceRefresh = false) {
+            return []; // FORCE FALLBACK TO RAW SUBMISSIONS FOR 100% ACCURATE DATA
             let normDate = (str) => {
                 if (!str) return str;
                 let parts = str.split('-');
