@@ -1640,7 +1640,15 @@ window.onunhandledrejection = function(event) {
         function getSbClient() {
             if (_sbClientInstance) return _sbClientInstance;
             if (window.supabase && typeof window.supabase.createClient === 'function') {
-                _sbClientInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                _sbClientInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                    global: {
+                        fetch: (url, options) => {
+                            options = options || {};
+                            options.cache = 'no-store';
+                            return fetch(url, options);
+                        }
+                    }
+                });
                 return _sbClientInstance;
             }
             return null;
