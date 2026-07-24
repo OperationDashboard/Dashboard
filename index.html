@@ -9036,7 +9036,15 @@ function saveGlobalGSUrl() {
                 
                 let rawList = [];
                 docs.forEach(doc => {
-                    let d = typeof doc.data === 'function' ? doc.data() : doc;
+                    let d = typeof doc.data === 'function' ? doc.data() : (() => {
+                        let out = Object.assign({}, doc.data || {});
+                        for (let k in doc) {
+                            if (k !== 'data' && doc[k] !== null && doc[k] !== undefined) {
+                                out[k] = doc[k];
+                            }
+                        }
+                        return out;
+                    })();
                     if (d && d.date && d.code) rawList.push(d);
                 });
                 let cleanList = deduplicateSubmissionsList(rawList);
