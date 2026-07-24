@@ -2677,16 +2677,21 @@ function saveGlobalGSUrl() {
                 
                 // If sumData is loaded, ONLY fetch today's date from submissions (to get live unlock/bank times).
                 // Do not fetch the entire month from submissions and hammer the DB!
-                let todayStr = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
+                let todayObj = new Date();
+                let todayStr = todayObj.toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
+                let yesterdayObj = new Date(todayObj.getTime() - 86400000);
+                let yesterdayStr = yesterdayObj.toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
+
                 let fetchStart = startD;
                 let fetchEnd = endD;
                 if (sumDataLoaded && !isDaily) {
-                    // Only fetch today if it falls within the month we are fetching
                     if (todayStr >= startD && todayStr <= endD) {
-                        fetchStart = todayStr;
+                        fetchStart = (yesterdayStr >= startD) ? yesterdayStr : todayStr;
                         fetchEnd = todayStr;
+                    } else if (yesterdayStr >= startD && yesterdayStr <= endD) {
+                        fetchStart = yesterdayStr;
+                        fetchEnd = yesterdayStr;
                     } else {
-                        // Skip submissions query entirely if today is not in the month requested
                         fetchStart = null;
                     }
                 }
