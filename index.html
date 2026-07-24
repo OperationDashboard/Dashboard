@@ -1800,7 +1800,17 @@ window.onunhandledrejection = function(event) {
                     id: r.id,
                     exists: true,
                     ref: new SBDocRef(this.col, r.id),
-                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r.data || {}, r) : r) : null)
+                    data: () => {
+                        if (!r) return null;
+                        if (typeof r !== 'object') return r;
+                        let out = Object.assign({}, r.data || {});
+                        for (let k in r) {
+                            if (k !== 'data' && r[k] !== null && r[k] !== undefined) {
+                                out[k] = r[k];
+                            }
+                        }
+                        return out;
+                    }
                 }));
                 return {
                     empty: docs.length === 0,
@@ -1892,7 +1902,17 @@ window.onunhandledrejection = function(event) {
                     exists: !!r,
                     id: this.id,
                     ref: this,
-                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r.data || {}, r) : r) : null)
+                    data: () => {
+                        if (!r) return null;
+                        if (typeof r !== 'object') return r;
+                        let out = Object.assign({}, r.data || {});
+                        for (let k in r) {
+                            if (k !== 'data' && r[k] !== null && r[k] !== undefined) {
+                                out[k] = r[k];
+                            }
+                        }
+                        return out;
+                    }
                 };
             }
             async set(dataObj, opts) {
