@@ -1800,7 +1800,7 @@ window.onunhandledrejection = function(event) {
                     id: r.id,
                     exists: true,
                     ref: new SBDocRef(this.col, r.id),
-                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r, r.data || {}) : r) : null)
+                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r.data || {}, r) : r) : null)
                 }));
                 return {
                     empty: docs.length === 0,
@@ -1892,7 +1892,7 @@ window.onunhandledrejection = function(event) {
                     exists: !!r,
                     id: this.id,
                     ref: this,
-                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r, r.data || {}) : r) : null)
+                    data: () => (r ? (typeof r === 'object' ? Object.assign({}, r.data || {}, r) : r) : null)
                 };
             }
             async set(dataObj, opts) {
