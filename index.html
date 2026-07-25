@@ -2734,6 +2734,8 @@ function saveGlobalGSUrl() {
                         let q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
                     if (currentUser && currentUser.role === 'branch') {
                         q = q.where("code", "==", String(currentUser.id));
+                    } else if (amName) {
+                        q = q.where("am", "==", amName);
                     }
                     let snap = await Promise.race([q.get(), timeoutPromise]);
                     snap.forEach(doc => {
@@ -2940,6 +2942,8 @@ function saveGlobalGSUrl() {
                 let query = db.collection("submissions").where("date", "==", fetchDateStr);
                 if (currentUser && currentUser.role === 'branch') {
                     query = query.where("code", "==", String(currentUser.id));
+                } else if (currentUser && currentUser.role === 'am' && currentUser.name) {
+                    query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
                 }
                 let snapTimer = null;
                 window.activeListeners[queryKey] = query.onSnapshot(snap => {
@@ -4468,15 +4472,9 @@ function saveGlobalGSUrl() {
             if(trendChartObj) trendChartObj.destroy();
             trendChartObj = new Chart(trendEl.getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sales (RM)', data: salesData, borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{y:{grid:{color:'rgba(51,65,85,0.3)'}},x:{grid:{color:'rgba(51,65,85,0.3)'}}} } });
 
-            // Asynchronously fetch 7-day historical sales directly from submissions collection
-            if (typeof db !== 'undefined' && db.collection && datesArr.length > 0) {
-                db.collection("submissions").where("date", "in", datesArr).get().then(snap => {
-                    let fetchedRecords = [];
-                    snap.forEach(doc => {
-                        let d = doc.data();
-                        if (d && d.date) fetchedRecords.push(d);
-                    });
-                    
+            // Asynchronously fetch 7-day historical sales using lightweight summary cache instead of heavy 25MB query
+            if (datesArr.length > 0 && typeof fetchRangeFromSummaries === 'function') {
+                fetchRangeFromSummaries(datesArr[0], datesArr[datesArr.length - 1]).then(fetchedRecords => {
                     let existSet = new Set(dbSubmissions.map(s => String(s.code).trim() + "_" + String(s.date).trim()));
                     fetchedRecords.forEach(s => {
                         let k = String(s.code).trim() + "_" + String(s.date).trim();
@@ -6907,7 +6905,9 @@ function saveGlobalGSUrl() {
             
             setSyncing(true);
             try {
-                let snap = await db.collection("submissions").where("date", "==", dateStr).get();
+                let query = db.collection("submissions").where("date", "==", dateStr);
+                if (currentUser && currentUser.role === 'am' && currentUser.name) query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
+                let snap = await query.get();
                 let tbody = document.getElementById('audit-table-body');
                 tbody.innerHTML = '';
                 let found = 0;
