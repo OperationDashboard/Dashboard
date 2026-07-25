@@ -455,9 +455,9 @@
                                     <th class="p-3 text-emerald-400">2nd Bank-In</th>
                                     <th class="p-3 text-emerald-500 font-black border-r border-slate-700">Total Bank In</th>
                                     <th class="p-3">Balance</th>
-                                    <th class="p-3 text-amber-500 admin-only hidden">K. A (Qty/RM)</th>
-                                    <th class="p-3 text-amber-500 admin-only hidden">K. B (Qty)</th>
-                                    <th class="p-3 text-amber-500 admin-only hidden border-r border-slate-700">Remark A/B</th>
+                                    <th id="th-ka" class="p-3 text-amber-500 hidden">K. A (Qty/RM)</th>
+                                    <th id="th-kb" class="p-3 text-amber-500 hidden">K. B (Qty)</th>
+                                    <th id="th-rem" class="p-3 text-amber-500 hidden border-r border-slate-700">Remark A/B</th>
                                     <th class="p-3 text-center">Status</th>
                                     <th class="p-3 text-center pdf-exclude">Actions</th>
                                 </tr>
@@ -3856,6 +3856,8 @@ function saveGlobalGSUrl() {
             }
             
             let fnSales = document.getElementById('f-sales'); let fnTrans = document.getElementById('f-trans'); let fnMyKasih = document.getElementById('f-mykasih'); let fnLorry = document.getElementById('f-lorry');
+            let fnKaQ = document.getElementById('f-kaunter-a-qty'); let fnKaA = document.getElementById('f-kaunter-a-amt');
+            let fnKbQ = document.getElementById('f-kaunter-b-qty'); let fnRem = document.getElementById('f-remark-ab');
             let btnNight = document.getElementById('btn-submit-night');
 
             if(nightRec && nightRec.night_locked && nightRec.night_submit_time) {
@@ -3870,27 +3872,39 @@ function saveGlobalGSUrl() {
                 fnTrans.disabled = false; fnTrans.readOnly = false; fnTrans.classList.remove('opacity-50', 'cursor-not-allowed'); fnTrans.placeholder = "0";
                 fnMyKasih.disabled = false; fnMyKasih.readOnly = false; fnMyKasih.classList.remove('opacity-50', 'cursor-not-allowed'); fnMyKasih.placeholder = "0.00";
                 fnLorry.disabled = false; fnLorry.readOnly = false; fnLorry.classList.remove('opacity-50', 'cursor-not-allowed'); fnLorry.placeholder = "0.00";
+                fnKaQ.disabled = false; fnKaA.disabled = false; fnKbQ.disabled = false; fnRem.disabled = false;
+                fnKaQ.classList.remove('opacity-50', 'cursor-not-allowed'); fnKaA.classList.remove('opacity-50', 'cursor-not-allowed');
+                fnKbQ.classList.remove('opacity-50', 'cursor-not-allowed'); fnRem.classList.remove('opacity-50', 'cursor-not-allowed');
                 if(btnNight) { btnNight.disabled = false; btnNight.classList.remove('hidden'); }
             } else {
                 fnSales.disabled = true; fnSales.readOnly = true; fnSales.classList.add('opacity-50', 'cursor-not-allowed');
                 fnTrans.disabled = true; fnTrans.readOnly = true; fnTrans.classList.add('opacity-50', 'cursor-not-allowed');
                 fnMyKasih.disabled = true; fnMyKasih.readOnly = true; fnMyKasih.classList.add('opacity-50', 'cursor-not-allowed');
                 fnLorry.disabled = true; fnLorry.readOnly = true; fnLorry.classList.add('opacity-50', 'cursor-not-allowed');
+                fnKaQ.disabled = true; fnKaA.disabled = true; fnKbQ.disabled = true; fnRem.disabled = true;
+                fnKaQ.classList.add('opacity-50', 'cursor-not-allowed'); fnKaA.classList.add('opacity-50', 'cursor-not-allowed');
+                fnKbQ.classList.add('opacity-50', 'cursor-not-allowed'); fnRem.classList.add('opacity-50', 'cursor-not-allowed');
                 if(btnNight) { btnNight.disabled = true; btnNight.classList.add('hidden'); }
             }
 
             let activeEl = document.activeElement;
-            let isTypingNight = (activeEl === fnSales || activeEl === fnTrans || activeEl === fnMyKasih || activeEl === fnLorry);
+            let isTypingNight = (activeEl === fnSales || activeEl === fnTrans || activeEl === fnMyKasih || activeEl === fnLorry || activeEl === fnKaQ || activeEl === fnKaA || activeEl === fnKbQ || activeEl === fnRem);
             if (!isTypingNight) {
                 if (nightRec && (nightRec.sales > 0 || nightRec.transactions > 0 || nightRec.mykasih > 0 || nightRec.lorry > 0 || nightRec.night_locked)) {
                     fnSales.value = nightRec.sales || ''; 
                     fnTrans.value = nightRec.transactions || '';
                     fnMyKasih.value = nightRec.mykasih || ''; 
                     fnLorry.value = nightRec.lorry || '';
+                    fnKaQ.value = (nightRec.kaunterA_qty !== undefined) ? nightRec.kaunterA_qty : '';
+                    fnKaA.value = (nightRec.kaunterA_amt !== undefined) ? nightRec.kaunterA_amt : '';
+                    fnKbQ.value = (nightRec.kaunterB_qty !== undefined) ? nightRec.kaunterB_qty : '';
+                    fnRem.value = nightRec.remark_ab || '';
                 } else if (!nightUnlocked) {
                     fnSales.value = ""; fnTrans.value = ""; fnMyKasih.value = ""; fnLorry.value = "";
+                    fnKaQ.value = ""; fnKaA.value = ""; fnKbQ.value = ""; fnRem.value = "";
                     let phText = masterLock ? "SYSTEM LOCKED BY ADMIN" : "Locked (Requires Admin Unlock)";
                     fnSales.placeholder = phText; fnTrans.placeholder = "Locked"; fnMyKasih.placeholder = "Locked"; fnLorry.placeholder = "Locked";
+                    fnKaQ.placeholder = "Locked"; fnKaA.placeholder = "Locked"; fnKbQ.placeholder = "Locked"; 
                 }
             }
 
@@ -4022,6 +4036,7 @@ function saveGlobalGSUrl() {
             let mVal = document.getElementById('f-mykasih').value.replace(/,/g, '');
             let transVal = document.getElementById('f-trans').value.replace(/,/g, '');
             let lVal = document.getElementById('f-lorry').value.replace(/,/g, '');
+            let kAaVal = document.getElementById('f-kaunter-a-amt').value.replace(/,/g, '');
             
             let isValidCents = (v) => {
                 if(!v) return true;
@@ -4032,11 +4047,11 @@ function saveGlobalGSUrl() {
                 return cents % 5 === 0;
             };
             
-            if(!isValidCents(sVal) || !isValidCents(mVal)) {
+            if(!isValidCents(sVal) || !isValidCents(mVal) || !isValidCents(kAaVal)) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error Nilai Sen',
-                    text: 'Please ensure cents for Daily Sales and MyKasih are in multiples of 5 (e.g. .00, .05, .10, .50). Do not enter odd values like .02 or .03'
+                    text: 'Please ensure cents for Daily Sales, MyKasih, and Kaunter A Amount are in multiples of 5 (e.g. .00, .05, .10, .50).'
                 });
                 return;
             }
@@ -5579,6 +5594,17 @@ function saveGlobalGSUrl() {
             let term = document.getElementById('track-search').value.toLowerCase();
             let branches = getManagerFilteredBranches();
             let tbody = document.getElementById('tracking-tbody');
+            
+            if (currentUser.role === 'admin') {
+                document.getElementById('th-ka')?.classList.remove('hidden');
+                document.getElementById('th-kb')?.classList.remove('hidden');
+                document.getElementById('th-rem')?.classList.remove('hidden');
+            } else {
+                document.getElementById('th-ka')?.classList.add('hidden');
+                document.getElementById('th-kb')?.classList.add('hidden');
+                document.getElementById('th-rem')?.classList.add('hidden');
+            }
+            
             let html = ""; let rendered = 0;
             
             updateSubmissionRatio();
