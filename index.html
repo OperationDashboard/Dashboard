@@ -206,15 +206,15 @@
                                 <h4 class="text-sm font-bold text-amber-400 mb-3 uppercase tracking-wider"><i class="fa-solid fa-power-off mr-2"></i>Delete & Restart Status</h4>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
                                     <div>
-                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Kaunter A (Bilangan)</label>
+                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">A (Bilangan)</label>
                                         <input type="text" inputmode="numeric" oninput="formatIntInput(this)" id="f-kaunter-a-qty" required class="w-full rounded-lg bg-slate-950 py-2 px-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none placeholder-slate-600" placeholder="0">
                                     </div>
                                     <div>
-                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Kaunter A (Jumlah RM)</label>
+                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">A (Jumlah RM)</label>
                                         <input type="text" inputmode="decimal" oninput="formatDecimalInput(this)" id="f-kaunter-a-amt" required class="w-full rounded-lg bg-slate-950 py-2 px-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none placeholder-slate-600" placeholder="0.00">
                                     </div>
                                     <div>
-                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Kaunter B (Bilangan)</label>
+                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">B (Bilangan)</label>
                                         <input type="text" inputmode="numeric" oninput="formatIntInput(this)" id="f-kaunter-b-qty" required class="w-full rounded-lg bg-slate-950 py-2 px-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none placeholder-slate-600" placeholder="0">
                                     </div>
                                     <div>
@@ -1570,8 +1570,8 @@ function doPost(e) {
                 
                 <div class="border-t border-slate-700 pt-3">
                     <div class="text-xs font-black text-amber-500 uppercase mb-2">Delete & Restart Status</div>
-                    <div class="flex justify-between mb-1"><span class="text-[11px] text-slate-400">Kaunter A:</span><span id="confirm-ka-val" class="text-[11px] font-bold text-white"></span></div>
-                    <div class="flex justify-between mb-1"><span class="text-[11px] text-slate-400">Kaunter B:</span><span id="confirm-kb-val" class="text-[11px] font-bold text-white"></span></div>
+                    <div class="flex justify-between mb-1"><span class="text-[11px] text-slate-400">A:</span><span id="confirm-ka-val" class="text-[11px] font-bold text-white"></span></div>
+                    <div class="flex justify-between mb-1"><span class="text-[11px] text-slate-400">B:</span><span id="confirm-kb-val" class="text-[11px] font-bold text-white"></span></div>
                     <div class="flex justify-between"><span class="text-[11px] text-slate-400">Remark:</span><span id="confirm-remark-val" class="text-[11px] font-bold text-white"></span></div>
                 </div>
             </div>
@@ -4073,7 +4073,7 @@ function saveGlobalGSUrl() {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error Nilai Sen',
-                    text: 'Please ensure cents for Daily Sales, MyKasih, and Kaunter A Amount are in multiples of 5 (e.g. .00, .05, .10, .50).'
+                    text: 'Please ensure cents for Daily Sales, MyKasih, and A Amount are in multiples of 5 (e.g. .00, .05, .10, .50).'
                 });
                 return;
             }
@@ -6013,7 +6013,7 @@ function saveGlobalGSUrl() {
 
                 showToast('info', `Generating EXCEL...`);
                 let data = [];
-                let headers = ["Code", "Name", "AM", "Sales", "Transactions", "MyKasih", "Lorry", "Bank-In 1", "Bank-In 2", "Total Bank In", "Balance", "Kaunter A (Qty)", "Kaunter A (RM)", "Kaunter B (Qty)", "Remark A/B", "Night Time", "Bank1 Time", "Bank2 Time"];
+                let headers = ["Code", "Name", "AM", "Sales", "Transactions", "MyKasih", "Lorry", "Bank-In 1", "Bank-In 2", "Total Bank In", "Balance", "A (Qty)", "A (RM)", "B (Qty)", "Remark A/B", "Night Time", "Bank1 Time", "Bank2 Time"];
                 data.push(headers);
                 
                 branches.forEach(b => {
