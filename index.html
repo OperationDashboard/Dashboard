@@ -2059,9 +2059,6 @@ window.onunhandledrejection = function(event) {
                             }
                         }
                         res = await sbClient.from(this.col).upsert(payload);
-                        if (res && res.error) {
-                            alert("SUPABASE ERROR: " + JSON.stringify(res.error));
-                        }
                         if (!res.error) break;
                     } catch (e) { if (attempt === 3) throw e; }
                     if (attempt < 3) await new Promise(r => setTimeout(r, 250 * Math.pow(1.5, attempt - 1)));
