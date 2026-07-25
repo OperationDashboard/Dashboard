@@ -5790,8 +5790,12 @@ function saveGlobalGSUrl() {
 
                         let dailyMap = {}; // dailyMap[code][day] = {sales, mykasih, lorry}
                         try {
+                            let query = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
+                            if (currentUser && currentUser.role === 'am' && currentUser.name) {
+                                query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
+                            }
                             let snap = await Promise.race([
-                                db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD).get(),
+                                query.get(),
                                 new Promise(r => setTimeout(() => r(null), 3500))
                             ]);
                             if (snap && snap.forEach) {
