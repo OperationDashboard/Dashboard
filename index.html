@@ -2713,7 +2713,11 @@ function saveGlobalGSUrl() {
                             [monthStr + "-17", monthStr + "-24"],
                             [monthStr + "-25", monthStr + "-31"]
                         ];
-                        let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
+                        let queries = intervals.map(r => {
+                            let q = db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]);
+                            if (amName) q = q.where("am", "==", amName);
+                            return q.get();
+                        });
                         let snaps = await Promise.race([Promise.all(queries), timeoutPromise]);
                         snaps.forEach(snap => {
                             snap.forEach(doc => {
@@ -6140,13 +6144,18 @@ function saveGlobalGSUrl() {
                             [fetchStart.substring(0, 8) + "17", fetchStart.substring(0, 8) + "24"],
                             [fetchStart.substring(0, 8) + "25", fetchEnd]
                         ];
-                        let queries = intervals.map(r => db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]).get());
+                        let queries = intervals.map(r => {
+                            let q = db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]);
+                            if (currentUser && currentUser.role === 'am' && currentUser.name) q = q.where("am", "==", String(currentUser.name).trim().toUpperCase());
+                            return q.get();
+                        });
                         let snaps = await Promise.all(queries);
                         snaps.forEach(snap => {
                             snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
                         });
                     } else {
                         let query = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
+                        if (currentUser && currentUser.role === 'am' && currentUser.name) query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
                         let snap = await query.get();
                         snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
                     }
@@ -9229,7 +9238,7 @@ function saveGlobalGSUrl() {
                 if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading step 3 (sales)...</td></tr>';
                 let currentSales = {};
                 try {
-                    let combinedDocs = await fetchSubmissionsChunked(month, null);
+                    let combinedDocs = await fetchSubmissionsChunked(month, (amFilter && amFilter !== 'Semua') ? amFilter : null);
                     combinedDocs.forEach(doc => {
                         let d = doc.data();
                         if (d && d.code && d.date && d.date.startsWith(month) && allowedCodes.has(String(d.code))) {
