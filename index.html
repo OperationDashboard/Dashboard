@@ -201,6 +201,32 @@
                                 <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_mykasih">MyKasih (RM)</label><input type="text" inputmode="decimal" oninput="formatDecimalInput(this)" id="f-mykasih" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" placeholder="0.00"></div>
                                 <div><label class="block text-xs font-semibold text-slate-300 mb-1" data-i18n="field_lorry">Lorry Cost (RM)</label><input type="text" inputmode="decimal" oninput="formatDecimalInput(this)" id="f-lorry" required class="w-full rounded-lg bg-slate-950 py-2.5 px-3 text-sm border border-slate-700 text-white focus:border-cyan-500 focus:outline-none" placeholder="0.00"></div>
                             </div>
+
+                            <div class="mt-6 border-t border-slate-800 pt-5">
+                                <h4 class="text-sm font-bold text-amber-400 mb-3 uppercase tracking-wider"><i class="fa-solid fa-power-off mr-2"></i>Delete & Restart Status</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Kaunter A (Bilangan)</label>
+                                        <input type="text" inputmode="numeric" oninput="formatIntInput(this)" id="f-kaunter-a-qty" required class="w-full rounded-lg bg-slate-950 py-2 px-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none placeholder-slate-600" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Kaunter A (Jumlah RM)</label>
+                                        <input type="text" inputmode="decimal" oninput="formatDecimalInput(this)" id="f-kaunter-a-amt" required class="w-full rounded-lg bg-slate-950 py-2 px-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none placeholder-slate-600" placeholder="0.00">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Kaunter B (Bilangan)</label>
+                                        <input type="text" inputmode="numeric" oninput="formatIntInput(this)" id="f-kaunter-b-qty" required class="w-full rounded-lg bg-slate-950 py-2 px-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none placeholder-slate-600" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-400 mb-1">Remark A & B Result</label>
+                                        <select id="f-remark-ab" required class="w-full rounded-lg bg-slate-950 py-2 px-3 text-sm border border-slate-700 text-white focus:border-amber-500 focus:outline-none appearance-none">
+                                            <option value="" disabled selected>Please select...</option>
+                                            <option value="Informed Area Manager">Informed Area Manager</option>
+                                            <option value="Did not inform Area Manager">Did not inform Area Manager</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                             <button type="submit" id="btn-submit-night" class="w-full mt-4 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20"><i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> <span data-i18n="btn_submit_night">Submit & Sync to HQ</span></button>
                         </form>
                     </div>
@@ -429,6 +455,9 @@
                                     <th class="p-3 text-emerald-400">2nd Bank-In</th>
                                     <th class="p-3 text-emerald-500 font-black border-r border-slate-700">Total Bank In</th>
                                     <th class="p-3">Balance</th>
+                                    <th class="p-3 text-amber-500 admin-only hidden">K. A (Qty/RM)</th>
+                                    <th class="p-3 text-amber-500 admin-only hidden">K. B (Qty)</th>
+                                    <th class="p-3 text-amber-500 admin-only hidden border-r border-slate-700">Remark A/B</th>
                                     <th class="p-3 text-center">Status</th>
                                     <th class="p-3 text-center pdf-exclude">Actions</th>
                                 </tr>
@@ -1537,7 +1566,14 @@ function doPost(e) {
                 <div class="flex justify-between mb-2"><span class="text-sm font-bold text-slate-400 mt-0.5">Total Sales:</span><span id="confirm-sales-val" class="text-base font-bold text-cyan-400"></span></div>
                 <div class="flex justify-between mb-2"><span class="text-sm font-bold text-slate-400 mt-0.5">Transactions:</span><span id="confirm-trans-val" class="text-base font-bold text-white"></span></div>
                 <div class="flex justify-between mb-2"><span class="text-sm font-bold text-slate-400 mt-0.5">MyKasih:</span><span id="confirm-mykasih-val" class="text-base font-bold text-emerald-400"></span></div>
-                <div class="flex justify-between"><span class="text-sm font-bold text-slate-400 mt-0.5">Lorry Cost:</span><span id="confirm-lorry-val" class="text-base font-bold text-purple-400"></span></div>
+                <div class="flex justify-between mb-4"><span class="text-sm font-bold text-slate-400 mt-0.5">Lorry Cost:</span><span id="confirm-lorry-val" class="text-base font-bold text-purple-400"></span></div>
+                
+                <div class="border-t border-slate-700 pt-3">
+                    <div class="text-xs font-black text-amber-500 uppercase mb-2">Delete & Restart Status</div>
+                    <div class="flex justify-between mb-1"><span class="text-[11px] text-slate-400">Kaunter A:</span><span id="confirm-ka-val" class="text-[11px] font-bold text-white"></span></div>
+                    <div class="flex justify-between mb-1"><span class="text-[11px] text-slate-400">Kaunter B:</span><span id="confirm-kb-val" class="text-[11px] font-bold text-white"></span></div>
+                    <div class="flex justify-between"><span class="text-[11px] text-slate-400">Remark:</span><span id="confirm-remark-val" class="text-[11px] font-bold text-white"></span></div>
+                </div>
             </div>
             <div class="flex gap-4">
                 <button onclick="closeModal('confirm-modal')" class="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-white hover:bg-slate-700 border border-slate-700">Cancel</button>
@@ -4010,11 +4046,25 @@ function saveGlobalGSUrl() {
             let pMyKasih = parseFloat(mVal) || 0;
             let pLorry = parseFloat(lVal) || 0;
 
-            pendingNightData = { sales: pSales, transactions: pTrans, mykasih: pMyKasih, lorry: pLorry };
+            let kAq = parseInt(document.getElementById('f-kaunter-a-qty').value.replace(/,/g, '')) || 0;
+            let kAa = parseFloat(document.getElementById('f-kaunter-a-amt').value.replace(/,/g, '')) || 0;
+            let kBq = parseInt(document.getElementById('f-kaunter-b-qty').value.replace(/,/g, '')) || 0;
+            let remAB = document.getElementById('f-remark-ab').value;
+
+            pendingNightData = { 
+                sales: pSales, transactions: pTrans, mykasih: pMyKasih, lorry: pLorry,
+                kaunterA_qty: kAq, kaunterA_amt: kAa, kaunterB_qty: kBq, remark_ab: remAB 
+            };
+            
             document.getElementById('confirm-sales-val').innerText = 'RM ' + formatRM(pendingNightData.sales);
             document.getElementById('confirm-trans-val').innerText = formatNum(pendingNightData.transactions);
             document.getElementById('confirm-mykasih-val').innerText = 'RM ' + formatRM(pendingNightData.mykasih);
             document.getElementById('confirm-lorry-val').innerText = 'RM ' + formatRM(pendingNightData.lorry);
+            
+            document.getElementById('confirm-ka-val').innerText = `${formatNum(pendingNightData.kaunterA_qty)} (RM ${formatRM(pendingNightData.kaunterA_amt)})`;
+            document.getElementById('confirm-kb-val').innerText = `${formatNum(pendingNightData.kaunterB_qty)}`;
+            document.getElementById('confirm-remark-val').innerText = pendingNightData.remark_ab;
+
             document.getElementById('confirm-modal').classList.remove('hidden'); document.getElementById('confirm-modal').classList.add('flex');
         }
 
@@ -4053,6 +4103,8 @@ function saveGlobalGSUrl() {
                     date: nightDate, code: currentUser.id, name: currentUser.name, am: currentUser.am || "",
                     sales: pendingNightData.sales, transactions: pendingNightData.transactions,
                     mykasih: pendingNightData.mykasih, lorry: pendingNightData.lorry,
+                    kaunterA_qty: pendingNightData.kaunterA_qty, kaunterA_amt: pendingNightData.kaunterA_amt,
+                    kaunterB_qty: pendingNightData.kaunterB_qty, remark_ab: pendingNightData.remark_ab,
                     night_locked: true, night_unlocked: false, night_submit_time: getSafeTimeStr()
                 };
                 
@@ -5581,13 +5633,24 @@ function saveGlobalGSUrl() {
                     <td class="p-3 text-cyan-400 font-semibold">RM ${formatRM(tSales)}</td>
                     <td class="p-3 text-slate-300">${formatNum(tTrans)}</td>
                     <td class="p-3 text-slate-300">RM ${formatRM(tMy)}</td>
-                    <td class="p-3 text-slate-300">${lorryCol}</td>
-                    <td class="p-3 text-emerald-400">${bank1Col}</td>
-                    <td class="p-3 text-emerald-400">${bank2Col}</td>
-                    <td class="p-3 text-emerald-400 font-bold bg-emerald-950/10 border-r border-slate-800/50">RM ${formatRM(tBank)}</td>
-                    <td class="p-3 bg-slate-950/40">${balCol}</td>
-                    <td class="p-3 text-center">${statusBadge}</td>
-                    <td class="p-3 p-1 align-middle pdf-exclude">${acts}</td>
+                    <td class="p-3 font-semibold text-purple-400">${lorryCol}</td>
+                    <td class="p-3 font-semibold text-emerald-400">${bank1Col} <br> <span class="text-[9px] text-slate-500">${sub && sub.bank1_time ? sub.bank1_time : '-'}</span></td>
+                    <td class="p-3 font-semibold text-emerald-400">${bank2Col} <br> <span class="text-[9px] text-slate-500">${sub && sub.bank2_time ? sub.bank2_time : '-'}</span></td>
+                    <td class="p-3 font-black text-emerald-500 bg-emerald-500/5 border-r border-slate-700/50">RM ${formatRM(tBank)}</td>
+                    <td class="p-3">${balCol}</td>`;
+
+                if (currentUser.role === 'admin') {
+                    let kAq = hasNightData ? (sub.kaunterA_qty||0) : 0;
+                    let kAa = hasNightData ? (sub.kaunterA_amt||0) : 0;
+                    let kBq = hasNightData ? (sub.kaunterB_qty||0) : 0;
+                    let remAB = hasNightData && sub.remark_ab ? sub.remark_ab : '-';
+                    html += `<td class="p-3"><div class="font-bold text-[11px] text-amber-300">${kAq}</div><div class="text-[9px] text-amber-500">RM ${formatRM(kAa)}</div></td>
+                             <td class="p-3 font-bold text-[11px] text-amber-300">${kBq}</td>
+                             <td class="p-3 border-r border-slate-700/50"><div class="text-[9px] font-semibold text-amber-400 leading-tight max-w-[100px]">${remAB}</div></td>`;
+                }
+
+                html += `<td class="p-3 text-center">${statusBadge}<br><span class="text-[8px] text-slate-500">${sub && sub.night_submit_time ? sub.night_submit_time : ''}</span></td>
+                    <td class="p-3 text-center pdf-exclude">${acts}</td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -5760,7 +5823,9 @@ function saveGlobalGSUrl() {
             let grouped = {};
             deduplicateSubmissionsList(dbSubmissions.filter(s => mode==='daily' ? s.date === date : s.date.startsWith(date))).forEach(s => {
                 if(!grouped[s.code]) {
-                    grouped[s.code] = { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time: "", bank1_time: "", bank2_time: "" };
+                    grouped[s.code] = { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, 
+                    kaunterA_qty: 0, kaunterA_amt: 0, kaunterB_qty: 0, remark_ab: "",
+                    night_submit_time: "", bank1_time: "", bank2_time: "" };
                 }
                 grouped[s.code].sales += Number(s.sales||0); 
                 grouped[s.code].trans += Number(s.transactions||0);
@@ -5768,6 +5833,12 @@ function saveGlobalGSUrl() {
                 grouped[s.code].lorry += Number(s.lorry||0);
                 grouped[s.code].bank1 += Number(s.bank1||0); 
                 grouped[s.code].bank2 += Number(s.bank2||0);
+                
+                grouped[s.code].kaunterA_qty += Number(s.kaunterA_qty||0);
+                grouped[s.code].kaunterA_amt += Number(s.kaunterA_amt||0);
+                grouped[s.code].kaunterB_qty += Number(s.kaunterB_qty||0);
+                if (s.remark_ab) grouped[s.code].remark_ab = s.remark_ab;
+
                 if(s.night_submit_time) grouped[s.code].night_submit_time = s.night_submit_time;
                 if(s.bank1_time) grouped[s.code].bank1_time = s.bank1_time;
                 if(s.bank2_time) grouped[s.code].bank2_time = s.bank2_time;
@@ -5893,19 +5964,23 @@ function saveGlobalGSUrl() {
                 }
 
                 showToast('info', `Generating EXCEL...`);
-                let exportArr = branches.map(b => {
-                    let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time:"", bank1_time:"", bank2_time:"" };
-                    let cleanTime = (t) => t ? (String(t).startsWith("'") ? String(t).substring(1) : String(t)) : "-";
-                    return { 
-                        Date: date, Code: b.code, Branch: b.name, AM: b.am, 
-                        Sales: s.sales, Trans: s.trans, MyKasih: s.mykasih, Lorry: s.lorry, 
-                        Bank1: s.bank1, Bank2: s.bank2, Balance: s.sales-(s.bank1+s.bank2),
-                        "Submission Time": cleanTime(s.night_submit_time),
-                        "1st Bank-In Time": cleanTime(s.bank1_time),
-                        "2nd Bank-In Time": cleanTime(s.bank2_time)
-                    };
+                let data = [];
+                let headers = ["Code", "Name", "AM", "Sales", "Transactions", "MyKasih", "Lorry", "Bank-In 1", "Bank-In 2", "Total Bank In", "Balance", "Kaunter A (Qty)", "Kaunter A (RM)", "Kaunter B (Qty)", "Remark A/B", "Night Time", "Bank1 Time", "Bank2 Time"];
+                data.push(headers);
+                
+                branches.forEach(b => {
+                    let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, kaunterA_qty:0, kaunterA_amt:0, kaunterB_qty:0, remark_ab:"", night_submit_time:"", bank1_time:"", bank2_time:"" };
+                    let totBank = (s.bank1||0) + (s.bank2||0);
+                    let bal = (s.sales||0) - totBank;
+                    data.push([
+                        b.code, b.name, b.am||"-",
+                        (s.sales||0).toFixed(2), s.trans||0, (s.mykasih||0).toFixed(2), (s.lorry||0).toFixed(2),
+                        (s.bank1||0).toFixed(2), (s.bank2||0).toFixed(2), totBank.toFixed(2), bal.toFixed(2),
+                        s.kaunterA_qty||0, (s.kaunterA_amt||0).toFixed(2), s.kaunterB_qty||0, s.remark_ab||"-",
+                        s.night_submit_time, s.bank1_time, s.bank2_time
+                    ]);
                 });
-                let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportArr), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
+                let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), "Report"); XLSX.writeFile(wb, `Report_${date}.xlsx`);
               } else if (type === 'pdf') {
                   if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf?.jsPDF?.API?.autoTable) {
                       showToast('info', 'Downloading Vector PDF Engine... Please wait 2 seconds.');
@@ -5928,30 +6003,25 @@ function saveGlobalGSUrl() {
                   doc.text(`Operations Report (${mode === 'daily' ? 'Daily' : 'Monthly'}: ${date})`, 14, 15);
                   
                   let bodyData = branches.map(b => {
-                      let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, night_submit_time:"" };
+                      let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, kaunterA_qty: 0, kaunterA_amt: 0, kaunterB_qty: 0, remark_ab: "", night_submit_time:"" };
                       let totBank = (s.bank1||0) + (s.bank2||0);
                       let bal = (s.sales||0) - totBank;
-                      let cleanTime = (t) => t ? (String(t).startsWith("'") ? String(t).substring(1) : String(t)) : "-";
                       return [
                           b.code, b.name, b.am||"-",
-                          "RM " + (s.sales||0).toLocaleString('en-US',{minimumFractionDigits:2}),
-                          (s.trans||0).toLocaleString(),
-                          "RM " + (s.mykasih||0).toLocaleString('en-US',{minimumFractionDigits:2}),
-                          "RM " + (s.lorry||0).toLocaleString('en-US',{minimumFractionDigits:2}),
-                          "RM " + totBank.toLocaleString('en-US',{minimumFractionDigits:2}),
-                          "RM " + bal.toLocaleString('en-US',{minimumFractionDigits:2}),
-                          cleanTime(s.night_submit_time)
+                          (s.sales||0).toFixed(2), (s.trans||0), (s.mykasih||0).toFixed(2), (s.lorry||0).toFixed(2),
+                          totBank.toFixed(2), bal.toFixed(2),
+                          (s.kaunterA_qty||0), (s.kaunterA_amt||0).toFixed(2), (s.kaunterB_qty||0), (s.remark_ab||"-")
                       ];
                   });
 
                   doc.autoTable({
                       startY: 22,
-                      head: [['Code', 'Branch', 'AM', 'Sales', 'Trans', 'MyKasih', 'Lorry', 'Bank-In', 'Balance', 'Submission Time']],
+                      head: [['Code', 'Branch', 'AM', 'Sales', 'Trans', 'MyKasih', 'Lorry', 'Bank-In', 'Balance', 'KA Qty', 'KA Amt', 'KB Qty', 'Remark']],
                       body: bodyData,
-                      styles: { fontSize: 8, cellPadding: 2.5, textColor: [51, 65, 85] },
+                      styles: { fontSize: 7, cellPadding: 2, textColor: [51, 65, 85] },
                       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
                       alternateRowStyles: { fillColor: [248, 250, 252] },
-                      margin: { left: 14, right: 14 }
+                      margin: { left: 10, right: 10 }
                   });
                   doc.save(`Report_${date}.pdf`);
                 }
