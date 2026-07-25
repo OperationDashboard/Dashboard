@@ -2429,18 +2429,33 @@ function saveGlobalGSUrl() {
                       }).catch(e => {});
               }, 2000);
               listenToFirebaseConfig();
+              let lastFocusSync = 0;
               document.addEventListener("visibilitychange", () => {
                   if (!document.hidden && currentUser) {
-                      if (typeof triggerDataSync === 'function') triggerDataSync();
+                      if (typeof triggerDataSync === 'function') {
+                          let force = (Date.now() - lastFocusSync > 30000);
+                          if(force) lastFocusSync = Date.now();
+                          triggerDataSync(currentTab === 'comparison' || currentTab === 'analytics' || currentTab === 'drop' ? 'monthly' : 'daily', 
+                              (currentTab === 'tracking' && document.getElementById('track-date')) ? document.getElementById('track-date').value : todayStr, force);
+                      }
                   }
               });
               window.addEventListener("focus", () => {
                   if (!document.hidden && currentUser) {
-                      if (typeof triggerDataSync === 'function') triggerDataSync();
+                      if (typeof triggerDataSync === 'function') {
+                          let force = (Date.now() - lastFocusSync > 30000);
+                          if(force) lastFocusSync = Date.now();
+                          triggerDataSync(currentTab === 'comparison' || currentTab === 'analytics' || currentTab === 'drop' ? 'monthly' : 'daily', 
+                              (currentTab === 'tracking' && document.getElementById('track-date')) ? document.getElementById('track-date').value : todayStr, force);
+                      }
                   }
               });
               window.addEventListener("pageshow", () => {
-                  if (currentUser && typeof triggerDataSync === 'function') triggerDataSync();
+                  if (currentUser && typeof triggerDataSync === 'function') {
+                      lastFocusSync = Date.now();
+                      triggerDataSync(currentTab === 'comparison' || currentTab === 'analytics' || currentTab === 'drop' ? 'monthly' : 'daily', 
+                              (currentTab === 'tracking' && document.getElementById('track-date')) ? document.getElementById('track-date').value : todayStr, true);
+                  }
               });
             updateAllDateMax();
             loadBranchesCache();
