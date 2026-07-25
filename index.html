@@ -2042,22 +2042,23 @@ window.onunhandledrejection = function(event) {
                     if (merged.bank1_time !== undefined) payload.bank1_time = merged.bank1_time;
                     if (merged.bank2_time !== undefined) payload.bank2_time = merged.bank2_time;
                     payload.updated_at = new Date().toISOString();
+
+                    if (this.col === "submissions") {
+                        let hasKaunter = (merged.kaunterA_qty !== undefined || merged.kaunterA_amt !== undefined || merged.kaunterB_qty !== undefined || merged.remark_ab !== undefined);
+                        if (hasKaunter) {
+                            payload.data = {};
+                            if (merged.kaunterA_qty !== undefined) payload.data.kaunterA_qty = merged.kaunterA_qty;
+                            if (merged.kaunterA_amt !== undefined) payload.data.kaunterA_amt = merged.kaunterA_amt;
+                            if (merged.kaunterB_qty !== undefined) payload.data.kaunterB_qty = merged.kaunterB_qty;
+                            if (merged.remark_ab !== undefined) payload.data.remark_ab = merged.remark_ab;
+                        } else {
+                            delete payload.data;
+                        }
+                    }
                 }
                 let res = null;
                 for (let attempt = 1; attempt <= 3; attempt++) {
                     try {
-                        if (this.col === "submissions") {
-                            let hasKaunter = (merged.kaunterA_qty !== undefined || merged.kaunterA_amt !== undefined || merged.kaunterB_qty !== undefined || merged.remark_ab !== undefined);
-                            if (hasKaunter) {
-                                payload.data = {};
-                                if (merged.kaunterA_qty !== undefined) payload.data.kaunterA_qty = merged.kaunterA_qty;
-                                if (merged.kaunterA_amt !== undefined) payload.data.kaunterA_amt = merged.kaunterA_amt;
-                                if (merged.kaunterB_qty !== undefined) payload.data.kaunterB_qty = merged.kaunterB_qty;
-                                if (merged.remark_ab !== undefined) payload.data.remark_ab = merged.remark_ab;
-                            } else {
-                                delete payload.data;
-                            }
-                        }
                         res = await sbClient.from(this.col).upsert(payload);
                         if (!res.error) break;
                     } catch (e) { if (attempt === 3) throw e; }
