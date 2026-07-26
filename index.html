@@ -1683,7 +1683,7 @@ window.onunhandledrejection = function(event) {
                             options.cache = 'no-store';
                             const controller = new AbortController();
                             options.signal = controller.signal;
-                            const id = setTimeout(() => controller.abort(), 15000);
+                            const id = setTimeout(() => controller.abort(), 60000); // Increased to 60 seconds to handle server load
                             return fetch(url, options).then(res => {
                                 clearTimeout(id);
                                 return res;
