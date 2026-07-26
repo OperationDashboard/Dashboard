@@ -1912,17 +1912,18 @@ window.onunhandledrejection = function(event) {
                     }
                 } catch(e) {}
 
-                let onVisChange = () => { if (active && !document.hidden) doFetch(); };
-                let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? (180000 + Math.floor(Math.random() * 60000)) : (240000 + Math.floor(Math.random() * 60000));
-                let interval = setInterval(() => {
-                    if (!active || document.hidden) return;
-                    doFetch();
-                }, intervalMs);
+                let onVisChange = () => { if (active && !document.hidden && currentUser && currentUser.role !== 'branch') doFetch(); };
+                // DISABLING ALL AUTOMATIC POLLING INTERVALS TO PREVENT DDOS ON FREE TIER
+                // let intervalMs = (this.col === 'surveys' || this.col === 'survey_responses') ? (180000 + Math.floor(Math.random() * 60000)) : (240000 + Math.floor(Math.random() * 60000));
+                // let interval = setInterval(() => {
+                //     if (!active || document.hidden) return;
+                //     doFetch();
+                // }, intervalMs);
                 let unsub = () => {
                     active = false;
-                    clearInterval(interval);
-                    document.removeEventListener('visibilitychange', onVisChange);
-                    window.removeEventListener('focus', onVisChange);
+                    // clearInterval(interval);
+                    // document.removeEventListener('visibilitychange', onVisChange);
+                    // window.removeEventListener('focus', onVisChange);
                     if (rtChannel) { try { sbClient.removeChannel(rtChannel); } catch(e){} }
                     if (window._liveSyncListeners) window._liveSyncListeners = window._liveSyncListeners.filter(x => x !== syncListener);
                 };
@@ -2114,11 +2115,12 @@ window.onunhandledrejection = function(event) {
                     });
                 };
                 doFetch();
-                let interval = setInterval(() => {
-                    if (!active || document.hidden) return;
-                    doFetch();
-                }, 180000 + Math.floor(Math.random() * 60000));
-                let unsub = () => { active = false; clearInterval(interval); };
+                // DISABLING ALL AUTOMATIC POLLING INTERVALS
+                // let interval = setInterval(() => {
+                //     if (!active || document.hidden) return;
+                //     doFetch();
+                // }, 180000 + Math.floor(Math.random() * 60000));
+                let unsub = () => { active = false; /* clearInterval(interval); */ };
                 unsub.refresh = doFetch;
                 return unsub;
             }
