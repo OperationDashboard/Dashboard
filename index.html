@@ -1683,7 +1683,7 @@ window.onunhandledrejection = function(event) {
                             options.cache = 'no-store';
                             const controller = new AbortController();
                             options.signal = controller.signal;
-                            const id = setTimeout(() => controller.abort(), 60000); // Increased to 60 seconds to handle server load
+                            const id = setTimeout(() => controller.abort(), 15000); // Fail fast at 15s
                             return fetch(url, options).then(res => {
                                 clearTimeout(id);
                                 return res;
@@ -1874,25 +1874,34 @@ window.onunhandledrejection = function(event) {
                     if (!active || isFetching) return;
                     let now = Date.now();
                     if (now - lastFetchTime < 35000 && firstSnapDone) return;
-                    lastFetchTime = now;
+                    
                     isFetching = true;
-                    this.get().then(snap => {
-                        isFetching = false;
-                        if (!active) return;
-                        let hash = snap.docs.length + "_" + snap.docs.map(d => {
-                            let r = typeof d.data === 'function' ? d.data() : (d || {});
-                            return (r.id || "") + ":" + (r.updated_at || r.updatedAt || r.status || r.sales || r.am || JSON.stringify(r));
-                        }).join("|");
-                        if (hash !== lastHash || !firstSnapDone) {
-                            lastHash = hash;
-                            firstSnapDone = true;
-                            cb(snap);
-                        }
-                    }).catch(e => {
-                        isFetching = false;
-                        console.error("SBQuery.onSnapshot error:", this.col, e);
-                        if (errCb && active) errCb(e);
-                    });
+                    let delay = 0;
+                    if (!firstSnapDone && typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'branch') {
+                        delay = Math.floor(Math.random() * 8000); // Spread branch loads over 8 seconds
+                    }
+
+                    setTimeout(() => {
+                        if (!active) { isFetching = false; return; }
+                        lastFetchTime = Date.now();
+                        this.get().then(snap => {
+                            isFetching = false;
+                            if (!active) return;
+                            let hash = snap.docs.length + "_" + snap.docs.map(d => {
+                                let r = typeof d.data === 'function' ? d.data() : (d || {});
+                                return (r.id || "") + ":" + (r.updated_at || r.updatedAt || r.status || r.sales || r.am || JSON.stringify(r));
+                            }).join("|");
+                            if (hash !== lastHash || !firstSnapDone) {
+                                lastHash = hash;
+                                firstSnapDone = true;
+                                cb(snap);
+                            }
+                        }).catch(e => {
+                            isFetching = false;
+                            console.error("SBQuery.onSnapshot error:", this.col, e);
+                            if (errCb && active) errCb(e);
+                        });
+                    }, delay);
                 };
                 doFetch();
                 let syncListener = () => { lastHash = ""; doFetch(); };
@@ -2096,23 +2105,32 @@ window.onunhandledrejection = function(event) {
                 let doFetch = () => {
                     if (!active || isFetching) return;
                     let now = Date.now();
-                    if (now - lastFetchTime < 15000 && firstSnapDone) return;
-                    lastFetchTime = now;
+                    if (now - lastFetchTime < 35000 && firstSnapDone) return;
+                    
                     isFetching = true;
-                    this.get().then(docSnap => {
-                        isFetching = false;
-                        if (!active) return;
-                        let r = docSnap.exists ? docSnap.data() : {};
-                        let hash = JSON.stringify(r);
-                        if (hash !== lastHash || !firstSnapDone) {
-                            lastHash = hash;
-                            firstSnapDone = true;
-                            cb(docSnap);
-                        }
-                    }).catch(e => {
-                        isFetching = false;
-                        if (errCb && active) errCb(e);
-                    });
+                    let delay = 0;
+                    if (!firstSnapDone && typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'branch') {
+                        delay = Math.floor(Math.random() * 8000);
+                    }
+
+                    setTimeout(() => {
+                        if (!active) { isFetching = false; return; }
+                        lastFetchTime = Date.now();
+                        this.get().then(snap => {
+                            isFetching = false;
+                            if (!active) return;
+                            let hash = snap.exists ? JSON.stringify(snap.data()) : "none";
+                            if (hash !== lastHash || !firstSnapDone) {
+                                lastHash = hash;
+                                firstSnapDone = true;
+                                cb(snap);
+                            }
+                        }).catch(e => {
+                            isFetching = false;
+                            console.error("SBDocRef.onSnapshot error:", this.col, this.id, e);
+                            if (errCb && active) errCb(e);
+                        });
+                    }, delay);
                 };
                 doFetch();
                 // DISABLING ALL AUTOMATIC POLLING INTERVALS
@@ -2206,7 +2224,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.50;
+        const APP_VERSION = 10.51;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
