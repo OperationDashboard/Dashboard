@@ -24,7 +24,7 @@
    - **Document ID:** `system`
    - **Medan Utama:** `global_lock` (Kunci Utama HQ), `past_lock` (Kunci Tarikh Lepas), `limit_sales`, `limit_mykasih`, `limit_lorry`.
 3. **`targets` (Sasaran Jualan Bulanan Cawangan):**
-   - **Primary Key (`id`):** `{code}_{YYYY-MM}` (Contoh: `1004_2026-07`)
+   - **Primary Key (`id`):** `{YYYY-MM}_{code}` (Contoh: `2026-07_1004`)
    - **Medan Utama:** `code`, `month`, `target_sales`.
 4. **`monthly_summaries` (Ringkasan Bulanan):**
    - Digunakan sebagai *cache* pantas bagi paparan jadual perbandingan bulanan.
