@@ -85,7 +85,7 @@
                 <div id="sync-status" class="hidden items-center gap-2 mr-3 px-3 py-1 bg-slate-950 border border-slate-700 rounded-lg">
                     <div class="spinner"></div> <span class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
                 </div>
-                <button onclick="patchDatabase()" id="btn-patch-db" class="hidden super-admin font-semibold px-2 py-1 bg-red-600 text-white rounded text-xs ml-2 hover:bg-red-700">PATCH DB</button>
+                <button onclick="aggregateAllData()" id="btn-patch-db" class="hidden super-admin font-semibold px-2 py-1 bg-red-600 text-white rounded text-xs ml-2 hover:bg-red-700">GENERATE ANALYTICS</button>
                 <div class="text-right hidden sm:block">
                     <p class="text-[11px] font-bold text-white uppercase" id="current-user-name">User Name</p>
                     <p class="text-[9px] text-cyan-400" id="current-user-role">Role</p>
@@ -2206,7 +2206,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.47;
+        const APP_VERSION = 10.48;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
