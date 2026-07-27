@@ -3374,6 +3374,7 @@ function saveGlobalGSUrl() {
                 setSyncing(false);
             }).catch(e => {
                 console.error("Firebase Save Error:", e);
+                Swal.close();
                 alert("SYNC ERROR: " + String(e));
                 showToast('error', 'Network Error! Failed to save.');
                 setSyncing(false);
