@@ -766,7 +766,7 @@
                     <div class="pbi-card rounded-xl p-6 shadow-xl admin-only">
                         <h3 class="text-sm font-bold text-white uppercase border-b border-slate-800 pb-2 mb-4"><i class="fa-solid fa-database text-blue-400 mr-1.5"></i> Data Aggregation (Run Once)</h3>
                         <p class="text-[11px] text-slate-400 mb-4">Calculate and build summaries for fast loading. Only run once to backfill historical data.</p>
-                        <button onclick="aggregateAllData()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-500 shadow border border-blue-500/50 transition-colors"><i class="fa-solid fa-gears mr-1"></i> Aggregate Past Data</button>
+                        <button onclick="aggregateAllData()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-500 shadow border border-blue-500/50 transition-colors"><i class="fa-solid fa-database mr-1"></i> PATCH DB (Generate Analytics)</button>
                     </div>
 
                     <!-- Google Sheets Manual Sync -->
@@ -2206,7 +2206,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.46;
+        const APP_VERSION = 10.47;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2758,7 +2758,8 @@ function saveGlobalGSUrl() {
 
                 let fetchStart = startD;
                 let fetchEnd = endD;
-                if (sumDataLoaded && !isDaily) {
+                // ANTI-EGRESS LEAK: Never fetch the full month raw unless forceRaw (PATCH DB) is true.
+                if (!isDaily && !forceRaw) {
                     if (todayStr >= startD && todayStr <= endD) {
                         fetchStart = (yesterdayStr >= startD) ? yesterdayStr : todayStr;
                         fetchEnd = todayStr;
