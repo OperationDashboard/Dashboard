@@ -2206,7 +2206,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.48;
+        const APP_VERSION = 10.50;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2797,12 +2797,25 @@ function saveGlobalGSUrl() {
                             });
                         });
                     } else {
-                        let q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
-                    if (currentUser && currentUser.role === 'branch') {
-                        q = q.where("code", "==", String(currentUser.id));
-                    } else if (amName) {
-                        q = q.where("am", "==", amName);
-                    }
+                        let q;
+                        if (currentUser && currentUser.role === 'branch' && fetchStart === fetchEnd) {
+                            q = db.collection("submissions").where("id", "==", fetchStart + "_" + currentUser.id);
+                        } else if (amName && fetchStart === fetchEnd && typeof masterBranches !== 'undefined') {
+                            let bList = masterBranches.filter(b => String(b.am).trim().toUpperCase() === amName);
+                            if (bList.length > 0 && bList.length <= 150) {
+                                let docIds = bList.map(b => fetchStart + "_" + b.code);
+                                q = db.collection("submissions").where("id", "in", docIds);
+                            } else {
+                                q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd).where("am", "==", amName);
+                            }
+                        } else {
+                            q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
+                            if (currentUser && currentUser.role === 'branch') {
+                                q = q.where("code", "==", String(currentUser.id));
+                            } else if (amName) {
+                                q = q.where("am", "==", amName);
+                            }
+                        }
                     let snap = await Promise.race([q.get(), timeoutPromise]);
                     snap.forEach(doc => {
                         if (doc && doc.exists) {
@@ -3005,11 +3018,20 @@ function saveGlobalGSUrl() {
                         setSyncing(false);
                     });
             } else {
-                let query = db.collection("submissions").where("date", "==", fetchDateStr);
+                let query;
                 if (currentUser && currentUser.role === 'branch') {
-                    query = query.where("code", "==", String(currentUser.id));
-                } else if (currentUser && currentUser.role === 'am' && currentUser.name) {
-                    query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
+                    query = db.collection("submissions").where("id", "==", fetchDateStr + "_" + String(currentUser.id));
+                } else if (currentUser && currentUser.role === 'am' && currentUser.name && typeof masterBranches !== 'undefined') {
+                    let amNameUpper = String(currentUser.name).trim().toUpperCase();
+                    let bList = masterBranches.filter(b => String(b.am).trim().toUpperCase() === amNameUpper);
+                    if (bList.length > 0 && bList.length <= 150) {
+                        let docIds = bList.map(b => fetchDateStr + "_" + b.code);
+                        query = db.collection("submissions").where("id", "in", docIds);
+                    } else {
+                        query = db.collection("submissions").where("date", "==", fetchDateStr).where("am", "==", amNameUpper);
+                    }
+                } else {
+                    query = db.collection("submissions").where("date", "==", fetchDateStr);
                 }
                 let snapTimer = null;
                 window.activeListeners[queryKey] = query.onSnapshot(snap => {
@@ -3167,7 +3189,7 @@ function saveGlobalGSUrl() {
         }
 
         async function updateMonthlySummary(payloadData, bAm, overrideOldRec = null) {
-            return; // STOP CLIENT-SIDE DDOS: monthly_summaries is cached, submissions is the source of truth. Admin will regenerate it later.
+            return;
             if (!payloadData || !payloadData.date || !payloadData.code) return;
             let cTrim = String(payloadData.code).trim();
             let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : null;
@@ -6282,9 +6304,27 @@ function saveGlobalGSUrl() {
                             snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
                         });
                     } else {
-                        let query = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
-                        if (currentUser && currentUser.role === 'am' && currentUser.name) query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
-                        let snap = await query.get();
+                        let q;
+                        let amName = (currentUser && currentUser.role === 'am') ? String(currentUser.name).trim().toUpperCase() : null;
+                        if (currentUser && currentUser.role === 'branch' && fetchStart === fetchEnd) {
+                            q = db.collection("submissions").where("id", "==", fetchStart + "_" + currentUser.id);
+                        } else if (amName && fetchStart === fetchEnd && typeof masterBranches !== 'undefined') {
+                            let bList = masterBranches.filter(b => String(b.am).trim().toUpperCase() === amName);
+                            if (bList.length > 0 && bList.length <= 150) {
+                                let docIds = bList.map(b => fetchStart + "_" + b.code);
+                                q = db.collection("submissions").where("id", "in", docIds);
+                            } else {
+                                q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd).where("am", "==", amName);
+                            }
+                        } else {
+                            q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
+                            if (currentUser && currentUser.role === 'branch') {
+                                q = q.where("code", "==", String(currentUser.id));
+                            } else if (amName) {
+                                q = q.where("am", "==", amName);
+                            }
+                        }
+                        let snap = await q.get();
                         snap.forEach(d => { let val = d.data(); if (val) subRes.push(val); });
                     }
                 }
