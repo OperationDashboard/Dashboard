@@ -1878,7 +1878,7 @@ window.onunhandledrejection = function(event) {
                     isFetching = true;
                     let delay = 0;
                     if (!firstSnapDone && typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'branch') {
-                        delay = Math.floor(Math.random() * 8000); // Spread branch loads over 8 seconds
+                        delay = Math.floor(Math.random() * 15000); // Spread branch loads over 15 seconds
                     }
 
                     setTimeout(() => {
@@ -2110,7 +2110,7 @@ window.onunhandledrejection = function(event) {
                     isFetching = true;
                     let delay = 0;
                     if (!firstSnapDone && typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'branch') {
-                        delay = Math.floor(Math.random() * 8000);
+                        delay = Math.floor(Math.random() * 15000); // Spread branch loads over 15 seconds
                     }
 
                     setTimeout(() => {
@@ -2224,7 +2224,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.52;
+        const APP_VERSION = 10.53;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -4056,12 +4056,17 @@ function saveGlobalGSUrl() {
                         if (sVal > 0) { curSales += sVal; seenDates.add(sub.date); }
                     }
                 });
-                db.collection("submissions").where("code", "in", [String(currentUser.id), Number(currentUser.id)]).get().then(subSnap => {
+                
+                let docIds = [];
+                for (let i = 1; i <= 31; i++) {
+                    docIds.push(`${mStr}-${i < 10 ? '0'+i : i}_${currentUser.id}`);
+                }
+                db.collection("submissions").where("id", "in", docIds).get().then(subSnap => {
                     subSnap.forEach(doc => {
-                        let d = doc.data();
-                        if (d && d.date && d.date.startsWith(mStr) && !seenDates.has(d.date)) {
-                            let sVal = parseFloat(d.sales) || 0;
-                            if (sVal > 0) { curSales += sVal; seenDates.add(d.date); }
+                        let data = doc.data();
+                        if (data && data.date && data.date.startsWith(mStr) && !seenDates.has(data.date)) {
+                            let sVal = parseFloat(data.sales) || 0;
+                            if (sVal > 0) { curSales += sVal; seenDates.add(data.date); }
                         }
                     });
                     window.currentBranchSales = curSales;
