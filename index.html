@@ -1681,16 +1681,7 @@ window.onunhandledrejection = function(event) {
                         fetch: (url, options) => {
                             options = options || {};
                             options.cache = 'no-store';
-                            const controller = new AbortController();
-                            options.signal = controller.signal;
-                            const id = setTimeout(() => controller.abort(), 15000); // Fail fast at 15s
-                            return fetch(url, options).then(res => {
-                                clearTimeout(id);
-                                return res;
-                            }).catch(err => {
-                                clearTimeout(id);
-                                throw err;
-                            });
+                            return fetch(url, options);
                         }
                     }
                 });
@@ -2224,7 +2215,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.53;
+        const APP_VERSION = 10.54;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -4061,27 +4052,32 @@ function saveGlobalGSUrl() {
                 for (let i = 1; i <= 31; i++) {
                     docIds.push(`${mStr}-${i < 10 ? '0'+i : i}_${currentUser.id}`);
                 }
-                db.collection("submissions").where("id", "in", docIds).get().then(subSnap => {
-                    subSnap.forEach(doc => {
-                        let data = doc.data();
-                        if (data && data.date && data.date.startsWith(mStr) && !seenDates.has(data.date)) {
-                            let sVal = parseFloat(data.sales) || 0;
-                            if (sVal > 0) { curSales += sVal; seenDates.add(data.date); }
+                
+                // Add jitter to prevent 3,500 branches from hitting the DB at the exact same millisecond
+                let fetchDelay = Math.floor(Math.random() * 20000); // 0-20 seconds delay
+                setTimeout(() => {
+                    db.collection("submissions").where("id", "in", docIds).get().then(subSnap => {
+                        subSnap.forEach(doc => {
+                            let data = doc.data();
+                            if (data && data.date && data.date.startsWith(mStr) && !seenDates.has(data.date)) {
+                                let sVal = parseFloat(data.sales) || 0;
+                                if (sVal > 0) { curSales += sVal; seenDates.add(data.date); }
+                            }
+                        });
+                        window.currentBranchSales = curSales;
+                        if(document.getElementById('b-target-current')) document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
+                        if (typeof window.currentBranchTarget !== 'undefined') {
+                            renderBranchTargetWidget(window.currentBranchSales || 0);
+                        }
+                    }).catch(e => {
+                        console.error("Error fetching branch submissions:", e);
+                        window.currentBranchSales = curSales;
+                        if(document.getElementById('b-target-current')) document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
+                        if (typeof window.currentBranchTarget !== 'undefined') {
+                            renderBranchTargetWidget(window.currentBranchSales || 0);
                         }
                     });
-                    window.currentBranchSales = curSales;
-                    if(document.getElementById('b-target-current')) document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
-                    if (typeof window.currentBranchTarget !== 'undefined') {
-                        renderBranchTargetWidget(window.currentBranchSales || 0);
-                    }
-                }).catch(e => {
-                    console.error("Error fetching branch submissions:", e);
-                    window.currentBranchSales = curSales;
-                    if(document.getElementById('b-target-current')) document.getElementById('b-target-current').innerText = 'RM ' + formatRM(window.currentBranchSales);
-                    if (typeof window.currentBranchTarget !== 'undefined') {
-                        renderBranchTargetWidget(window.currentBranchSales || 0);
-                    }
-                });
+                }, fetchDelay);
             } catch(e) { console.error('Error loading target:', e); }
         }
 
