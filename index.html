@@ -2215,7 +2215,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.54;
+        const APP_VERSION = 10.55;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2789,7 +2789,7 @@ function saveGlobalGSUrl() {
                             [monthStr + "-25", monthStr + "-31"]
                         ];
                         let queries = intervals.map(r => {
-                            let q = db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]);
+                            let q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", r[0] + "_").where(firebase.firestore.FieldPath.documentId(), "<=", r[1] + "_\uf8ff");
                             if (amName) q = q.where("am", "==", amName);
                             return q.get();
                         });
@@ -2815,10 +2815,10 @@ function saveGlobalGSUrl() {
                                 let docIds = bList.map(b => fetchStart + "_" + b.code);
                                 q = db.collection("submissions").where("id", "in", docIds);
                             } else {
-                                q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd).where("am", "==", amName);
+                                q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", fetchStart + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchEnd + "_\uf8ff").where("am", "==", amName);
                             }
                         } else {
-                            q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
+                            q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", fetchStart + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchEnd + "_\uf8ff");
                             if (currentUser && currentUser.role === 'branch') {
                                 q = q.where("code", "==", String(currentUser.id));
                             } else if (amName) {
@@ -3037,10 +3037,10 @@ function saveGlobalGSUrl() {
                         let docIds = bList.map(b => fetchDateStr + "_" + b.code);
                         query = db.collection("submissions").where("id", "in", docIds);
                     } else {
-                        query = db.collection("submissions").where("date", "==", fetchDateStr).where("am", "==", amNameUpper);
+                        query = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", fetchDateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchDateStr + "_\uf8ff").where("am", "==", amNameUpper);
                     }
                 } else {
-                    query = db.collection("submissions").where("date", "==", fetchDateStr);
+                    query = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", fetchDateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchDateStr + "_\uf8ff");
                 }
                 let snapTimer = null;
                 window.activeListeners[queryKey] = query.onSnapshot(snap => {
@@ -3332,7 +3332,7 @@ function saveGlobalGSUrl() {
                 let docId = payloadData.date + "_" + payloadData.code;
                 fbPromise = db.collection("submissions").doc(docId).set({ date: payloadData.date, code: payloadData.code, bank2_unlocked: true, am: bAm }, {merge: true});
             } else if (action === 'master_reset' && payloadData.date) {
-                fbPromise = db.collection("submissions").where("date", "==", payloadData.date).get().then(async snap => {
+                fbPromise = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", payloadData.date + "_").where(firebase.firestore.FieldPath.documentId(), "<=", payloadData.date + "_\uf8ff").get().then(async snap => {
                     let docs = snap.docs;
                     for (let i = 0; i < docs.length; i += 400) {
                         let batch = db.batch();
@@ -5965,7 +5965,7 @@ function saveGlobalGSUrl() {
 
                         let dailyMap = {}; // dailyMap[code][day] = {sales, mykasih, lorry}
                         try {
-                            let query = db.collection("submissions").where("date", ">=", startD).where("date", "<=", endD);
+                            let query = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", startD + "_").where(firebase.firestore.FieldPath.documentId(), "<=", endD + "_\uf8ff");
                             if (currentUser && currentUser.role === 'am' && currentUser.name) {
                                 query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
                             }
@@ -6315,7 +6315,7 @@ function saveGlobalGSUrl() {
                             [fetchStart.substring(0, 8) + "25", fetchEnd]
                         ];
                         let queries = intervals.map(r => {
-                            let q = db.collection("submissions").where("date", ">=", r[0]).where("date", "<=", r[1]);
+                            let q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", r[0] + "_").where(firebase.firestore.FieldPath.documentId(), "<=", r[1] + "_\uf8ff");
                             if (currentUser && currentUser.role === 'am' && currentUser.name) q = q.where("am", "==", String(currentUser.name).trim().toUpperCase());
                             return q.get();
                         });
@@ -6334,10 +6334,10 @@ function saveGlobalGSUrl() {
                                 let docIds = bList.map(b => fetchStart + "_" + b.code);
                                 q = db.collection("submissions").where("id", "in", docIds);
                             } else {
-                                q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd).where("am", "==", amName);
+                                q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", fetchStart + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchEnd + "_\uf8ff").where("am", "==", amName);
                             }
                         } else {
-                            q = db.collection("submissions").where("date", ">=", fetchStart).where("date", "<=", fetchEnd);
+                            q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", fetchStart + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchEnd + "_\uf8ff");
                             if (currentUser && currentUser.role === 'branch') {
                                 q = q.where("code", "==", String(currentUser.id));
                             } else if (amName) {
@@ -7095,7 +7095,7 @@ function saveGlobalGSUrl() {
             
             setSyncing(true);
             try {
-                let query = db.collection("submissions").where("date", "==", dateStr);
+                let query = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", dateStr + "_").where(firebase.firestore.FieldPath.documentId(), "<=", dateStr + "_\uf8ff");
                 if (currentUser && currentUser.role === 'am' && currentUser.name) query = query.where("am", "==", String(currentUser.name).trim().toUpperCase());
                 let snap = await query.get();
                 let tbody = document.getElementById('audit-table-body');
