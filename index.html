@@ -2215,7 +2215,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.56;
+        const APP_VERSION = 10.57;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2788,10 +2788,13 @@ function saveGlobalGSUrl() {
                             [monthStr + "-17", monthStr + "-24"],
                             [monthStr + "-25", monthStr + "-31"]
                         ];
-                        let queries = intervals.map(r => {
-                            let q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", r[0] + "_").where(firebase.firestore.FieldPath.documentId(), "<=", r[1] + "_\uf8ff");
+                        let queries = [];
+                        intervals.forEach(r => {
+                            if (r[0] > todayStr) return; // Skip intervals that are entirely in the future
+                            let actualEnd = (r[1] > todayStr) ? todayStr : r[1];
+                            let q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", r[0] + "_").where(firebase.firestore.FieldPath.documentId(), "<=", actualEnd + "_\uf8ff");
                             if (amName) q = q.where("am", "==", amName);
-                            return q.get();
+                            queries.push(q.get());
                         });
                         let snaps = await Promise.race([Promise.all(queries), timeoutPromise]);
                         snaps.forEach(snap => {
