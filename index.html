@@ -2220,7 +2220,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.59;
+        const APP_VERSION = 10.60;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -2763,17 +2763,24 @@ function saveGlobalGSUrl() {
             try {
                 let timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Direct submissions query timed out after 60s")), 60000));
                 
-                // If sumData is loaded, ONLY fetch today's date from submissions (to get live unlock/bank times).
+                // If sumData is loaded, ONLY fetch the last 3 days from submissions (to catch late key-ins).
                 // Do not fetch the entire month from submissions and hammer the DB!
                 let todayObj = new Date();
                 let todayStr = todayObj.toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
+                let d2 = new Date(todayObj.getTime() - (86400000 * 2));
+                let d2Str = d2.toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
                 let yesterdayObj = new Date(todayObj.getTime() - 86400000);
                 let yesterdayStr = yesterdayObj.toLocaleDateString('en-CA', {timeZone: 'Asia/Kuala_Lumpur'}).substring(0, 10);
 
                 let fetchStart = startD;
                 let fetchEnd = endD;
+                if (sumDataLoaded) {
+                    fetchStart = (d2Str >= startD) ? d2Str : startD;
+                    fetchEnd = todayStr;
+                }
+                
                 // ANTI-EGRESS LEAK: Never fetch the full month raw unless forceRaw (PATCH DB) is true.
-                if (!isDaily && !forceRaw) {
+                if (!isDaily && !forceRaw && !sumDataLoaded) {
                     if (todayStr >= startD && todayStr <= endD) {
                         fetchStart = (yesterdayStr >= startD) ? yesterdayStr : todayStr;
                         fetchEnd = todayStr;
