@@ -2215,7 +2215,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.57;
+        const APP_VERSION = 10.58;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -6138,23 +6138,26 @@ function saveGlobalGSUrl() {
             let lastDay = new Date(year, month, 0).getDate();
             let fmt = (d) => `${d.getDate()}/${d.getMonth()+1}`;
             
-            let intervals = [
-                { s: 1, e: 5 },
-                { s: 6, e: 12 },
-                { s: 13, e: 19 },
-                { s: 20, e: 26 },
-                { s: 27, e: lastDay }
-            ];
-            
-            intervals.forEach(i => {
-                let start = new Date(year, month - 1, i.s);
-                let end = new Date(year, month - 1, i.e);
+            let currentStart = 1;
+            while (currentStart <= lastDay) {
+                let d = new Date(year, month - 1, currentStart);
+                let dayOfWeek = d.getDay(); // 0 is Sunday, 1 is Monday...
+                let daysToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+                
+                let currentEnd = currentStart + daysToSunday;
+                if (currentEnd > lastDay) currentEnd = lastDay;
+                
+                let startObj = new Date(year, month - 1, currentStart);
+                let endObj = new Date(year, month - 1, currentEnd);
+                
                 weeks.push({
-                    start: start,
-                    end: end,
-                    label: `${fmt(start)} - ${fmt(end)}`
+                    start: startObj,
+                    end: endObj,
+                    label: currentStart === currentEnd ? fmt(startObj) : `${fmt(startObj)} - ${fmt(endObj)}`
                 });
-            });
+                
+                currentStart = currentEnd + 1;
+            }
             return weeks;
         }
 
