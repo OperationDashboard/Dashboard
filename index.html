@@ -1905,9 +1905,14 @@ window.onunhandledrejection = function(event) {
                     // 3500 branches = 10,500 WebSockets, which exceeds the 500 limit and crashes the API gateway via reconnect DDoS!
                     let useRealtime = currentUser && currentUser.role !== 'branch' && this.col !== 'config';
                     if (useRealtime) {
+                        let rtTimer = null;
                         rtChannel = sbClient.channel('rt_' + this.col + '_' + Math.random().toString(36).substring(2))
                             .on('postgres_changes', { event: '*', schema: 'public', table: this.col }, () => {
-                                if (active) doFetch();
+                                if (active) {
+                                    if (!rtTimer) {
+                                        rtTimer = setTimeout(() => { rtTimer = null; doFetch(); }, 15000); // 15-second throttle
+                                    }
+                                }
                             }).subscribe();
                     }
                 } catch(e) {}
@@ -2215,7 +2220,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.58;
+        const APP_VERSION = 10.59;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
