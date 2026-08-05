@@ -1799,26 +1799,6 @@ window.onunhandledrejection = function(event) {
                             rows = rows.slice(0, this.lim);
                             break;
                         }
-                        while (true) {
-                            let batchPromises = [];
-                            for (let b = 0; b < 4; b++) {
-                                let bFrom = from + (b * step);
-                                batchPromises.push(runQuery(buildRangeQuery(bFrom, bFrom + step - 1)));
-                            }
-                            let batchResults = await Promise.all(batchPromises);
-                            let stopBatch = false;
-                            for (let bRes of batchResults) {
-                                let bChunk = (bRes && bRes.data) || [];
-                                rows.push(...bChunk);
-                                if (bChunk.length < step) { stopBatch = true; break; }
-                            }
-                            from += 4 * step;
-                            if (stopBatch || (this.lim && rows.length >= this.lim)) {
-                                if (this.lim && rows.length >= this.lim) rows = rows.slice(0, this.lim);
-                                break;
-                            }
-                        }
-                        break;
                     }
                 }
                 let seenIds = new Set();
@@ -2212,7 +2192,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.61;
+        const APP_VERSION = 10.62;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
