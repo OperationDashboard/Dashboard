@@ -2192,7 +2192,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.62;
+        const APP_VERSION = 10.63;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
@@ -9314,25 +9314,17 @@ function saveGlobalGSUrl() {
                 
                 Swal.fire({ title: 'Deleting & Saving', text: 'Cleaning old records & saving new data...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
-                // Delete existing monthly_summaries for this month using Promise.all to bypass batch limits
+                // Delete existing monthly_summaries for this month sequentially to prevent connection pool exhaustion
                 let existingSummaries = await db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", targetMonth + "_").where(firebase.firestore.FieldPath.documentId(), "<=", targetMonth + "_\uf8ff").get();
-                let delPromises = [];
-                existingSummaries.docs.forEach(dDoc => {
-                    delPromises.push(dDoc.ref.delete());
-                });
-                for (let i = 0; i < delPromises.length; i += 50) {
-                    await Promise.all(delPromises.slice(i, i + 50));
+                for (let i = 0; i < existingSummaries.docs.length; i++) {
+                    await existingSummaries.docs[i].ref.delete();
                 }
                 
-                // Write new summaries using Promise.all
+                // Write new summaries sequentially
                 let docIds = Object.keys(summaries);
-                let setPromises = [];
-                docIds.forEach(id => {
-                    let ref = db.collection("monthly_summaries").doc(id);
-                    setPromises.push(ref.set(summaries[id]));
-                });
-                for (let i = 0; i < setPromises.length; i += 50) {
-                    await Promise.all(setPromises.slice(i, i + 50));
+                for (let i = 0; i < docIds.length; i++) {
+                    let ref = db.collection("monthly_summaries").doc(docIds[i]);
+                    await ref.set(summaries[docIds[i]]);
                 }
                 
                 // Reload page to fetch the newly generated summaries
