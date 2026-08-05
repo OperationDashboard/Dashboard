@@ -1899,23 +1899,17 @@ window.onunhandledrejection = function(event) {
                 if (!window._liveSyncListeners) window._liveSyncListeners = [];
                 window._liveSyncListeners.push(syncListener);
                 
+                // CRITICAL EGRESS FIX (Version 10.61): Removed WebSocket Realtime entirely. 
+                // WebSockets trigger massive re-downloads on every change, burning through 30GB+ egress daily and hitting the Supabase Spend Cap.
+                // Replaced with a 3-minute interval polling for AM/Admins only.
                 let rtChannel = null;
-                try {
-                    // CRITICAL FIX: Only use WebSocket Realtime for AMs/Admins. 
-                    // 3500 branches = 10,500 WebSockets, which exceeds the 500 limit and crashes the API gateway via reconnect DDoS!
-                    let useRealtime = currentUser && currentUser.role !== 'branch' && this.col !== 'config';
-                    if (useRealtime) {
-                        let rtTimer = null;
-                        rtChannel = sbClient.channel('rt_' + this.col + '_' + Math.random().toString(36).substring(2))
-                            .on('postgres_changes', { event: '*', schema: 'public', table: this.col }, () => {
-                                if (active) {
-                                    if (!rtTimer) {
-                                        rtTimer = setTimeout(() => { rtTimer = null; doFetch(); }, 15000); // 15-second throttle
-                                    }
-                                }
-                            }).subscribe();
-                    }
-                } catch(e) {}
+                let pollTimer = null;
+                if (currentUser && currentUser.role !== 'branch' && this.col !== 'config') {
+                    pollTimer = setInterval(() => {
+                        if (active && !document.hidden && typeof doFetch === 'function') doFetch();
+                    }, 180000); // 3 minutes
+                }
+
 
                 let onVisChange = () => { if (active && !document.hidden && currentUser && currentUser.role !== 'branch') doFetch(); };
                 // DISABLING ALL AUTOMATIC POLLING INTERVALS TO PREVENT DDOS ON FREE TIER
@@ -1926,9 +1920,7 @@ window.onunhandledrejection = function(event) {
                 // }, intervalMs);
                 let unsub = () => {
                     active = false;
-                    // clearInterval(interval);
-                    // document.removeEventListener('visibilitychange', onVisChange);
-                    // window.removeEventListener('focus', onVisChange);
+                    if (pollTimer) clearInterval(pollTimer);
                     if (rtChannel) { try { sbClient.removeChannel(rtChannel); } catch(e){} }
                     if (window._liveSyncListeners) window._liveSyncListeners = window._liveSyncListeners.filter(x => x !== syncListener);
                 };
@@ -2220,7 +2212,7 @@ window.onunhandledrejection = function(event) {
 
         // --- 1. Settings & Variables ---
         const GLOBAL_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwRIWmGmQw3QsYOl3C5rLyi2hBADJukGmns7QkEGgdebKJWRYuUxdeU2P3FpHOkRaUhUQ/exec"; 
-        const APP_VERSION = 10.60;
+        const APP_VERSION = 10.61;
         let currentLang = 'EN';
         let currentUser = null; 
         let currentTab = 'dashboard';
