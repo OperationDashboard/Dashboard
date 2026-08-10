@@ -6009,12 +6009,16 @@ function saveGlobalGSUrl() {
 
                         // 1. Summary Sheet
                         let summaryArr = branches.map(b => {
-                            let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0 };
+                            let s = grouped[b.code] || { sales:0, trans:0, mykasih:0, lorry:0, bank1:0, bank2:0, kaunterA_qty:0, kaunterA_amt:0, kaunterB_qty:0, remark_ab:"" };
                             return {
                                 Month: date, Code: b.code, Branch: b.name, AM: b.am,
                                 "Total Sales": s.sales, "Total Trans": s.trans, "Total MyKasih": s.mykasih,
                                 "Total WH (Lorry)": s.lorry, "Total 1st Bank-In": s.bank1, "Total 2nd Bank-In": s.bank2,
-                                "Balance": s.sales - (s.bank1 + s.bank2)
+                                "Balance": s.sales - (s.bank1 + s.bank2),
+                                "K.A (QTY)": s.kaunterA_qty,
+                                "K.A (RM)": s.kaunterA_amt,
+                                "K.B (QTY)": s.kaunterB_qty,
+                                "Remark A/B": s.remark_ab
                             };
                         });
 
@@ -6044,7 +6048,7 @@ function saveGlobalGSUrl() {
                         }
                         dailyHeaderOrder.push('TOTAL BULANAN');
 
-                        let summaryHeaderOrder = ["Month", "Code", "Branch", "AM", "Total Sales", "Total Trans", "Total MyKasih", "Total WH (Lorry)", "Total 1st Bank-In", "Total 2nd Bank-In", "Balance"];
+                        let summaryHeaderOrder = ["Month", "Code", "Branch", "AM", "Total Sales", "Total Trans", "Total MyKasih", "Total WH (Lorry)", "Total 1st Bank-In", "Total 2nd Bank-In", "Balance", "K.A (QTY)", "K.A (RM)", "K.B (QTY)", "Remark A/B"];
 
                         let wb = XLSX.utils.book_new();
                         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryArr, { header: summaryHeaderOrder }), "Summary Bulanan");
