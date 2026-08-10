@@ -1148,6 +1148,7 @@ function doPost(e) {
                             <select id="target-month-select" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-pink-500" onchange="loadTargetTracker()">
                                 <!-- Populated by JS -->
                             </select>
+                            <button onclick="downloadTargetExcel()" class="admin-only hidden bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-3 py-2 rounded-lg transition-colors shadow-lg"><i class="fa-solid fa-file-excel mr-1"></i> Export Excel</button>
                             <select id="target-am-filter" class="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-pink-500 admin-only hidden" onchange="loadTargetTracker()">
                                 <option value="">All Area Managers</option>
                             </select>
@@ -9572,6 +9573,56 @@ function saveGlobalGSUrl() {
                 showToast('error', 'Error saving targets: ' + e.message);
             }
             setSyncing(false);
+        }
+
+        function downloadTargetExcel() {
+            if (typeof XLSX === 'undefined') {
+                alert("Modul Excel sedang dimuat turun. Sila tekan sekali lagi sebentar lagi.");
+                let s = document.createElement('script');
+                s.src = "https://unpkg.com/xlsx/dist/xlsx.full.min.js";
+                document.head.appendChild(s);
+                return;
+            }
+            
+            let tbody = document.getElementById('target-table-body');
+            if (!tbody || tbody.children.length === 0 || tbody.innerHTML.includes('No branches')) {
+                return typeof showToast === 'function' ? showToast('warning', 'Tiada data untuk dieksport.') : alert('Tiada data.');
+            }
+            
+            let data = [];
+            let rows = tbody.querySelectorAll('tr');
+            rows.forEach(tr => {
+                if(tr.cells.length < 6) return;
+                
+                let code = tr.cells[0].innerText.trim();
+                let nameAmBlock = tr.cells[1].innerText.split('\n');
+                let name = nameAmBlock[0] ? nameAmBlock[0].trim() : '';
+                let am = nameAmBlock[1] ? nameAmBlock[1].trim() : '';
+                
+                let targetEl = tr.cells[2].querySelector('input');
+                let target = targetEl ? targetEl.value : tr.cells[2].innerText.replace('RM', '').trim();
+                
+                let sales = tr.cells[3].innerText.replace('RM', '').trim();
+                let pct = tr.cells[4].innerText.trim();
+                let req = tr.cells[5].innerText.replace('RM', '').trim();
+                
+                data.push({
+                    "Branch Code": code,
+                    "Branch Name": name,
+                    "Area Manager": am,
+                    "Target (RM)": target,
+                    "Current Sales (RM)": sales,
+                    "Achieved %": pct,
+                    "Required Daily (RM)": req
+                });
+            });
+            
+            let month = document.getElementById('target-month-select') ? document.getElementById('target-month-select').value : 'Data';
+            let wb = XLSX.utils.book_new();
+            let ws = XLSX.utils.json_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, "Target Tracker");
+            XLSX.writeFile(wb, `Target_Tracker_${month}.xlsx`);
+            if (typeof showToast === 'function') showToast('success', 'Excel berjaya dimuat turun!');
         }
 
         // --- AUTO LOGOUT ON IDLE ---
