@@ -1554,8 +1554,8 @@ function doPost(e) {
                     <!-- Counter Profitability Chart -->
                     <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
                         <div>
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-money-bill-wave text-emerald-400"></i> Counter Profitability (Top 20)</h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Comparison of Total Sales vs Kaunter A Revenue for top performing branches.</p>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-users-viewfinder text-emerald-400"></i> Counter Activity (K.A vs K.B)</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Comparison of customer volume (QTY) at Kaunter A vs Kaunter B.</p>
                         </div>
                         <div class="relative w-full h-[380px] mt-4">
                             <canvas id="exec-chart-counter-profit"></canvas>
@@ -5550,7 +5550,7 @@ function saveGlobalGSUrl() {
                 ctxForecast.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 font-bold"><i class="fa-solid fa-circle-info mr-2"></i> Forecasting is only available in Monthly timeframe.</div>';
             }
 
-            // Chart 8: Counter Profitability
+            // Chart 8: Counter Activity (K.A vs K.B)
             let ctxCounter = document.getElementById('exec-chart-counter-profit');
             if (ctxCounter) {
                 let branchSalesMap = {};
@@ -5560,19 +5560,23 @@ function saveGlobalGSUrl() {
                         branchSalesMap[code] = { 
                             code: code, 
                             name: s.branch_name || s.name || (masterBranches && masterBranches.find(b=>String(b.code)===code) ? masterBranches.find(b=>String(b.code)===code).name : code),
-                            sales: 0,
-                            ka: 0 
+                            ka_qty: 0,
+                            ka_amt: 0,
+                            kb_qty: 0
                         };
                     }
-                    branchSalesMap[code].sales += (parseFloat(s.sales) || 0);
-                    branchSalesMap[code].ka += (parseFloat(s.kaunterA_amt) || 0);
+                    branchSalesMap[code].ka_qty += (parseFloat(s.kaunterA_qty) || 0);
+                    branchSalesMap[code].ka_amt += (parseFloat(s.kaunterA_amt) || 0);
+                    branchSalesMap[code].kb_qty += (parseFloat(s.kaunterB_qty) || 0);
                 });
 
-                let topBranches = Object.values(branchSalesMap).sort((a,b) => b.sales - a.sales).slice(0, 20);
+                // Sort branches by total volume (KA qty + KB qty)
+                let topBranches = Object.values(branchSalesMap).sort((a,b) => (b.ka_qty + b.kb_qty) - (a.ka_qty + a.kb_qty)).slice(0, 20);
                 
                 let labels = topBranches.map(b => b.name && b.name.length > 15 ? b.name.substring(0,15)+'...' : (b.name||b.code));
-                let salesData = topBranches.map(b => b.sales);
-                let kaData = topBranches.map(b => b.ka);
+                let kaQtyData = topBranches.map(b => b.ka_qty);
+                let kbQtyData = topBranches.map(b => b.kb_qty);
+                let kaAmtData = topBranches.map(b => b.ka_amt);
 
                 if (window.chartExecCounter) window.chartExecCounter.destroy();
                 // Ensure canvas exists if it was replaced by HTML string previously
@@ -5587,15 +5591,16 @@ function saveGlobalGSUrl() {
                         labels: labels,
                         datasets: [
                             {
-                                label: 'Kaunter A Revenue (RM)',
-                                data: kaData,
+                                label: 'Kaunter A (QTY)',
+                                data: kaQtyData,
                                 backgroundColor: '#f43f5e',
-                                borderRadius: 4
+                                borderRadius: 4,
+                                kaAmtArr: kaAmtData // Custom array to pass RM to tooltip
                             },
                             {
-                                label: 'Other Revenue (RM)',
-                                data: salesData.map((val, idx) => Math.max(0, val - kaData[idx])),
-                                backgroundColor: '#0f766e',
+                                label: 'Kaunter B (QTY)',
+                                data: kbQtyData,
+                                backgroundColor: '#10b981',
                                 borderRadius: 4
                             }
                         ]
@@ -5609,17 +5614,27 @@ function saveGlobalGSUrl() {
                             tooltip: { 
                                 mode: 'index',
                                 intersect: false,
-                                callbacks: { label: function(c) { return c.dataset.label + ': RM ' + formatRM(c.raw); } } 
+                                callbacks: { 
+                                    label: function(c) { 
+                                        let val = c.raw;
+                                        if (c.dataset.label.includes('Kaunter A')) {
+                                            let rmVal = c.dataset.kaAmtArr[c.dataIndex];
+                                            return c.dataset.label + ': ' + formatNum(val) + ' (RM ' + formatRM(rmVal) + ')';
+                                        } else {
+                                            return c.dataset.label + ': ' + formatNum(val);
+                                        }
+                                    } 
+                                } 
                             }
                         },
                         scales: {
                             x: { 
-                                stacked: true,
+                                stacked: false,
                                 grid: { color: '#334155' }, 
-                                ticks: { color: '#94a3b8', callback: function(v) { return 'RM ' + (v/1000).toFixed(0) + 'k'; } } 
+                                ticks: { color: '#94a3b8' } 
                             },
                             y: { 
-                                stacked: true,
+                                stacked: false,
                                 grid: { display: false }, 
                                 ticks: { color: '#94a3b8', font: { size: 10 } } 
                             }
