@@ -1538,8 +1538,8 @@ function doPost(e) {
                     </div>
                 </div>
 
-                <!-- CHARTS ROW 7: Forecasting & Counter Profitability -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- CHARTS ROW 7: Forecasting -->
+                <div class="grid grid-cols-1 gap-6 mb-6">
                     <!-- Forecasting Chart -->
                     <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
                         <div>
@@ -1550,15 +1550,29 @@ function doPost(e) {
                             <canvas id="exec-chart-forecast"></canvas>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Counter Profitability Chart -->
+                <!-- CHARTS ROW 8: Counter Separate Analysis -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Top 20 Kaunter A -->
                     <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
                         <div>
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-users-viewfinder text-emerald-400"></i> Counter Activity (K.A vs K.B)</h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Comparison of customer volume (QTY) at Kaunter A vs Kaunter B.</p>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-users text-pink-500"></i> Top 20 Kaunter A</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Cawangan tertinggi berdasarkan volum (QTY) pelanggan di Kaunter A.</p>
                         </div>
                         <div class="relative w-full h-[380px] mt-4">
-                            <canvas id="exec-chart-counter-profit"></canvas>
+                            <canvas id="exec-chart-ka"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top 20 Kaunter B -->
+                    <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Top 20 Kaunter B</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Cawangan tertinggi berdasarkan volum (QTY) pelanggan di Kaunter B.</p>
+                        </div>
+                        <div class="relative w-full h-[380px] mt-4">
+                            <canvas id="exec-chart-kb"></canvas>
                         </div>
                     </div>
                 </div>
@@ -5550,94 +5564,108 @@ function saveGlobalGSUrl() {
                 ctxForecast.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 font-bold"><i class="fa-solid fa-circle-info mr-2"></i> Forecasting is only available in Monthly timeframe.</div>';
             }
 
-            // Chart 8: Counter Activity (K.A vs K.B)
-            let ctxCounter = document.getElementById('exec-chart-counter-profit');
-            if (ctxCounter) {
-                let branchSalesMap = {};
+            // Chart 8A: Top 20 Kaunter A
+            let ctxKA = document.getElementById('exec-chart-ka');
+            if (ctxKA) {
+                let kaMap = {};
                 filteredSubs.forEach(s => {
                     let code = String(s.code).trim();
-                    if (!branchSalesMap[code]) {
-                        branchSalesMap[code] = { 
-                            code: code, 
-                            name: s.branch_name || s.name || (masterBranches && masterBranches.find(b=>String(b.code)===code) ? masterBranches.find(b=>String(b.code)===code).name : code),
-                            ka_qty: 0,
-                            ka_amt: 0,
-                            kb_qty: 0
-                        };
+                    let kaQty = parseFloat(s.kaunterA_qty) || 0;
+                    if(kaQty > 0) {
+                        if (!kaMap[code]) {
+                            kaMap[code] = { 
+                                code: code, 
+                                name: s.branch_name || s.name || (masterBranches && masterBranches.find(b=>String(b.code)===code) ? masterBranches.find(b=>String(b.code)===code).name : code),
+                                ka_qty: 0, ka_amt: 0
+                            };
+                        }
+                        kaMap[code].ka_qty += kaQty;
+                        kaMap[code].ka_amt += (parseFloat(s.kaunterA_amt) || 0);
                     }
-                    branchSalesMap[code].ka_qty += (parseFloat(s.kaunterA_qty) || 0);
-                    branchSalesMap[code].ka_amt += (parseFloat(s.kaunterA_amt) || 0);
-                    branchSalesMap[code].kb_qty += (parseFloat(s.kaunterB_qty) || 0);
                 });
-
-                // Sort branches by total volume (KA qty + KB qty)
-                let topBranches = Object.values(branchSalesMap).sort((a,b) => (b.ka_qty + b.kb_qty) - (a.ka_qty + a.kb_qty)).slice(0, 20);
+                let topKA = Object.values(kaMap).sort((a,b) => b.ka_qty - a.ka_qty).slice(0, 20);
+                let labelsKA = topKA.map(b => b.name && b.name.length > 15 ? b.name.substring(0,15)+'...' : (b.name||b.code));
                 
-                let labels = topBranches.map(b => b.name && b.name.length > 15 ? b.name.substring(0,15)+'...' : (b.name||b.code));
-                let kaQtyData = topBranches.map(b => b.ka_qty);
-                let kbQtyData = topBranches.map(b => b.kb_qty);
-                let kaAmtData = topBranches.map(b => b.ka_amt);
-
-                if (window.chartExecCounter) window.chartExecCounter.destroy();
-                // Ensure canvas exists if it was replaced by HTML string previously
-                if(ctxCounter.tagName !== 'CANVAS') {
-                    ctxCounter.parentElement.innerHTML = '<canvas id="exec-chart-counter-profit"></canvas>';
-                    ctxCounter = document.getElementById('exec-chart-counter-profit');
+                if (window.chartExecKA) window.chartExecKA.destroy();
+                if(ctxKA.tagName !== 'CANVAS') {
+                    ctxKA.parentElement.innerHTML = '<canvas id="exec-chart-ka"></canvas>';
+                    ctxKA = document.getElementById('exec-chart-ka');
                 }
-                
-                window.chartExecCounter = new Chart(ctxCounter, {
+                window.chartExecKA = new Chart(ctxKA, {
                     type: 'bar',
                     data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'Kaunter A (QTY)',
-                                data: kaQtyData,
-                                backgroundColor: '#f43f5e',
-                                borderRadius: 4,
-                                kaAmtArr: kaAmtData // Custom array to pass RM to tooltip
-                            },
-                            {
-                                label: 'Kaunter B (QTY)',
-                                data: kbQtyData,
-                                backgroundColor: '#10b981',
-                                borderRadius: 4
-                            }
-                        ]
+                        labels: labelsKA,
+                        datasets: [{
+                            label: 'Kaunter A (QTY)',
+                            data: topKA.map(b => b.ka_qty),
+                            backgroundColor: '#f43f5e',
+                            borderRadius: 4,
+                            kaAmtArr: topKA.map(b => b.ka_amt)
+                        }]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
+                        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
                         plugins: {
-                            legend: { labels: { color: '#cbd5e1' } },
-                            tooltip: { 
-                                mode: 'index',
-                                intersect: false,
-                                callbacks: { 
-                                    label: function(c) { 
-                                        let val = c.raw;
-                                        if (c.dataset.label.includes('Kaunter A')) {
-                                            let rmVal = c.dataset.kaAmtArr[c.dataIndex];
-                                            return c.dataset.label + ': ' + formatNum(val) + ' (RM ' + formatRM(rmVal) + ')';
-                                        } else {
-                                            return c.dataset.label + ': ' + formatNum(val);
-                                        }
-                                    } 
-                                } 
-                            }
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: function(c) { 
+                                let rmVal = c.dataset.kaAmtArr[c.dataIndex];
+                                return 'QTY: ' + formatNum(c.raw) + ' (RM ' + formatRM(rmVal) + ')'; 
+                            } } }
                         },
                         scales: {
-                            x: { 
-                                stacked: false,
-                                grid: { color: '#334155' }, 
-                                ticks: { color: '#94a3b8' } 
-                            },
-                            y: { 
-                                stacked: false,
-                                grid: { display: false }, 
-                                ticks: { color: '#94a3b8', font: { size: 10 } } 
-                            }
+                            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                            y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+
+            // Chart 8B: Top 20 Kaunter B
+            let ctxKB = document.getElementById('exec-chart-kb');
+            if (ctxKB) {
+                let kbMap = {};
+                filteredSubs.forEach(s => {
+                    let code = String(s.code).trim();
+                    let kbQty = parseFloat(s.kaunterB_qty) || 0;
+                    if(kbQty > 0) {
+                        if (!kbMap[code]) {
+                            kbMap[code] = { 
+                                code: code, 
+                                name: s.branch_name || s.name || (masterBranches && masterBranches.find(b=>String(b.code)===code) ? masterBranches.find(b=>String(b.code)===code).name : code),
+                                kb_qty: 0
+                            };
+                        }
+                        kbMap[code].kb_qty += kbQty;
+                    }
+                });
+                let topKB = Object.values(kbMap).sort((a,b) => b.kb_qty - a.kb_qty).slice(0, 20);
+                let labelsKB = topKB.map(b => b.name && b.name.length > 15 ? b.name.substring(0,15)+'...' : (b.name||b.code));
+                
+                if (window.chartExecKB) window.chartExecKB.destroy();
+                if(ctxKB.tagName !== 'CANVAS') {
+                    ctxKB.parentElement.innerHTML = '<canvas id="exec-chart-kb"></canvas>';
+                    ctxKB = document.getElementById('exec-chart-kb');
+                }
+                window.chartExecKB = new Chart(ctxKB, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsKB,
+                        datasets: [{
+                            label: 'Kaunter B (QTY)',
+                            data: topKB.map(b => b.kb_qty),
+                            backgroundColor: '#10b981',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: function(c) { return 'QTY: ' + formatNum(c.raw); } } }
+                        },
+                        scales: {
+                            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                            y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
                         }
                     }
                 });
