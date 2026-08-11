@@ -1537,6 +1537,31 @@ function doPost(e) {
                         <canvas id="exec-chart-state-sales"></canvas>
                     </div>
                 </div>
+
+                <!-- CHARTS ROW 7: Forecasting & Counter Profitability -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Forecasting Chart -->
+                    <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-chart-line text-cyan-400"></i> Sales Trajectory & Forecasting</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Cumulative sales tracking and run-rate projection for the current month.</p>
+                        </div>
+                        <div class="relative w-full h-[380px] mt-4">
+                            <canvas id="exec-chart-forecast"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Counter Profitability Chart -->
+                    <div class="pbi-card rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2"><i class="fa-solid fa-money-bill-wave text-emerald-400"></i> Counter Profitability (Top 20)</h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Comparison of Total Sales vs Kaunter A Revenue for top performing branches.</p>
+                        </div>
+                        <div class="relative w-full h-[380px] mt-4">
+                            <canvas id="exec-chart-counter-profit"></canvas>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
@@ -5439,6 +5464,166 @@ function saveGlobalGSUrl() {
                 } else {
                     renderStateChart();
                 }
+            // Chart 7: Forecasting (Line Chart)
+            let ctxForecast = document.getElementById('exec-chart-forecast');
+            if (ctxForecast && mode === 'monthly') {
+                // Group sales by day
+                let dailyData = {};
+                let daysInMonth = new Date(parseInt(targetMonth.split('-')[0]), parseInt(targetMonth.split('-')[1]), 0).getDate();
+                for(let i=1; i<=daysInMonth; i++) dailyData[i] = 0;
+                
+                filteredSubs.forEach(s => {
+                    if (s.date && s.date.startsWith(targetMonth)) {
+                        let d = parseInt(s.date.split('-')[2]);
+                        if(d >= 1 && d <= daysInMonth) {
+                            dailyData[d] += (parseFloat(s.sales) || 0);
+                        }
+                    }
+                });
+
+                let cumulative = [];
+                let runningTotal = 0;
+                let todayNum = new Date().getDate();
+                let isCurrentMonth = targetMonth === todayStr.substring(0,7);
+                let limitDay = isCurrentMonth ? todayNum : daysInMonth;
+
+                for(let i=1; i<=limitDay; i++) {
+                    runningTotal += dailyData[i];
+                    cumulative.push(runningTotal);
+                }
+
+                let projected = [...cumulative];
+                if (isCurrentMonth && limitDay > 0 && limitDay < daysInMonth) {
+                    let avgDaily = runningTotal / limitDay;
+                    let projTotal = runningTotal;
+                    for(let i=limitDay+1; i<=daysInMonth; i++) {
+                        projTotal += avgDaily;
+                        projected.push(projTotal);
+                    }
+                }
+
+                if (window.chartExecForecast) window.chartExecForecast.destroy();
+                window.chartExecForecast = new Chart(ctxForecast, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: daysInMonth}, (_, i) => i + 1),
+                        datasets: [
+                            {
+                                label: 'Actual Cumulative Sales (RM)',
+                                data: cumulative,
+                                borderColor: '#06b6d4',
+                                backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 3,
+                                pointRadius: 2
+                            },
+                            {
+                                label: 'Projected Trajectory (Run-rate)',
+                                data: projected,
+                                borderColor: 'rgba(236, 72, 153, 0.5)',
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0.4,
+                                borderWidth: 2,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#cbd5e1' } },
+                            tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': RM ' + formatRM(c.raw); } } }
+                        },
+                        scales: {
+                            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', callback: function(v) { return 'RM ' + (v/1000).toFixed(0) + 'k'; } } },
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            } else if (ctxForecast && window.chartExecForecast) {
+                window.chartExecForecast.destroy();
+                ctxForecast.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 font-bold"><i class="fa-solid fa-circle-info mr-2"></i> Forecasting is only available in Monthly timeframe.</div>';
+            }
+
+            // Chart 8: Counter Profitability
+            let ctxCounter = document.getElementById('exec-chart-counter-profit');
+            if (ctxCounter) {
+                let branchSalesMap = {};
+                filteredSubs.forEach(s => {
+                    let code = String(s.code).trim();
+                    if (!branchSalesMap[code]) {
+                        branchSalesMap[code] = { 
+                            code: code, 
+                            name: s.branch_name || s.name || (masterBranches && masterBranches.find(b=>String(b.code)===code) ? masterBranches.find(b=>String(b.code)===code).name : code),
+                            sales: 0,
+                            ka: 0 
+                        };
+                    }
+                    branchSalesMap[code].sales += (parseFloat(s.sales) || 0);
+                    branchSalesMap[code].ka += (parseFloat(s.kaunterA_amt) || 0);
+                });
+
+                let topBranches = Object.values(branchSalesMap).sort((a,b) => b.sales - a.sales).slice(0, 20);
+                
+                let labels = topBranches.map(b => b.name && b.name.length > 15 ? b.name.substring(0,15)+'...' : (b.name||b.code));
+                let salesData = topBranches.map(b => b.sales);
+                let kaData = topBranches.map(b => b.ka);
+
+                if (window.chartExecCounter) window.chartExecCounter.destroy();
+                // Ensure canvas exists if it was replaced by HTML string previously
+                if(ctxCounter.tagName !== 'CANVAS') {
+                    ctxCounter.parentElement.innerHTML = '<canvas id="exec-chart-counter-profit"></canvas>';
+                    ctxCounter = document.getElementById('exec-chart-counter-profit');
+                }
+                
+                window.chartExecCounter = new Chart(ctxCounter, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Kaunter A Revenue (RM)',
+                                data: kaData,
+                                backgroundColor: '#f43f5e',
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Other Revenue (RM)',
+                                data: salesData.map((val, idx) => Math.max(0, val - kaData[idx])),
+                                backgroundColor: '#0f766e',
+                                borderRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { labels: { color: '#cbd5e1' } },
+                            tooltip: { 
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: { label: function(c) { return c.dataset.label + ': RM ' + formatRM(c.raw); } } 
+                            }
+                        },
+                        scales: {
+                            x: { 
+                                stacked: true,
+                                grid: { color: '#334155' }, 
+                                ticks: { color: '#94a3b8', callback: function(v) { return 'RM ' + (v/1000).toFixed(0) + 'k'; } } 
+                            },
+                            y: { 
+                                stacked: true,
+                                grid: { display: false }, 
+                                ticks: { color: '#94a3b8', font: { size: 10 } } 
+                            }
+                        }
+                    }
+                });
             }
         }
 
