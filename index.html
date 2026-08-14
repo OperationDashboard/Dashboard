@@ -1204,7 +1204,7 @@ function doPost(e) {
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Target Audience</label>
-                                    <select id="survey-new-target" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500">
+                                    <select id="survey-new-target" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500" onchange="enforceSurveyType()">
                                         <option value="am">Area Manager (AM)</option>
                                         <option value="branch">Branch (Branch)</option>
                                     </select>
@@ -1214,8 +1214,8 @@ function doPost(e) {
                                 <div>
                                     <label class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-1">Survey Type</label>
                                     <select id="survey-new-type" class="w-full bg-slate-950 text-white rounded-lg px-4 py-2 border border-slate-700 outline-none focus:border-indigo-500" onchange="toggleSurveyTypeUI()">
-                                        <option value="exception">Klasik: Pengecualian Branch (Tiada Pilihan Soalan)</option>
                                         <option value="custom">Custom: Soalan Dinamik (Item, Ya/Tidak, Teks)</option>
+                                        <option value="exception">Klasik: Pengecualian Branch (Tiada Pilihan Soalan)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -8369,6 +8369,20 @@ function saveGlobalGSUrl() {
             }
         }
 
+        function enforceSurveyType() {
+            let targetEl = document.getElementById('survey-new-target');
+            let typeEl = document.getElementById('survey-new-type');
+            if (targetEl && typeEl) {
+                if (targetEl.value === 'branch') {
+                    typeEl.value = 'custom';
+                    typeEl.disabled = true;
+                } else {
+                    typeEl.disabled = false;
+                }
+                toggleSurveyTypeUI();
+            }
+        }
+
         function toggleSurveyQuestionReasonUI() {
             let type = document.getElementById('survey-builder-qtype').value;
             let container = document.getElementById('survey-builder-reason-container');
@@ -8453,6 +8467,10 @@ function saveGlobalGSUrl() {
             let target = document.getElementById('survey-new-target').value;
             let type = document.getElementById('survey-new-type').value;
             
+            if (target === 'branch' && type !== 'custom') {
+                type = 'custom'; // Force custom for branch
+            }
+            
             if(!title) return showToast('error', 'Please enter survey question/title.');
             if(type === 'custom' && builderQuestions.length === 0) {
                 return showToast('error', 'Please add at least 1 question for Custom Survey.');
@@ -8492,8 +8510,9 @@ function saveGlobalGSUrl() {
                 try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
                 
                 document.getElementById('survey-new-title').value = '';
-                document.getElementById('survey-new-type').value = 'exception';
                 document.getElementById('survey-new-target').value = 'am';
+                document.getElementById('survey-new-type').value = 'custom';
+                document.getElementById('survey-new-type').disabled = false;
                 if(document.getElementById('survey-new-publish-at')) document.getElementById('survey-new-publish-at').value = '';
                 if(document.getElementById('survey-selected-branches')) document.getElementById('survey-selected-branches').value = '';
                 builderQuestions = [];
@@ -8546,7 +8565,8 @@ function saveGlobalGSUrl() {
 
             document.getElementById('survey-new-title').value = newTitle.trim();
             document.getElementById('survey-new-target').value = s.targetAudience || s.target || 'am';
-            document.getElementById('survey-new-type').value = s.type || 'exception';
+            document.getElementById('survey-new-type').value = s.type || 'custom';
+            enforceSurveyType();
             
             if (s.selectedBranches && s.selectedBranches.length > 0) {
                 let selBox = document.getElementById('survey-selected-branches');
@@ -9061,6 +9081,11 @@ function saveGlobalGSUrl() {
                     }
                     
                     let isAmConfirmed = isAMSurveyConfirmed(s, am);
+                    
+                    if ((currentUser.role === 'admin' || currentUser.role === 'operation') && !isAmConfirmed) {
+                        return; // Skip rendering unconfirmed rows for Admin/Ops
+                    }
+                    
                     let badgeAM = isAmConfirmed
                         ? `<span class="bg-emerald-950 border border-emerald-800 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>YES</span>`
                         : `<span class="bg-rose-950 border border-rose-800 text-rose-400 px-2 py-0.5 rounded text-[10px] font-bold">NO</span>`;
@@ -9095,6 +9120,8 @@ function saveGlobalGSUrl() {
                 
                 if(sResp.length === 0) {
                     tbodys = `<tr><td colspan="${totalCols}" class="p-4 text-center text-slate-400">No feedback submitted yet.</td></tr>`;
+                } else if (tbodys === '') {
+                    tbodys = `<tr><td colspan="${totalCols}" class="p-4 text-center text-slate-400">Data belum dihantar oleh Area Manager (Sila rujuk tab AM Status).</td></tr>`;
                 }
                 
                 let amStatusMap = {};
@@ -9388,6 +9415,11 @@ function saveGlobalGSUrl() {
                     if (!bName && code) {
                         let bInfo = masterBranches.find(b => String(b.code) === String(code));
                         if(bInfo) bName = bInfo.name;
+                    }
+                    
+                    let isAmConfirmed = isAMSurveyConfirmed(s, am);
+                    if ((currentUser.role === 'admin' || currentUser.role === 'operation') && !isAmConfirmed) {
+                        return; // Skip exporting unconfirmed rows for Admin/Ops
                     }
                     
                     let row = ['"'+code+'"', '"'+bName.replace(/"/g, '""')+'"', '"'+am.replace(/"/g, '""')+'"'];
