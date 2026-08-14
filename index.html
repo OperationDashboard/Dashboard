@@ -1196,7 +1196,10 @@ function doPost(e) {
                 <div id="survey-admin-view" class="hidden space-y-6">
                     <!-- Create Survey Form -->
                     <div class="pbi-card rounded-xl p-6 shadow-xl border-t-4 border-indigo-500">
-                        <h2 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-plus-circle text-indigo-400 mr-2"></i> Create New Survey</h2>
+                                <h2 class="text-xl font-bold font-display tracking-tight text-white flex items-center mb-4">
+                                    <i class="fa-solid fa-plus-circle text-indigo-400 mr-2"></i>Create New Survey
+                                    <button onclick="debugLastSurvey()" class="bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-bold py-1 px-2 rounded ml-4"><i class="fa-solid fa-bug mr-1"></i> Debug Last</button>
+                                </h2>
                         <div class="flex flex-col gap-4">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="md:col-span-2">
@@ -8542,6 +8545,23 @@ function saveGlobalGSUrl() {
                 showToast('error', 'Error: ' + e.message);
             }
         }
+
+        window.debugLastSurvey = async function() {
+            try {
+                let snap = await db.collection('surveys').orderBy('createdAt', 'desc').limit(1).get();
+                if(snap.empty) return showToast('error', 'No surveys found');
+                let s = snap.docs[0].data();
+                Swal.fire({
+                    title: 'Debug: ' + s.title,
+                    html: '<pre class="text-left text-[10px] text-white bg-black p-2 rounded overflow-auto max-h-64">' + JSON.stringify(s, null, 2) + '</pre>',
+                    width: '600px',
+                    background: '#1e293b',
+                    color: '#fff'
+                });
+            } catch(e) {
+                showToast('error', 'Debug Error: ' + e.message);
+            }
+        };
 
         async function cloneSurvey(id) {
             let s = allSurveys.find(x => x.id === id);
