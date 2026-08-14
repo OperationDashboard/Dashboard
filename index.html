@@ -1932,9 +1932,10 @@ window.onunhandledrejection = function(event) {
                 let rtChannel = null;
                 let pollTimer = null;
                 if (currentUser && currentUser.role !== 'branch' && this.col !== 'config') {
+                    let intervalMs = (currentUser.role === 'admin' || currentUser.role === 'operation') ? 180000 : 900000; // Admin 3 mins, AM 15 mins
                     pollTimer = setInterval(() => {
                         if (active && !document.hidden && typeof doFetch === 'function') doFetch();
-                    }, 180000); // 3 minutes
+                    }, intervalMs);
                 }
 
 
@@ -9863,15 +9864,24 @@ function saveGlobalGSUrl() {
         let idleTimeout;
         function resetIdleTimer() {
             clearTimeout(idleTimeout);
-            // Set for 15 minutes (15 * 60 * 1000 = 900000 ms)
+            let timeoutMins = 7;
+            let timeoutMs = 420000; // 7 mins default untuk AM / Cawangan
+            
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                if (currentUser.role === 'admin' || currentUser.role === 'operation') {
+                    timeoutMins = 15;
+                    timeoutMs = 900000; // 15 mins untuk Admin
+                }
+            }
+            
             idleTimeout = setTimeout(() => {
                 if (typeof currentUser !== 'undefined' && currentUser) {
                     if (typeof logout === 'function') logout();
-                    Swal.fire('Session Expired', 'The system logged out automatically due to inactivity for 15 minutes for security reasons.', 'info').then(() => {
+                    Swal.fire('Session Expired', `The system logged out automatically due to inactivity for ${timeoutMins} minutes for security reasons.`, 'info').then(() => {
                         window.location.reload();
                     });
                 }
-            }, 900000);
+            }, timeoutMs);
         }
 
         // Detect user activity to reset the timer
