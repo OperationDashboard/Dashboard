@@ -61,7 +61,7 @@
             </div>
 
             <!-- Global Action Buttons -->
-            <span id="app-version" class="text-[9px] text-slate-500 font-bold bg-slate-900 px-2 py-1 rounded">v2.2</span>
+            <span id="app-version" class="text-[9px] text-slate-500 font-bold bg-slate-900 px-2 py-1 rounded">v2.3</span>
             <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700">
                 <button onclick="toggleLang()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors">
                     <i class="fa-solid fa-language mr-1"></i> <span id="lang-indicator">EN</span>
@@ -1256,6 +1256,7 @@ function doPost(e) {
                                         <option value="number">Quantity (Number)</option>
                                         <option value="yesno">Option (Yes/No)</option>
                                         <option value="text">Short Text</option>
+                                        <option value="date">Date (Tarikh)</option>
                                     </select>
                                     <button type="button" onclick="addCustomQuestion()" class="bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold py-1.5 px-3 rounded-lg"><i class="fa-solid fa-plus"></i> Add</button>
                                 </div>
@@ -7914,6 +7915,8 @@ function saveGlobalGSUrl() {
                         html += `<td class="p-2 border border-slate-700">`;
                         if(q.type === 'number') {
                             html += `<input type="number" id="sq_${s.id}_${b.code}_${q.id}" class="w-full min-w-[80px] bg-slate-900 text-white rounded px-2 py-1 text-center border border-slate-700 outline-none focus:border-indigo-500" placeholder="0">`;
+                        } else if (q.type === 'date') {
+                            html += `<input type="date" id="sq_${s.id}_${b.code}_${q.id}" class="w-full min-w-[110px] bg-slate-900 text-white rounded px-2 py-1 text-center border border-slate-700 outline-none focus:border-indigo-500">`;
                         } else if (q.type === 'yesno') {
                             let rAttr = (q.reasons && q.reasons.length > 0) ? `data-reasons='${JSON.stringify(q.reasons).replace(/'/g, "&#39;")}'` : '';
                             html += `<select id="sq_${s.id}_${b.code}_${q.id}" ${rAttr} onchange="handleSurveyYesNoChange(this, '${q.label.replace(/'/g, "\\'")}')" class="w-full min-w-[80px] bg-slate-900 text-white rounded px-2 py-1 border border-slate-700 outline-none focus:border-indigo-500">
@@ -7936,6 +7939,8 @@ function saveGlobalGSUrl() {
                     html += `<div><label class="text-xs font-bold text-slate-300 block mb-1">${q.label}</label>`;
                     if(q.type === 'number') {
                         html += `<input type="number" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500" placeholder="Quantity (0)">`;
+                    } else if (q.type === 'date') {
+                        html += `<input type="date" id="sq_${s.id}_${q.id}" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">`;
                     } else if (q.type === 'yesno') {
                         let rAttr = (q.reasons && q.reasons.length > 0) ? `data-reasons='${JSON.stringify(q.reasons).replace(/'/g, "&#39;")}'` : '';
                         html += `<select id="sq_${s.id}_${q.id}" ${rAttr} onchange="handleSurveyYesNoChange(this, '${q.label.replace(/'/g, "\\'")}')" class="w-full bg-slate-900 text-white rounded px-3 py-2 border border-slate-700 outline-none focus:border-indigo-500">
@@ -8409,8 +8414,8 @@ function saveGlobalGSUrl() {
             }
             let html = '';
             builderQuestions.forEach((q, idx) => {
-                let icon = q.type === 'number' ? 'fa-hashtag' : (q.type === 'yesno' ? 'fa-toggle-on' : 'fa-font');
-                let typeName = q.type === 'number' ? 'Kuantiti' : (q.type === 'yesno' ? 'Ya/Tidak' : 'Teks');
+                let icon = q.type === 'number' ? 'fa-hashtag' : (q.type === 'yesno' ? 'fa-toggle-on' : (q.type === 'date' ? 'fa-calendar-days' : 'fa-font'));
+                let typeName = q.type === 'number' ? 'Kuantiti' : (q.type === 'yesno' ? 'Ya/Tidak' : (q.type === 'date' ? 'Tarikh' : 'Teks'));
                 let reasonsBadge = '';
                 if (q.type === 'yesno' && q.reasons && q.reasons.length > 0) {
                     reasonsBadge = `<div class="text-[10px] text-amber-300 mt-1"><i class="fa-solid fa-circle-question mr-1"></i>Sebab Tidak: ${q.reasons.join(', ')}</div>`;
