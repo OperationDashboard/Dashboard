@@ -3635,8 +3635,10 @@ function saveGlobalGSUrl() {
         function logout() {
             currentUser = null; localStorage.removeItem('pbi_user');
             if(typeof hasAlertedSurvey !== 'undefined') hasAlertedSurvey = false;
-            if(typeof surveyUnsubscribe !== 'undefined' && surveyUnsubscribe) { surveyUnsubscribe(); surveyUnsubscribe = null; }
-            if(typeof responsesUnsubscribe !== 'undefined' && responsesUnsubscribe) { responsesUnsubscribe(); responsesUnsubscribe = null; }
+            if(typeof surveyUnsubscribe === 'function') { surveyUnsubscribe(); surveyUnsubscribe = null; }
+            else if(surveyUnsubscribe && typeof surveyUnsubscribe.cancel === 'function') { surveyUnsubscribe.cancel(); surveyUnsubscribe = null; }
+            if(typeof responsesUnsubscribe === 'function') { responsesUnsubscribe(); responsesUnsubscribe = null; }
+            else if(responsesUnsubscribe && typeof responsesUnsubscribe.cancel === 'function') { responsesUnsubscribe.cancel(); responsesUnsubscribe = null; }
             if(typeof unsubToday !== 'undefined' && unsubToday) { unsubToday(); unsubToday = null; }
             if(typeof unsubBank !== 'undefined' && unsubBank) { unsubBank(); unsubBank = null; }
             if(typeof unsubNight !== 'undefined' && unsubNight) { unsubNight(); unsubNight = null; }
@@ -7542,7 +7544,9 @@ function saveGlobalGSUrl() {
 
         function listenToSurveyBadge() {
             if (typeof surveyUnsubscribe === 'function') surveyUnsubscribe();
+            else if (surveyUnsubscribe && typeof surveyUnsubscribe.cancel === 'function') surveyUnsubscribe.cancel();
             if (typeof responsesUnsubscribe === 'function') responsesUnsubscribe();
+            else if (responsesUnsubscribe && typeof responsesUnsubscribe.cancel === 'function') responsesUnsubscribe.cancel();
             if (_surveyScheduleTimer) clearInterval(_surveyScheduleTimer);
             
             surveysLoaded = false;
@@ -7619,32 +7623,22 @@ function saveGlobalGSUrl() {
                 updateSurveyUI(true);
             };
 
-            db.collection('surveys').get().then(snap => processSurveys(snap ? snap.docs : [])).catch(e => {
-                console.error("Initial get surveys err:", e);
-                let cached = localStorage.getItem('cached_all_surveys');
-                if (cached) { try { let p = JSON.parse(cached); if(Array.isArray(p)) { allSurveys = p; } } catch(err){} }
-                surveysLoaded = true;
-                updateSurveyUI(true);
-            });
-            
-            surveyUnsubscribe = db.collection('surveys').onSnapshot(snap => {
-                processSurveys(snap ? snap.docs : []);
-                
-                let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
-                if (sIds.length === 0) {
-                    if (responsesUnsubscribe) { responsesUnsubscribe(); responsesUnsubscribe = null; }
-                    lastActiveSurveyHash = null;
-                    allResponses = [];
-                    responsesLoaded = true;
-                    updateSurveyUI(true);
-                    if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
-                    return;
-                }
-                
-                let curHash = sIds.slice().sort().join('|');
-                if (curHash !== lastActiveSurveyHash || !responsesUnsubscribe) {
+            let fetchSurveyData = () => {
+                db.collection('surveys').get().then(snap => {
+                    processSurveys(snap ? snap.docs : []);
+                    
+                    let sIds = allSurveys.filter(s => s.status === 'active').map(s => s.id);
+                    if (sIds.length === 0) {
+                        lastActiveSurveyHash = null;
+                        allResponses = [];
+                        responsesLoaded = true;
+                        updateSurveyUI(true);
+                        if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
+                        return;
+                    }
+                    
+                    let curHash = sIds.slice().sort().join('|');
                     lastActiveSurveyHash = curHash;
-                    if (responsesUnsubscribe) responsesUnsubscribe();
                     
                     let respQuery = db.collection('survey_responses');
                     if (sIds.length > 0 && sIds.length <= 50) {
@@ -7655,7 +7649,8 @@ function saveGlobalGSUrl() {
                     } else if (currentUser && currentUser.role === 'am') {
                         respQuery = respQuery.where('amName', '==', (currentUser.name || '').trim().toUpperCase());
                     }
-                    responsesUnsubscribe = respQuery.limit(2000).onSnapshot(rSnap => {
+                    
+                    respQuery.limit(2000).get().then(rSnap => {
                         let rData = rSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
                         
                         if (currentUser && currentUser.role === 'branch') {
@@ -7670,13 +7665,15 @@ function saveGlobalGSUrl() {
                             allResponses.forEach(r => respMap.set(r.id, r));
                             rData.forEach(r => respMap.set(r.id, r));
                             rData = Array.from(respMap.values());
+                        } else {
+                            allResponses = rData;
                         }
-                        allResponses = rData;
+                        
                         try { localStorage.setItem('cached_all_responses', JSON.stringify(allResponses)); } catch(e){}
                         responsesLoaded = true;
                         updateSurveyUI(true);
                         if(surveysLoaded && responsesLoaded) checkSurveyAlerts();
-                    }, err => {
+                    }).catch(err => {
                         console.error("Responses snapshot err:", err);
                         if (!Array.isArray(allResponses) || allResponses.length === 0) {
                             let cachedR = localStorage.getItem('cached_all_responses');
@@ -7686,18 +7683,23 @@ function saveGlobalGSUrl() {
                         responsesLoaded = true;
                         updateSurveyUI(true);
                     });
-                }
-            }, err => {
-                console.error("Surveys snapshot err:", err);
-                db.collection('surveys').get().then(snap => {
-                    processSurveys(snap ? snap.docs : []);
                 }).catch(e => {
+                    console.error("Surveys fetch err:", e);
                     let cachedS = localStorage.getItem('cached_all_surveys');
                     if (cachedS) { try { let ps = JSON.parse(cachedS); if(Array.isArray(ps)) allSurveys = ps; } catch(err){} }
                     surveysLoaded = true;
                     updateSurveyUI(true);
                 });
-            });
+            };
+
+            fetchSurveyData();
+            
+            let surveyPollTimer = setInterval(fetchSurveyData, 300000); // 5 minutes poll
+            
+            surveyUnsubscribe = {
+                refresh: fetchSurveyData,
+                cancel: () => clearInterval(surveyPollTimer)
+            };
         }
         
         function filterBranchesForSurvey(branches, s) {
