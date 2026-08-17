@@ -61,7 +61,7 @@
             </div>
 
             <!-- Global Action Buttons -->
-            <span id="app-version" class="text-[9px] text-slate-500 font-bold bg-slate-900 px-2 py-1 rounded">v2.5</span>
+            <span id="app-version" class="text-[9px] text-slate-500 font-bold bg-slate-900 px-2 py-1 rounded">v2.6</span>
             <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700">
                 <button onclick="toggleLang()" class="flex h-7 px-2 items-center justify-center rounded-md text-xs font-bold text-white hover:bg-slate-700 hover:text-cyan-400 transition-colors">
                     <i class="fa-solid fa-language mr-1"></i> <span id="lang-indicator">EN</span>
@@ -268,7 +268,7 @@
             <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
                     <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Daily Summary</button>
-                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts (Admin)</button>
+                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts</button>
                     <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
                     <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-area mr-1"></i> Daily & Analytic Comparison</button>
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
@@ -1305,7 +1305,7 @@ function doPost(e) {
                 <!-- TIMEFRAME & SMART FILTER BAR -->
                 <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 class="text-lg font-black text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-cyan-400 text-xl"></i> Executive Strategic Charts (CEO & Admin Dashboard)</h2>
+                        <h2 class="text-lg font-black text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-cyan-400 text-xl"></i> Executive Strategic Charts</h2>
                         <p class="text-xs text-slate-400 mt-1">Deep visual analytics for high-impact insights and executive decision-making.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
@@ -3602,8 +3602,8 @@ function saveGlobalGSUrl() {
         }
 
         function switchTab(tab) {
-            if (tab === 'exec-charts' && (!currentUser || currentUser.role !== 'admin')) {
-                showToast('error', 'Executive Charts is strictly for Admin only.');
+            if (tab === 'exec-charts' && (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'operation' && currentUser.role !== 'am'))) {
+                showToast('error', 'Executive Charts is strictly for authorized roles only.');
                 return;
             }
             window.isFillingSurveyActive = false;
@@ -4725,22 +4725,38 @@ function saveGlobalGSUrl() {
             if (dateInput) { if (!dateInput.value) dateInput.value = todayStr; targetDate = dateInput.value; }
             if (monthInput) { if (!monthInput.value) monthInput.value = todayStr.substring(0, 7); targetMonth = monthInput.value; }
 
-            // Filter submissions based on timeframe
+            // Filter submissions based on timeframe and AM role
+            let branches = getManagerFilteredBranches();
+            let bCodes = branches.map(b => String(b.code));
+            let cName = currentUser ? (currentUser.name || '').trim().toUpperCase() : '';
+            
             let filteredSubs = [];
             let datesList = [];
+            
+            let applySubFilter = (s) => {
+                if (!isSubmissionCountable(s)) return false;
+                if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation') return true;
+                if (currentUser.role === 'am') {
+                    if (bCodes.length > 0) return bCodes.includes(String(s.code));
+                    let sAm = (s.am || '').trim().toUpperCase();
+                    return sAm && cName && sAm === cName;
+                }
+                return bCodes.includes(String(s.code));
+            };
+
             if (mode === 'daily') {
                 datesList = [targetDate];
-                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => s.date === targetDate && isSubmissionCountable(s)));
+                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => s.date === targetDate && applySubFilter(s)));
             } else if (mode === 'weekly') {
                 let baseD = new Date(targetDate);
                 for (let i = 6; i >= 0; i--) {
                     let dStr = getYYYYMMDD(new Date(baseD.getTime() - (i * 86400000)));
                     datesList.push(dStr);
                 }
-                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => datesList.includes(s.date) && isSubmissionCountable(s)));
+                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => datesList.includes(s.date) && applySubFilter(s)));
             } else {
                 // monthly
-                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => s && s.date && String(s.date).startsWith(targetMonth) && isSubmissionCountable(s)));
+                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => s && s.date && String(s.date).startsWith(targetMonth) && applySubFilter(s)));
             }
 
             // Calculate overall KPIs for cards
