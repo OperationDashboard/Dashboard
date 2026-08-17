@@ -268,7 +268,8 @@
             <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div class="flex gap-4 overflow-x-auto border-b border-slate-800 pb-2 w-full sm:w-auto">
                     <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="pb-2 text-sm font-bold tab-active whitespace-nowrap" data-i18n="tab_dashboard">Daily Summary</button>
-                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts</button>
+                    <button onclick="switchTab('exec-charts')" id="tab-btn-exec-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin hidden"><i class="fa-solid fa-chart-pie mr-1 text-cyan-400"></i> Executive Charts (Admin)</button>
+                    <button onclick="switchTab('am-charts')" id="tab-btn-am-charts" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-column mr-1 text-emerald-400"></i> Area Manager Charts</button>
                     <button onclick="switchTab('tracking')" id="tab-btn-tracking" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap" data-i18n="tab_tracking">Tracking & Reset</button>
                     <button onclick="switchTab('comparison')" id="tab-btn-comparison" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap am-only hidden"><i class="fa-solid fa-chart-area mr-1"></i> Daily & Analytic Comparison</button>
                     <button onclick="switchTab('control')" id="tab-btn-control" class="pb-2 text-sm font-bold tab-inactive whitespace-nowrap super-admin" data-i18n="tab_control">System Control</button>
@@ -1305,7 +1306,7 @@ function doPost(e) {
                 <!-- TIMEFRAME & SMART FILTER BAR -->
                 <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 class="text-lg font-black text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-cyan-400 text-xl"></i> Executive Strategic Charts</h2>
+                        <h2 class="text-lg font-black text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-cyan-400 text-xl"></i> Executive Strategic Charts (CEO & Admin Dashboard)</h2>
                         <p class="text-xs text-slate-400 mt-1">Deep visual analytics for high-impact insights and executive decision-making.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
@@ -1578,6 +1579,85 @@ function doPost(e) {
                         </div>
                         <div class="relative w-full h-[380px] mt-4">
                             <canvas id="exec-chart-kb"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AREA MANAGER CHARTS TAB -->
+            <section id="tab-am-charts" class="hidden space-y-6">
+                <!-- TIMEFRAME FILTER -->
+                <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-black text-white flex items-center gap-2"><i class="fa-solid fa-chart-column text-emerald-400 text-xl"></i> Area Manager Charts</h2>
+                        <p class="text-xs text-slate-400 mt-1">Laporan prestasi khas untuk kawasan seliaan anda.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <div class="flex items-center gap-2 bg-slate-950 border border-slate-700/80 rounded-xl p-1 shadow-inner">
+                            <button onclick="setAMTimeframe('daily')" id="btn-am-tf-daily" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">Daily</button>
+                            <button onclick="setAMTimeframe('monthly')" id="btn-am-tf-monthly" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-emerald-600 text-white shadow-md">Monthly</button>
+                        </div>
+                        <input type="date" id="am-filter-date" onchange="triggerDataSync()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-emerald-500 shadow hidden">
+                        <input type="month" id="am-filter-month" onchange="triggerDataSync()" class="bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-emerald-500 shadow">
+                    </div>
+                </div>
+
+                <!-- TOP KPI CARDS -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="pbi-card rounded-2xl p-5 border border-cyan-500/20 shadow-xl shadow-cyan-900/10 flex flex-col justify-between hover:-translate-y-1 transition-transform">
+                        <div class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-wallet text-cyan-400"></i> Total Sales vs Target</div>
+                        <div class="mt-4 flex items-end justify-between">
+                            <span id="am-stat-sales" class="text-2xl font-black text-cyan-400">RM 0.00</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1 flex justify-between">
+                            <span>Target: <strong id="am-stat-target" class="text-white">RM 0.00</strong></span>
+                            <span id="am-stat-diff" class="font-bold text-emerald-400">+RM 0.00</span>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-emerald-500/20 shadow-xl shadow-emerald-900/10 flex flex-col justify-between hover:-translate-y-1 transition-transform">
+                        <div class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-gauge-high text-emerald-400"></i> KPI Achievement Score</div>
+                        <div class="mt-4 flex items-end justify-between">
+                            <span id="am-stat-achieve" class="text-2xl font-black text-emerald-400">0.0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 mt-2.5 overflow-hidden">
+                            <div id="am-stat-achieve-bar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-purple-500/20 shadow-xl shadow-purple-900/10 flex flex-col justify-between hover:-translate-y-1 transition-transform">
+                        <div class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-receipt text-purple-400"></i> Total Transaction</div>
+                        <div class="mt-4 flex items-end justify-between">
+                            <span id="am-stat-trans" class="text-2xl font-black text-purple-400">0</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1.5">
+                            <span>Avg per branch: <strong id="am-stat-trans-avg" class="text-white">0</strong> resit</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHARTS -->
+                <div class="space-y-6">
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl">
+                        <div class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-4"><i class="fa-solid fa-chart-column text-cyan-400"></i> Actual vs Target Sales</div>
+                        <div class="relative w-full h-[380px]">
+                            <canvas id="am-chart-sales-target"></canvas>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl">
+                        <div class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-4"><i class="fa-solid fa-chart-bar text-orange-400"></i> Total Sales vs Lorry Trip Sales</div>
+                        <div class="relative w-full h-[380px]">
+                            <canvas id="am-chart-lorry"></canvas>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl">
+                        <div class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-4"><i class="fa-solid fa-chart-bar text-pink-400"></i> Kaunter A</div>
+                        <div class="relative w-full h-[380px]">
+                            <canvas id="am-chart-ka"></canvas>
+                        </div>
+                    </div>
+                    <div class="pbi-card rounded-2xl p-5 border border-slate-800/80 shadow-xl">
+                        <div class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-4"><i class="fa-solid fa-chart-bar text-teal-400"></i> Kaunter B</div>
+                        <div class="relative w-full h-[380px]">
+                            <canvas id="am-chart-kb"></canvas>
                         </div>
                     </div>
                 </div>
@@ -2762,6 +2842,9 @@ function saveGlobalGSUrl() {
             else if (currentTab === 'exec-charts') {
                 if (typeof renderExecCharts === 'function') renderExecCharts();
             }
+            else if (currentTab === 'am-charts') {
+                if (typeof renderAMCharts === 'function') renderAMCharts();
+            }
             if (typeof applyRoleVisibilities === 'function') applyRoleVisibilities();
         }
 
@@ -2977,6 +3060,9 @@ function saveGlobalGSUrl() {
             } else if (currentTab === 'exec-charts') {
                 mode = (typeof execCurrentTimeframe !== 'undefined' && execCurrentTimeframe === 'daily') ? 'daily' : 'monthly';
                 dateStr = mode === 'daily' ? (document.getElementById('exec-filter-date').value || todayStr) : (document.getElementById('exec-filter-month').value || todayStr.substring(0,7));
+            } else if (currentTab === 'am-charts') {
+                mode = (typeof window.amCurrentTimeframe !== 'undefined' && window.amCurrentTimeframe === 'daily') ? 'daily' : 'monthly';
+                dateStr = mode === 'daily' ? (document.getElementById('am-filter-date').value || todayStr) : (document.getElementById('am-filter-month').value || todayStr.substring(0,7));
             } else if (currentTab === 'drop') {
                 return;
             }
@@ -3602,14 +3688,14 @@ function saveGlobalGSUrl() {
         }
 
         function switchTab(tab) {
-            if (tab === 'exec-charts' && (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'operation' && currentUser.role !== 'am'))) {
-                showToast('error', 'Executive Charts is strictly for authorized roles only.');
+            if (tab === 'exec-charts' && (!currentUser || currentUser.role !== 'admin')) {
+                showToast('error', 'Executive Charts is strictly for Admin only.');
                 return;
             }
             window.isFillingSurveyActive = false;
             currentTab = tab;
             applyRoleVisibilities();
-            ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target', 'exec-charts'].forEach(t => {
+            ['dashboard', 'tracking', 'comparison', 'control', 'hub', 'drop', 'audit', 'lorry', 'survey', 'target', 'exec-charts', 'am-charts'].forEach(t => {
                 let s = document.getElementById('tab-' + t), b = document.getElementById('tab-btn-' + t);
                 if(s) s.classList.add('hidden');
                 if(b) { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); }
@@ -3645,6 +3731,10 @@ function saveGlobalGSUrl() {
                 if (typeof updateAllDateMax === 'function') updateAllDateMax();
                 if (typeof triggerDataSync === 'function') triggerDataSync();
                 if (typeof renderExecCharts === 'function') setTimeout(renderExecCharts, 50);
+            } else if (tab === 'am-charts') {
+                if (typeof updateAllDateMax === 'function') updateAllDateMax();
+                if (typeof triggerDataSync === 'function') triggerDataSync();
+                if (typeof renderAMCharts === 'function') setTimeout(renderAMCharts, 50);
             } else {
                 if(tab === 'dashboard' || tab === 'analytics' || tab === 'tracking' || tab === 'comparison' || tab === 'lorry') {
                     if (typeof updateAllDateMax === 'function') updateAllDateMax();
@@ -5704,6 +5794,27 @@ function saveGlobalGSUrl() {
         function toggleDayPatternMode(mode) {
             window.dayPatternMode = mode;
             if (typeof renderExecCharts === 'function') renderExecCharts();
+        }
+
+        function setAMTimeframe(mode) {
+            window.amCurrentTimeframe = mode;
+            let btnDaily = document.getElementById('btn-am-tf-daily');
+            let btnMonthly = document.getElementById('btn-am-tf-monthly');
+            let dFilter = document.getElementById('am-filter-date');
+            let mFilter = document.getElementById('am-filter-month');
+            
+            if (mode === 'daily') {
+                if(btnDaily) { btnDaily.classList.add('bg-emerald-600', 'text-white', 'shadow-md'); btnDaily.classList.remove('text-slate-400'); }
+                if(btnMonthly) { btnMonthly.classList.remove('bg-emerald-600', 'text-white', 'shadow-md'); btnMonthly.classList.add('text-slate-400'); }
+                if(dFilter) dFilter.classList.remove('hidden');
+                if(mFilter) mFilter.classList.add('hidden');
+            } else {
+                if(btnMonthly) { btnMonthly.classList.add('bg-emerald-600', 'text-white', 'shadow-md'); btnMonthly.classList.remove('text-slate-400'); }
+                if(btnDaily) { btnDaily.classList.remove('bg-emerald-600', 'text-white', 'shadow-md'); btnDaily.classList.add('text-slate-400'); }
+                if(mFilter) mFilter.classList.remove('hidden');
+                if(dFilter) dFilter.classList.add('hidden');
+            }
+            triggerDataSync();
         }
 
         function filterOrToastAMStatus(status) {
@@ -9967,6 +10078,196 @@ function saveGlobalGSUrl() {
         // Start the timer when the script loads
         resetIdleTimer();
 
+        function renderAMCharts() {
+            if (typeof Chart === 'undefined') return;
+            Chart.defaults.color = '#f8fafc';
+            Chart.defaults.font.family = "'Inter', sans-serif";
+
+            let mode = window.amCurrentTimeframe || 'monthly';
+            let dateInput = document.getElementById('am-filter-date');
+            let monthInput = document.getElementById('am-filter-month');
+            
+            let targetDate = todayStr;
+            let targetMonth = todayStr.substring(0, 7);
+            if (dateInput) { if (!dateInput.value) dateInput.value = todayStr; targetDate = dateInput.value; }
+            if (monthInput) { if (!monthInput.value) monthInput.value = todayStr.substring(0, 7); targetMonth = monthInput.value; }
+
+            let branches = getManagerFilteredBranches();
+            let bCodes = branches.map(b => String(b.code));
+            
+            // Filter submissions based on timeframe
+            let filteredSubs = [];
+            let datesList = [];
+            if (mode === 'daily') {
+                datesList = [targetDate];
+                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => s.date === targetDate && isSubmissionCountable(s) && bCodes.includes(String(s.code))));
+            } else if (mode === 'weekly') {
+                let baseD = new Date(targetDate);
+                for (let i = 6; i >= 0; i--) {
+                    let dStr = getYYYYMMDD(new Date(baseD.getTime() - (i * 86400000)));
+                    datesList.push(dStr);
+                }
+                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => datesList.includes(s.date) && isSubmissionCountable(s) && bCodes.includes(String(s.code))));
+            } else {
+                // monthly
+                filteredSubs = deduplicateSubmissionsList(dbSubmissions.filter(s => s && s.date && String(s.date).startsWith(targetMonth) && isSubmissionCountable(s) && bCodes.includes(String(s.code))));
+            }
+
+            // Calculate overall KPIs
+            let totalSales = 0, totalLorry = 0, totalTrans = 0;
+            let branchSalesMap = {};
+            let branchLorryMap = {};
+            let branchKAMap = {};
+            let branchKBMap = {};
+            
+            branches.forEach(b => {
+                let codeStr = String(b.code);
+                branchSalesMap[codeStr] = 0;
+                branchLorryMap[codeStr] = 0;
+                branchKAMap[codeStr] = 0;
+                branchKBMap[codeStr] = 0;
+            });
+
+            filteredSubs.forEach(s => {
+                let codeStr = String(s.code).trim();
+                if (branchSalesMap[codeStr] !== undefined) {
+                    branchSalesMap[codeStr] += (parseFloat(s.sales) || 0);
+                    branchLorryMap[codeStr] += (parseFloat(s.lorry) || 0);
+                    branchKAMap[codeStr] += (parseFloat(s.kaunterA) || 0);
+                    branchKBMap[codeStr] += (parseFloat(s.kaunterB) || 0);
+                    
+                    totalSales += (parseFloat(s.sales) || 0);
+                    totalLorry += (parseFloat(s.lorry) || 0);
+                    totalTrans += (parseFloat(s.transactions) || 0);
+                }
+            });
+
+            let elSales = document.getElementById('am-stat-sales');
+            let elTarget = document.getElementById('am-stat-target');
+            let elDiff = document.getElementById('am-stat-diff');
+            let elAchieve = document.getElementById('am-stat-achieve');
+            let elAchieveBar = document.getElementById('am-stat-achieve-bar');
+            let elTrans = document.getElementById('am-stat-trans');
+            let elTransAvg = document.getElementById('am-stat-trans-avg');
+            
+            if(elSales) elSales.innerText = 'RM ' + totalSales.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if(elTrans) elTrans.innerText = totalTrans.toLocaleString();
+            if(elTransAvg) elTransAvg.innerText = branches.length > 0 ? (totalTrans / branches.length).toFixed(0) : '0';
+
+            // Fetch Targets
+            let targetQueryMonth = mode === 'monthly' ? targetMonth : targetDate.substring(0, 7);
+            if (typeof db !== 'undefined' && db.collection) {
+                db.collection('targets').where('month', '==', targetQueryMonth).get().then(snap => {
+                    let totalTarget = 0;
+                    let branchTargetMap = {};
+                    branches.forEach(b => branchTargetMap[String(b.code)] = 0);
+                    
+                    if (snap && snap.docs) {
+                        snap.docs.forEach(doc => {
+                            let d = doc.data();
+                            let cStr = String(d.code).trim();
+                            if (branchTargetMap[cStr] !== undefined) {
+                                let tVal = parseFloat(d.target || d.target_sales || 0);
+                                if (mode !== 'monthly' && tVal > 0) {
+                                    let daysInMonth = new Date(targetQueryMonth.split('-')[0], targetQueryMonth.split('-')[1], 0).getDate();
+                                    tVal = (tVal / daysInMonth) * datesList.length;
+                                }
+                                branchTargetMap[cStr] += tVal;
+                                totalTarget += tVal;
+                            }
+                        });
+                    }
+                    
+                    if (totalTarget === 0) totalTarget = Math.max(totalSales * 1.2, 100);
+                    
+                    if(elTarget) elTarget.innerText = 'RM ' + totalTarget.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    
+                    let diff = totalSales - totalTarget;
+                    if(elDiff) {
+                        elDiff.innerText = (diff >= 0 ? '+' : '') + 'RM ' + diff.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        elDiff.className = diff >= 0 ? 'font-bold text-emerald-400' : 'font-bold text-rose-400';
+                    }
+                    
+                    let achPct = totalTarget > 0 ? ((totalSales / totalTarget) * 100) : 0;
+                    if(elAchieve) elAchieve.innerText = achPct.toFixed(1) + '%';
+                    if(elAchieveBar) {
+                        elAchieveBar.style.width = Math.min(achPct, 100) + '%';
+                        elAchieveBar.className = achPct >= 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500' : (achPct >= 80 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400 h-2 rounded-full transition-all duration-500' : 'bg-gradient-to-r from-rose-500 to-rose-400 h-2 rounded-full transition-all duration-500');
+                    }
+
+                    // --- DRAW CHARTS ---
+                    let labels = branches.map(b => b.name);
+                    let salesData = branches.map(b => branchSalesMap[String(b.code)] || 0);
+                    let targetData = branches.map(b => branchTargetMap[String(b.code)] || 0);
+                    let lorryData = branches.map(b => branchLorryMap[String(b.code)] || 0);
+                    let kaData = branches.map(b => branchKAMap[String(b.code)] || 0);
+                    let kbData = branches.map(b => branchKBMap[String(b.code)] || 0);
+                    
+                    // Chart 1: Actual vs Target Sales
+                    let ctx1 = document.getElementById('am-chart-sales-target');
+                    if (ctx1) {
+                        if (window.chartAMS1) window.chartAMS1.destroy();
+                        window.chartAMS1 = new Chart(ctx1, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    { label: 'Jualan Sebenar', data: salesData, backgroundColor: '#06b6d4', borderRadius: 4 },
+                                    { label: 'Sasaran (Target)', data: targetData, backgroundColor: '#334155', borderRadius: 4 }
+                                ]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { color: '#1e293b' } } } }
+                        });
+                    }
+                    
+                    // Chart 2: Total Sales vs Lorry
+                    let ctx2 = document.getElementById('am-chart-lorry');
+                    if (ctx2) {
+                        if (window.chartAMS2) window.chartAMS2.destroy();
+                        window.chartAMS2 = new Chart(ctx2, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    { label: 'Jumlah Jualan', data: salesData, backgroundColor: '#3b82f6', borderRadius: 4 },
+                                    { label: 'Jualan Lori', data: lorryData, backgroundColor: '#f59e0b', borderRadius: 4 }
+                                ]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { color: '#1e293b' } } } }
+                        });
+                    }
+                    
+                    // Chart 3: Kaunter A
+                    let ctx3 = document.getElementById('am-chart-ka');
+                    if (ctx3) {
+                        if (window.chartAMS3) window.chartAMS3.destroy();
+                        window.chartAMS3 = new Chart(ctx3, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{ label: 'Jualan Kaunter A', data: kaData, backgroundColor: '#ec4899', borderRadius: 4 }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { color: '#1e293b' } } } }
+                        });
+                    }
+                    
+                    // Chart 4: Kaunter B
+                    let ctx4 = document.getElementById('am-chart-kb');
+                    if (ctx4) {
+                        if (window.chartAMS4) window.chartAMS4.destroy();
+                        window.chartAMS4 = new Chart(ctx4, {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{ label: 'Jualan Kaunter B', data: kbData, backgroundColor: '#14b8a6', borderRadius: 4 }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { color: '#1e293b' } } } }
+                        });
+                    }
+
+                }).catch(e => console.error(e));
+            }
+        }
 </script>
 </body>
 
