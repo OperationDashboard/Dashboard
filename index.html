@@ -9237,6 +9237,27 @@ function saveGlobalGSUrl() {
                 sResp = allResponses.filter(x => x.surveyId === id);
             }
             
+            // Deduplicate sResp to handle cases where users submitted multiple times due to earlier UI bugs
+            let dedupMap = new Map();
+            sResp.forEach(r => {
+                let key = '';
+                if (s.type === 'custom' || s.targetAudience === 'branch') {
+                    key = String(r.branchCode || r.amName || Math.random());
+                } else {
+                    key = String(r.amName || Math.random());
+                }
+                
+                if (!dedupMap.has(key)) {
+                    dedupMap.set(key, r);
+                } else {
+                    let existing = dedupMap.get(key);
+                    let extTime = existing.submittedAt ? new Date(existing.submittedAt).getTime() : 0;
+                    let rTime = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
+                    if (rTime > extTime) dedupMap.set(key, r);
+                }
+            });
+            sResp = Array.from(dedupMap.values());
+            
             if (s.type === 'custom') {
                 let isYesNoReport = (q) => q.type === 'yesno' || (sResp && sResp.some(r => {
                     let val = getSurveyAnswerVal(r, q);
@@ -9583,6 +9604,28 @@ function saveGlobalGSUrl() {
                 console.error(e);
                 sResp = allResponses.filter(x => x.surveyId === id);
             }
+            
+            // Deduplicate sResp to handle cases where users submitted multiple times due to earlier UI bugs
+            let dedupMap = new Map();
+            sResp.forEach(r => {
+                let key = '';
+                if (s.type === 'custom' || s.targetAudience === 'branch') {
+                    key = String(r.branchCode || r.amName || Math.random());
+                } else {
+                    key = String(r.amName || Math.random());
+                }
+                
+                if (!dedupMap.has(key)) {
+                    dedupMap.set(key, r);
+                } else {
+                    let existing = dedupMap.get(key);
+                    let extTime = existing.submittedAt ? new Date(existing.submittedAt).getTime() : 0;
+                    let rTime = r.submittedAt ? new Date(r.submittedAt).getTime() : 0;
+                    if (rTime > extTime) dedupMap.set(key, r);
+                }
+            });
+            sResp = Array.from(dedupMap.values());
+            
             let csv = '';
             
             if (s.type === 'custom') {
