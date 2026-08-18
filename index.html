@@ -8916,10 +8916,16 @@ function saveGlobalGSUrl() {
                 allPayloads.forEach(p => {
                     let docRef = db.collection('survey_responses').doc();
                     batch.set(docRef, p);
+                    // Add to local memory so UI updates immediately
+                    p.id = docRef.id;
+                    allResponses.push(p);
                 });
                 await batch.commit();
+                
+                try { localStorage.setItem('cached_all_responses', JSON.stringify(allResponses)); } catch(e){}
+                
                 window.isFillingSurveyActive = false;
-                showToast('success', 'Maklum balas semua cawangan direkodkan!');
+                showToast('success', 'Maklum balas semua cawangan direkodkan! Sila sahkan di bawah.');
                 let container = document.getElementById('survey-am-list');
                 if (container) {
                     container.querySelectorAll('input, select').forEach(el => el.value = '');
@@ -8965,13 +8971,30 @@ function saveGlobalGSUrl() {
             }
 
             try {
+                let amName = currentUser.name.trim().toUpperCase();
                 await db.collection('survey_responses').add({
                     surveyId: id,
-                    amName: currentUser.name.trim().toUpperCase(),
+                    amName: amName,
                     submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     exceptionCount: count,
                     exceptions: exceptions
                 });
+                
+                // Mark survey as confirmed for this AM
+                let s = allSurveys.find(x => x.id === id);
+                if (s) {
+                    let list = s.amConfirmations || [];
+                    if (!list.includes(amName)) {
+                        list.push(amName);
+                    }
+                    s.amConfirmations = list;
+                    s.amConfirmTimes = s.amConfirmTimes || {};
+                    s.amConfirmTimes[amName] = Date.now();
+                    try { localStorage.setItem(`am_confirm_time_${id}_${amName}`, Date.now()); } catch(e){}
+                    await db.collection('surveys').doc(id).update({ amConfirmations: list, amConfirmTimes: s.amConfirmTimes });
+                    try { localStorage.setItem('cached_all_surveys', JSON.stringify(allSurveys)); } catch(e){}
+                }
+                
                 window.isFillingSurveyActive = false;
                 triggerLiveSync();
                 updateSurveyUI(true, true);
