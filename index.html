@@ -6540,8 +6540,9 @@ function saveGlobalGSUrl() {
                 if(s.night_submit_time) grouped[s.code].night_submit_time = s.night_submit_time;
                 if(s.bank1_time) grouped[s.code].bank1_time = s.bank1_time;
                 if(s.bank2_time) grouped[s.code].bank2_time = s.bank2_time;
-                if(s.daily_checklist_planogram) grouped[s.code].daily_checklist_planogram = s.daily_checklist_planogram;
-                if(s.daily_checklist_answers) grouped[s.code].daily_checklist_answers = s.daily_checklist_answers;
+                
+                grouped[s.code].daily_checklist_planogram = s.daily_checklist_planogram || "";
+                grouped[s.code].daily_checklist_answers = s.daily_checklist_answers || {};
             });
 
             if (type === 'excel') {
