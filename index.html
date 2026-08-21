@@ -4125,9 +4125,22 @@ function saveGlobalGSUrl() {
             `).join('');
         }
         window.addChecklistQuestionRow = function() {
+            let container = document.getElementById('chk-questions-list');
+            if(!container) return;
             let qid = 'q_' + Date.now();
-            window._tempChecklistQuestions.push({ id: qid, label: '', type: 'yesno' });
-            renderChecklistQuestionRows();
+            let newRowHtml = `
+                <div class="chk-q-row flex gap-2 items-center bg-slate-900 p-2 rounded border border-slate-700" data-id="${qid}">
+                    <input type="text" class="chk-q-label flex-1 bg-slate-950 text-white text-xs p-1.5 rounded border border-slate-600 outline-none" value="" placeholder="Question text...">
+                    <select class="chk-q-type w-24 bg-slate-950 text-white text-xs p-1.5 rounded border border-slate-600 outline-none">
+                        <option value="yesno" selected>Yes/No</option>
+                        <option value="number">Number</option>
+                        <option value="text">Text</option>
+                        <option value="date">Date</option>
+                    </select>
+                    <button onclick="this.parentElement.remove()" class="text-rose-500 hover:text-rose-400 p-1"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', newRowHtml);
         };
         
         function renderBranchDailyChecklist(nightRec) {
