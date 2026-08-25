@@ -4874,6 +4874,13 @@ function saveGlobalGSUrl() {
             let dashData = deduplicateSubmissionsList(dbSubmissions.filter(s => {
                 let matchDate = (mode === 'daily' ? s.date === targetDate : s.date.startsWith(targetDate));
                 if (!matchDate) return false;
+                
+                let hasFilter = (document.getElementById('filter-am') && document.getElementById('filter-am').value) ||
+                                (document.getElementById('filter-state') && document.getElementById('filter-state').value) ||
+                                (document.getElementById('filter-warehouse') && document.getElementById('filter-warehouse').value) ||
+                                (document.getElementById('filter-branch') && document.getElementById('filter-branch').value);
+                
+                if (hasFilter) return bCodes.includes(String(s.code));
                 if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation') return true;
                 if (currentUser.role === 'am') {
                     if (bCodes.length > 0) return bCodes.includes(String(s.code));
@@ -5060,6 +5067,13 @@ function saveGlobalGSUrl() {
             
             let applySubFilter = (s) => {
                 if (!isSubmissionCountable(s)) return false;
+                
+                let hasFilter = (document.getElementById('filter-am') && document.getElementById('filter-am').value) ||
+                                (document.getElementById('filter-state') && document.getElementById('filter-state').value) ||
+                                (document.getElementById('filter-warehouse') && document.getElementById('filter-warehouse').value) ||
+                                (document.getElementById('filter-branch') && document.getElementById('filter-branch').value);
+                
+                if (hasFilter) return bCodes.includes(String(s.code));
                 if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'operation') return true;
                 if (currentUser.role === 'am') {
                     if (bCodes.length > 0) return bCodes.includes(String(s.code));
