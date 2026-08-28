@@ -3085,14 +3085,19 @@ function saveGlobalGSUrl() {
             let userKeyPart = currentUser ? (currentUser.role + "_" + (currentUser.name || currentUser.id || "")) : 'anon';
             let queryKey = mode + "_" + dateStr + "_" + userKeyPart;
 
-            if (!forceRefresh && (window.activeListeners[queryKey] || window.fetchedQueries[queryKey])) {
-                if (window.fetchedQueries[queryKey] && mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr)) {
+            if (!forceRefresh && window.fetchedQueries[queryKey] && window.activeListeners[queryKey]) {
+                if (mode === 'daily' && !dbSubmissions.some(s => s.date === dateStr)) {
                     delete window.fetchedQueries[queryKey];
-                    if (window.activeListeners[queryKey]) {
-                        try { window.activeListeners[queryKey](); } catch(e){}
-                        delete window.activeListeners[queryKey];
-                    }
+                    try { window.activeListeners[queryKey](); } catch(e){}
+                    delete window.activeListeners[queryKey];
                 } else {
+                    // Clear all OTHER listeners to prevent egress leak
+                    for (let k in window.activeListeners) {
+                        if (k !== queryKey && typeof window.activeListeners[k] === 'function') {
+                            try { window.activeListeners[k](); } catch(e){}
+                            delete window.activeListeners[k];
+                        }
+                    }
                     refreshCurrentTabView();
                     if(currentTab==='dashboard' && mode === 'daily') setTimeout(() => check3DaysDropAlert(dateStr), 100);
                     return;
@@ -3155,10 +3160,12 @@ function saveGlobalGSUrl() {
                 } catch(e){}
             }
 
-            // Clear previous listener if exists
-            if (window.activeListeners[queryKey]) {
-                window.activeListeners[queryKey]();
-                delete window.activeListeners[queryKey];
+            // Clear ALL previous listeners to prevent massive egress polling leaks
+            for (let k in window.activeListeners) {
+                if (typeof window.activeListeners[k] === 'function') {
+                    try { window.activeListeners[k](); } catch(e){}
+                }
+                delete window.activeListeners[k];
             }
 
             if (fetchMode === 'monthly') {
