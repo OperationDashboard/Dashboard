@@ -6802,25 +6802,35 @@ function saveGlobalGSUrl() {
             }
             
             if (missingMonths.length > 0) {
-                let promises = missingMonths.map(mStr => {
-                    let ams = [...new Set(masterBranches.filter(b=>b.am).map(b=>String(b.am).trim().toUpperCase().replace(/\//g, '-')))];
-                    ams.push("UNASSIGNED");
-                    let exactIds = ams.map(am => mStr + "_" + am);
-                    return db.collection("monthly_summaries")
-                        .where("id", "in", exactIds)
-                        .get()
-                        .then(snap => {
+                let fetched = [];
+                for (let mStr of missingMonths) {
+                    try {
+                        let ams = [];
+                        if (amFilter) {
+                            ams = [amFilter.trim().toUpperCase().replace(/\//g, '-')];
+                        } else {
+                            ams = [...new Set(masterBranches.filter(b=>b.am).map(b=>String(b.am).trim().toUpperCase().replace(/\//g, '-')))];
+                            ams.push("UNASSIGNED");
+                        }
+                        
+                        let allMonthDocs = [];
+                        // Batch in chunks of 25 to prevent massive Postgres JSON serialization timeouts
+                        for (let i = 0; i < ams.length; i += 25) {
+                            let chunkAms = ams.slice(i, i + 25);
+                            let exactIds = chunkAms.map(am => mStr + "_" + am);
+                            
+                            let snap = await db.collection("monthly_summaries").where("id", "in", exactIds).get();
                             if (snap && snap.docs && snap.docs.length > 0) {
-                                return { mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) };
+                                allMonthDocs.push(...snap.docs.map(doc => ({ id: doc.id, data: doc.data() })));
                             }
-                            return { mStr, docs: [] };
-                        })
-                        .catch(err => {
-                            console.error("Error loading monthly summaries for " + mStr, err);
-                            return { mStr, docs: [] };
-                        });
-                });
-                let fetched = await Promise.all(promises);
+                        }
+                        fetched.push({ mStr, docs: allMonthDocs });
+                    } catch (err) {
+                        console.error("Error loading monthly summaries for " + mStr, err);
+                        fetched.push({ mStr, docs: [] });
+                    }
+                }
+                
                 fetched.forEach(item => {
                     if (item.docs && item.docs.length > 0) {
                         window._monthlySummaryCache[item.mStr] = { ts: Date.now(), docs: item.docs };
@@ -10059,10 +10069,16 @@ function saveGlobalGSUrl() {
                 // Delete existing monthly_summaries for this month sequentially to prevent connection pool exhaustion
                 let ams = [...new Set(masterBranches.filter(b=>b.am).map(b=>String(b.am).trim().toUpperCase().replace(/\//g, '-')))];
                 ams.push("UNASSIGNED");
-                let exactIds = ams.map(am => targetMonth + "_" + am);
-                let existingSummaries = await db.collection("monthly_summaries").where("id", "in", exactIds).get();
-                for (let i = 0; i < existingSummaries.docs.length; i++) {
-                    await existingSummaries.docs[i].ref.delete();
+                
+                for (let i = 0; i < ams.length; i += 25) {
+                    let chunkAms = ams.slice(i, i + 25);
+                    let exactIds = chunkAms.map(am => targetMonth + "_" + am);
+                    let existingSummaries = await db.collection("monthly_summaries").where("id", "in", exactIds).get();
+                    if (existingSummaries && existingSummaries.docs) {
+                        for (let j = 0; j < existingSummaries.docs.length; j++) {
+                            await existingSummaries.docs[j].ref.delete();
+                        }
+                    }
                 }
                 
                 // Write new summaries sequentially
