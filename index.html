@@ -2030,12 +2030,7 @@ window.onunhandledrejection = function(event) {
                 // Replaced with a 3-minute interval polling for AM/Admins only.
                 let rtChannel = null;
                 let pollTimer = null;
-                if (currentUser && currentUser.role !== 'branch' && this.col !== 'config') {
-                    let intervalMs = (currentUser.role === 'admin' || currentUser.role === 'operation') ? 180000 : 900000; // Admin 3 mins, AM 15 mins
-                    pollTimer = setInterval(() => {
-                        if (active && !document.hidden && typeof doFetch === 'function') doFetch();
-                    }, intervalMs);
-                }
+                // Auto-polling removed to prevent massive database egress & crash
 
 
                 let onVisChange = () => { if (active && !document.hidden && currentUser && currentUser.role !== 'branch') doFetch(); };
@@ -2726,34 +2721,8 @@ function saveGlobalGSUrl() {
                     }
                 }
             });
-            if (!window._configHeartbeat) {
-                window._configHeartbeat = setInterval(() => {
-                    if (!document.hidden && configListener && typeof configListener.refresh === 'function') {
-                        configListener.refresh();
-                    }
-                }, 60000);
-            }
+            // Removed _configHeartbeat and window focus/visibility polling to prevent DDOSing Supabase.
         }
-
-        let lastWinRefresh = 0;
-        window.addEventListener('focus', () => {
-            if (Date.now() - lastWinRefresh < 60000) return;
-            lastWinRefresh = Date.now();
-            if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
-            if (typeof unsubToday !== 'undefined' && unsubToday && typeof unsubToday.refresh === 'function') unsubToday.refresh();
-            if (typeof unsubNight !== 'undefined' && unsubNight && typeof unsubNight.refresh === 'function') unsubNight.refresh();
-            if (typeof unsubBank !== 'undefined' && unsubBank && typeof unsubBank.refresh === 'function') unsubBank.refresh();
-        });
-        window.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                if (Date.now() - lastWinRefresh < 60000) return;
-                lastWinRefresh = Date.now();
-                if (configListener && typeof configListener.refresh === 'function') configListener.refresh();
-                if (typeof unsubToday !== 'undefined' && unsubToday && typeof unsubToday.refresh === 'function') unsubToday.refresh();
-                if (typeof unsubNight !== 'undefined' && unsubNight && typeof unsubNight.refresh === 'function') unsubNight.refresh();
-                if (typeof unsubBank !== 'undefined' && unsubBank && typeof unsubBank.refresh === 'function') unsubBank.refresh();
-            }
-        });
         let unsubNight = null;
         function syncBranchNightData() {
             let ndate = document.getElementById('night-date') ? document.getElementById('night-date').value : todayStr;
@@ -7958,11 +7927,11 @@ function saveGlobalGSUrl() {
 
             fetchSurveyData();
             
-            let surveyPollTimer = setInterval(fetchSurveyData, 300000); // 5 minutes poll
+            // Auto survey polling removed to prevent excess egress
             
             surveyUnsubscribe = {
                 refresh: fetchSurveyData,
-                cancel: () => clearInterval(surveyPollTimer)
+                cancel: () => {}
             };
         }
         
