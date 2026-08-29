@@ -6803,19 +6803,17 @@ function saveGlobalGSUrl() {
             
             if (missingMonths.length > 0) {
                 let promises = missingMonths.map(mStr => {
+                    let ams = [...new Set(masterBranches.filter(b=>b.am).map(b=>String(b.am).trim().toUpperCase().replace(/\//g, '-')))];
+                    ams.push("UNASSIGNED");
+                    let exactIds = ams.map(am => mStr + "_" + am);
                     return db.collection("monthly_summaries")
-                        .where(firebase.firestore.FieldPath.documentId(), ">=", mStr + "_")
-                        .where(firebase.firestore.FieldPath.documentId(), "<=", mStr + "_\uf8ff")
+                        .where("id", "in", exactIds)
                         .get()
                         .then(snap => {
                             if (snap && snap.docs && snap.docs.length > 0) {
                                 return { mStr, docs: snap.docs.map(doc => ({ id: doc.id, data: doc.data() })) };
                             }
-                            return db.collection("monthly_summaries")
-                                .where("id", ">=", mStr + "_")
-                                .where("id", "<=", mStr + "_z")
-                                .get()
-                                .then(s2 => ({ mStr, docs: (s2 && s2.docs) ? s2.docs.map(doc => ({ id: doc.id, data: doc.data() })) : [] }));
+                            return { mStr, docs: [] };
                         })
                         .catch(err => {
                             console.error("Error loading monthly summaries for " + mStr, err);
@@ -10059,7 +10057,10 @@ function saveGlobalGSUrl() {
                 Swal.fire({ title: 'Deleting & Saving', text: 'Cleaning old records & saving new data...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 
                 // Delete existing monthly_summaries for this month sequentially to prevent connection pool exhaustion
-                let existingSummaries = await db.collection("monthly_summaries").where(firebase.firestore.FieldPath.documentId(), ">=", targetMonth + "_").where(firebase.firestore.FieldPath.documentId(), "<=", targetMonth + "_\uf8ff").get();
+                let ams = [...new Set(masterBranches.filter(b=>b.am).map(b=>String(b.am).trim().toUpperCase().replace(/\//g, '-')))];
+                ams.push("UNASSIGNED");
+                let exactIds = ams.map(am => targetMonth + "_" + am);
+                let existingSummaries = await db.collection("monthly_summaries").where("id", "in", exactIds).get();
                 for (let i = 0; i < existingSummaries.docs.length; i++) {
                     await existingSummaries.docs[i].ref.delete();
                 }
