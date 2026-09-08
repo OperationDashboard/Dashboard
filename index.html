@@ -2817,8 +2817,24 @@ function saveGlobalGSUrl() {
                     let sumData = await queryMonthlySummariesData(startD, endD, amName);
                     if (sumData && sumData.length > 0) {
                         sumData.forEach(item => {
-                            let k = typeof getCanonicalSubKey === 'function' ? getCanonicalSubKey(item) : (String(item.code) + "_" + String(item.date));
-                            if (k) recordMap.set(k, item);
+                            if (item.data && item.data.branches) {
+                                Object.keys(item.data.branches).forEach(bCode => {
+                                    let bData = item.data.branches[bCode];
+                                    if (bData && bData.daily) {
+                                        Object.keys(bData.daily).forEach(dayStr => {
+                                            let d = bData.daily[dayStr];
+                                            let fakeSub = {
+                                                code: bCode,
+                                                date: item.data.month + '-' + dayStr,
+                                                sales: d.s || 0, lorry: d.l || 0, mykasih: d.m || 0,
+                                                trans: d.t || 0, bank1: d.b1 || 0, bank2: d.b2 || 0,
+                                                am: bData.am || '', name: bData.name || ''
+                                            };
+                                            recordMap.set(String(bCode) + "_" + fakeSub.date, fakeSub);
+                                        });
+                                    }
+                                });
+                            }
                         });
                         sumDataLoaded = true;
                     }
@@ -2842,8 +2858,15 @@ function saveGlobalGSUrl() {
                 let fetchStart = startD;
                 let fetchEnd = endD;
                 if (sumDataLoaded) {
-                    fetchStart = (d2Str >= startD) ? d2Str : startD;
-                    fetchEnd = todayStr;
+                    if (todayStr > endD) {
+                        // Month has ended. The summary is final. No need to fetch recent raw submissions.
+                        fetchStart = null;
+                        fetchEnd = null;
+                    } else {
+                        // Current month. Fetch last 3 days to catch late/live key-ins not yet in summary.
+                        fetchStart = (d2Str >= startD) ? d2Str : startD;
+                        fetchEnd = todayStr;
+                    }
                 }
                 
                 // ANTI-EGRESS LEAK: Never fetch the full month raw unless forceRaw (PATCH DB) is true.
@@ -2861,21 +2884,10 @@ function saveGlobalGSUrl() {
 
                 if (fetchStart && fetchEnd) {
                     if (!isDaily && fetchStart !== fetchEnd && (!currentUser || currentUser.role !== 'branch')) {
-                        let intervals = [
-                            [monthStr + "-01", monthStr + "-08"],
-                            [monthStr + "-09", monthStr + "-16"],
-                            [monthStr + "-17", monthStr + "-24"],
-                            [monthStr + "-25", monthStr + "-31"]
-                        ];
-                        let queries = [];
-                        intervals.forEach(r => {
-                            if (r[0] > todayStr) return; // Skip intervals that are entirely in the future
-                            let actualEnd = (r[1] > todayStr) ? todayStr : r[1];
-                            let q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", r[0] + "_").where(firebase.firestore.FieldPath.documentId(), "<=", actualEnd + "_\uf8ff");
-                            if (amName) q = q.where("am", "==", amName);
-                            queries.push(q.get());
-                        });
-                        let snaps = await Promise.race([Promise.all(queries), timeoutPromise]);
+                        // Use actual fetchStart and fetchEnd instead of hardcoding 01 to 31!
+                        let q = db.collection("submissions").where(firebase.firestore.FieldPath.documentId(), ">=", fetchStart + "_").where(firebase.firestore.FieldPath.documentId(), "<=", fetchEnd + "_\uf8ff");
+                        if (amName) q = q.where("am", "==", amName);
+                        let snaps = await Promise.race([Promise.all([q.get()]), timeoutPromise]);
                         snaps.forEach(snap => {
                             snap.forEach(doc => {
                                 if (doc && doc.exists) {
