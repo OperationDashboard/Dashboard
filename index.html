@@ -3302,7 +3302,6 @@ function saveGlobalGSUrl() {
         }
 
         async function updateMonthlySummary(payloadData, bAm, overrideOldRec = null) {
-            return;
             if (!payloadData || !payloadData.date || !payloadData.code) return;
             let cTrim = String(payloadData.code).trim();
             let cNum = !isNaN(Number(cTrim)) ? Number(cTrim) : null;
