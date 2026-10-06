@@ -2894,16 +2894,16 @@ function saveGlobalGSUrl() {
                 let fetchStart = startD;
                 let fetchEnd = endD;
                 if (sumDataLoaded) {
-                    if (todayStr > endD) {
-                        // Month has ended. The summary is final. No need to fetch recent raw submissions.
-                        fetchStart = null;
-                        fetchEnd = null;
+                    if (!isDaily) {
+                        fetchStart = null; fetchEnd = null;
+                    } else if (todayStr > endD) {
+                        fetchStart = null; fetchEnd = null;
                     } else {
-                        // Current month. Fetch last 3 days to catch late/live key-ins not yet in summary.
                         fetchStart = (d2Str >= startD) ? d2Str : startD;
                         fetchEnd = todayStr;
                     }
-                }
+
+
                 
                 // ANTI-EGRESS LEAK: Never fetch the full month raw unless forceRaw (PATCH DB) is true.
                 if (!isDaily && !forceRaw && !sumDataLoaded) {
