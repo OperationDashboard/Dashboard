@@ -2902,8 +2902,7 @@ function saveGlobalGSUrl() {
                         fetchStart = (d2Str >= startD) ? d2Str : startD;
                         fetchEnd = todayStr;
                     }
-
-
+                }
                 
                 // ANTI-EGRESS LEAK: Never fetch the full month raw unless forceRaw (PATCH DB) is true.
                 if (!isDaily && !forceRaw && !sumDataLoaded) {
